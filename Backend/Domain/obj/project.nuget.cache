@@ -1,12 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "A5kaxUvK8ac=",
+  "dgSpecHash": "wjp53C6RwDU=",
   "success": true,
-  "projectFilePath": "E:\\Udruzenje\\Projekti\\Elenluke\\Backend\\Domain\\Domain.csproj",
-  "expectedPackageFiles": [
-    "C:\\Users\\Dimit\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.22\\microsoft.netcore.app.ref.8.0.22.nupkg.sha512",
-    "C:\\Users\\Dimit\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.22\\microsoft.windowsdesktop.app.ref.8.0.22.nupkg.sha512",
-    "C:\\Users\\Dimit\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.22\\microsoft.aspnetcore.app.ref.8.0.22.nupkg.sha512"
-  ],
+  "projectFilePath": "D:\\projekti\\Elenluke\\Backend\\Domain\\Domain.csproj",
+  "expectedPackageFiles": [],
   "logs": []
 }
