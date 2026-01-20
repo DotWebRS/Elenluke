@@ -10,3 +10,15 @@ D:\projekti\Elenluke\Backend\Domain\obj\Debug\net8.0\Domain.dll
 D:\projekti\Elenluke\Backend\Domain\obj\Debug\net8.0\refint\Domain.dll
 D:\projekti\Elenluke\Backend\Domain\obj\Debug\net8.0\Domain.pdb
 D:\projekti\Elenluke\Backend\Domain\obj\Debug\net8.0\ref\Domain.dll
+D:\projekti\aelenaluke 85\Elenluke\Backend\Domain\bin\Debug\net8.0\Domain.deps.json
+D:\projekti\aelenaluke 85\Elenluke\Backend\Domain\bin\Debug\net8.0\Domain.dll
+D:\projekti\aelenaluke 85\Elenluke\Backend\Domain\bin\Debug\net8.0\Domain.pdb
+D:\projekti\aelenaluke 85\Elenluke\Backend\Domain\obj\Debug\net8.0\Domain.GeneratedMSBuildEditorConfig.editorconfig
+D:\projekti\aelenaluke 85\Elenluke\Backend\Domain\obj\Debug\net8.0\Domain.AssemblyInfoInputs.cache
+D:\projekti\aelenaluke 85\Elenluke\Backend\Domain\obj\Debug\net8.0\Domain.AssemblyInfo.cs
+D:\projekti\aelenaluke 85\Elenluke\Backend\Domain\obj\Debug\net8.0\Domain.csproj.CoreCompileInputs.cache
+D:\projekti\aelenaluke 85\Elenluke\Backend\Domain\obj\Debug\net8.0\Domain.sourcelink.json
+D:\projekti\aelenaluke 85\Elenluke\Backend\Domain\obj\Debug\net8.0\Domain.dll
+D:\projekti\aelenaluke 85\Elenluke\Backend\Domain\obj\Debug\net8.0\refint\Domain.dll
+D:\projekti\aelenaluke 85\Elenluke\Backend\Domain\obj\Debug\net8.0\Domain.pdb
+D:\projekti\aelenaluke 85\Elenluke\Backend\Domain\obj\Debug\net8.0\ref\Domain.dll

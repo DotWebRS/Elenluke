@@ -4202,11 +4202,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\projekti\\Elenluke\\Backend\\api\\API.csproj",
+      "projectUniqueName": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\api\\API.csproj",
       "projectName": "API",
-      "projectPath": "D:\\projekti\\Elenluke\\Backend\\api\\API.csproj",
+      "projectPath": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\api\\API.csproj",
       "packagesPath": "C:\\Users\\jelen\\.nuget\\packages\\",
-      "outputPath": "D:\\projekti\\Elenluke\\Backend\\api\\obj\\",
+      "outputPath": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\api\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\jelen\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -4221,11 +4221,11 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "projectReferences": {
-            "D:\\projekti\\Elenluke\\Backend\\Application\\Application.csproj": {
-              "projectPath": "D:\\projekti\\Elenluke\\Backend\\Application\\Application.csproj"
+            "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Application\\Application.csproj": {
+              "projectPath": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Application\\Application.csproj"
             },
-            "D:\\projekti\\Elenluke\\Backend\\Infrastructure\\Infrastructure.csproj": {
-              "projectPath": "D:\\projekti\\Elenluke\\Backend\\Infrastructure\\Infrastructure.csproj"
+            "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Infrastructure\\Infrastructure.csproj": {
+              "projectPath": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Infrastructure\\Infrastructure.csproj"
             }
           }
         }

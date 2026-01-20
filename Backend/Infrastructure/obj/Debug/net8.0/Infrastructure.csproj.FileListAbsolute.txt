@@ -18,3 +18,23 @@ D:\projekti\Elenluke\Backend\Infrastructure\obj\Debug\net8.0\Infrastructure.dll
 D:\projekti\Elenluke\Backend\Infrastructure\obj\Debug\net8.0\refint\Infrastructure.dll
 D:\projekti\Elenluke\Backend\Infrastructure\obj\Debug\net8.0\Infrastructure.pdb
 D:\projekti\Elenluke\Backend\Infrastructure\obj\Debug\net8.0\ref\Infrastructure.dll
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\bin\Debug\net8.0\Infrastructure.deps.json
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\bin\Debug\net8.0\Infrastructure.dll
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\bin\Debug\net8.0\Infrastructure.pdb
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\bin\Debug\net8.0\Application.dll
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\bin\Debug\net8.0\Domain.dll
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\bin\Debug\net8.0\Persistence.dll
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\bin\Debug\net8.0\Application.pdb
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\bin\Debug\net8.0\Domain.pdb
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\bin\Debug\net8.0\Persistence.pdb
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\obj\Debug\net8.0\Infrastructure.csproj.AssemblyReference.cache
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\obj\Debug\net8.0\Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\obj\Debug\net8.0\Infrastructure.AssemblyInfoInputs.cache
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\obj\Debug\net8.0\Infrastructure.AssemblyInfo.cs
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\obj\Debug\net8.0\Infrastructure.csproj.CoreCompileInputs.cache
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\obj\Debug\net8.0\Infrastructure.sourcelink.json
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\obj\Debug\net8.0\Infrastr.15EFFBFE.Up2Date
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\obj\Debug\net8.0\Infrastructure.dll
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\obj\Debug\net8.0\refint\Infrastructure.dll
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\obj\Debug\net8.0\Infrastructure.pdb
+D:\projekti\aelenaluke 85\Elenluke\Backend\Infrastructure\obj\Debug\net8.0\ref\Infrastructure.dll

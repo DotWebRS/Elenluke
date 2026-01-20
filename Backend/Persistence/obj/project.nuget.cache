@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "Al2xmkIHTJQ=",
+  "dgSpecHash": "5A2HeVuqTyI=",
   "success": true,
-  "projectFilePath": "D:\\projekti\\Elenluke\\Backend\\Persistence\\Persistence.csproj",
+  "projectFilePath": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Persistence\\Persistence.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\jelen\\.nuget\\packages\\azure.core\\1.38.0\\azure.core.1.38.0.nupkg.sha512",
     "C:\\Users\\jelen\\.nuget\\packages\\azure.identity\\1.11.4\\azure.identity.1.11.4.nupkg.sha512",

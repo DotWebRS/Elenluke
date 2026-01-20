@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\projekti\\Elenluke\\Backend\\Persistence\\Persistence.csproj": {}
+    "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Persistence\\Persistence.csproj": {}
   },
   "projects": {
-    "D:\\projekti\\Elenluke\\Backend\\Domain\\Domain.csproj": {
+    "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Domain\\Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\projekti\\Elenluke\\Backend\\Domain\\Domain.csproj",
+        "projectUniqueName": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Domain\\Domain.csproj",
         "projectName": "Domain",
-        "projectPath": "D:\\projekti\\Elenluke\\Backend\\Domain\\Domain.csproj",
+        "projectPath": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Domain\\Domain.csproj",
         "packagesPath": "C:\\Users\\jelen\\.nuget\\packages\\",
-        "outputPath": "D:\\projekti\\Elenluke\\Backend\\Domain\\obj\\",
+        "outputPath": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Domain\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\jelen\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -62,14 +62,14 @@
         }
       }
     },
-    "D:\\projekti\\Elenluke\\Backend\\Persistence\\Persistence.csproj": {
+    "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Persistence\\Persistence.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\projekti\\Elenluke\\Backend\\Persistence\\Persistence.csproj",
+        "projectUniqueName": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Persistence\\Persistence.csproj",
         "projectName": "Persistence",
-        "projectPath": "D:\\projekti\\Elenluke\\Backend\\Persistence\\Persistence.csproj",
+        "projectPath": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Persistence\\Persistence.csproj",
         "packagesPath": "C:\\Users\\jelen\\.nuget\\packages\\",
-        "outputPath": "D:\\projekti\\Elenluke\\Backend\\Persistence\\obj\\",
+        "outputPath": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Persistence\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\jelen\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -84,8 +84,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "D:\\projekti\\Elenluke\\Backend\\Domain\\Domain.csproj": {
-                "projectPath": "D:\\projekti\\Elenluke\\Backend\\Domain\\Domain.csproj"
+              "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Domain\\Domain.csproj": {
+                "projectPath": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Domain\\Domain.csproj"
               }
             }
           }

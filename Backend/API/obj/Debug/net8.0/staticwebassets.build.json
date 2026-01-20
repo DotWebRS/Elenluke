@@ -1,6 +1,6 @@
 {
   "Version": 1,
-  "Hash": "mEFmJgu2K2xWAf08bTDTjoYrUijtiUM10/aDqMsUrAA=",
+  "Hash": "j8yDbmo48LreYfb+rGW7H7mxJ++Ou46iCKHzNNg2/RY=",
   "Source": "API",
   "BasePath": "_content/API",
   "Mode": "Default",
@@ -10,17 +10,17 @@
     {
       "Name": "API\\wwwroot",
       "Source": "API",
-      "ContentRoot": "D:\\projekti\\Elenluke\\Backend\\api\\wwwroot\\",
+      "ContentRoot": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\api\\wwwroot\\",
       "BasePath": "_content/API",
       "Pattern": "**"
     }
   ],
   "Assets": [
     {
-      "Identity": "D:\\projekti\\Elenluke\\Backend\\api\\wwwroot\\uploads\\cms\\b89f0eb9867d43a7b2ad87565ca9c76f.png",
+      "Identity": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\api\\wwwroot\\uploads\\cms\\b89f0eb9867d43a7b2ad87565ca9c76f.png",
       "SourceId": "API",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\projekti\\Elenluke\\Backend\\api\\wwwroot\\",
+      "ContentRoot": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\api\\wwwroot\\",
       "BasePath": "_content/API",
       "RelativePath": "uploads/cms/b89f0eb9867d43a7b2ad87565ca9c76f.png",
       "AssetKind": "All",
@@ -36,10 +36,10 @@
       "OriginalItemSpec": "wwwroot\\uploads\\cms\\b89f0eb9867d43a7b2ad87565ca9c76f.png"
     },
     {
-      "Identity": "D:\\projekti\\Elenluke\\Backend\\api\\wwwroot\\uploads\\cms\\cb0b7a1eddec41769c3135ca43637965.jpg",
+      "Identity": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\api\\wwwroot\\uploads\\cms\\cb0b7a1eddec41769c3135ca43637965.jpg",
       "SourceId": "API",
       "SourceType": "Discovered",
-      "ContentRoot": "D:\\projekti\\Elenluke\\Backend\\api\\wwwroot\\",
+      "ContentRoot": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\api\\wwwroot\\",
       "BasePath": "_content/API",
       "RelativePath": "uploads/cms/cb0b7a1eddec41769c3135ca43637965.jpg",
       "AssetKind": "All",

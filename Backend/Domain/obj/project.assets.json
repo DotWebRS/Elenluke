@@ -13,11 +13,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "d:\\projekti\\Elenluke\\Backend\\Domain\\Domain.csproj",
+      "projectUniqueName": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Domain\\Domain.csproj",
       "projectName": "Domain",
-      "projectPath": "d:\\projekti\\Elenluke\\Backend\\Domain\\Domain.csproj",
+      "projectPath": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Domain\\Domain.csproj",
       "packagesPath": "C:\\Users\\jelen\\.nuget\\packages\\",
-      "outputPath": "d:\\projekti\\Elenluke\\Backend\\Domain\\obj\\",
+      "outputPath": "D:\\projekti\\aelenaluke 85\\Elenluke\\Backend\\Domain\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\jelen\\AppData\\Roaming\\NuGet\\NuGet.Config"
