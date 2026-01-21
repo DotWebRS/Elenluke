@@ -1,0 +1,6 @@
+# .NET build output
+**/bin/
+**/obj/
+
+# zips / large archives (po želji)
+*.zip
