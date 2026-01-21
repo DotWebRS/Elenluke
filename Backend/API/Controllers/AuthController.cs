@@ -25,19 +25,23 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public IActionResult Login([FromBody] LoginRequest request)
     {
+        var username = (request.Username ?? string.Empty).Trim();
+        var password = request.Password ?? string.Empty;
+
         var user = _db.Users.AsNoTracking()
-            .FirstOrDefault(x => x.IsActive && x.Email == request.Username);
+            .FirstOrDefault(x => x.IsActive && x.Email.ToLower() == username.ToLower());
 
-        if (user == null)
-            return Unauthorized();
+        if (user == null) return Unauthorized();
+        if (!PasswordHasher.Verify(password, user.PasswordHash)) return Unauthorized();
 
-        if (!PasswordHasher.Verify(request.Password, user.PasswordHash))
-            return Unauthorized();
-
+        // OBA formata claim-a (da ne zavisiš od konfiguracije RoleClaimType/NameClaimType)
         var claims = new[]
         {
             new Claim(ClaimTypes.Name, user.Email),
-            new Claim(ClaimTypes.Role, user.Role)
+            new Claim(ClaimTypes.Role, user.Role),
+
+            new Claim("email", user.Email),
+            new Claim("role", user.Role)
         };
 
         var key = new SymmetricSecurityKey(
@@ -52,7 +56,6 @@ public class AuthController : ControllerBase
             signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256)
         );
 
-
         return Ok(new
         {
             token = new JwtSecurityTokenHandler().WriteToken(token),
@@ -60,8 +63,6 @@ public class AuthController : ControllerBase
             email = user.Email
         });
     }
-
-
 }
 
 public class LoginRequest

@@ -195,6 +195,7 @@ public class SubmissionsController : ControllerBase
     [Authorize(Roles = "Admin,Inbox")]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? search,
+        [FromQuery] string? domain,
         [FromQuery] SubmissionStatus? status,
         [FromQuery] SubmissionType? type,
         [FromQuery] DateTime? from,
@@ -518,6 +519,7 @@ public class SubmissionsController : ControllerBase
         [FromQuery] DateTime? to)
     {
         IQueryable<Submission> query = _db.Submissions.AsNoTracking();
+
 
         if (status.HasValue)
             query = query.Where(s => s.Status == status.Value);

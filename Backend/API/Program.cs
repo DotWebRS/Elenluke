@@ -10,7 +10,7 @@ using Domain.Entities;
 using API.Services;
 using Microsoft.OpenApi.Models;
 using Microsoft.OpenApi;
-
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,12 +50,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
-        ),
-            RoleClaimType = "role",
-            NameClaimType = "email"
-        };
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
+            ),
 
+            // KLJUČNO: standardni claim-ovi koje JWT najčešće nosi
+            RoleClaimType = ClaimTypes.Role,
+            NameClaimType = ClaimTypes.Name
+        };
     });
 
 builder.Services.AddAuthorization();
@@ -86,12 +87,10 @@ builder.Services.AddSwaggerGen(c =>
                     Id = "Bearer"
                 }
             },
-            Array.Empty<string>()
+            new string[] { }
         }
     });
 });
-
-
 
 var app = builder.Build();
 
@@ -104,24 +103,23 @@ using (var scope = app.Services.CreateScope())
     var seedPass = builder.Configuration["Admin:Password"] ?? "admin123";
 
     var admin = db.Users.FirstOrDefault(u => u.Email == seedUser);
-
     if (admin == null)
     {
         admin = new User
         {
             Id = Guid.NewGuid(),
+            CreatedAt = DateTime.UtcNow,
             Email = seedUser,
-            PasswordHash = PasswordHasher.Hash(seedPass),
             Role = "Admin",
             IsActive = true,
-            CreatedAt = DateTime.UtcNow
+            PasswordHash = PasswordHasher.Hash(seedPass)
         };
+
         db.Users.Add(admin);
         db.SaveChanges();
     }
     else
     {
-
         if (!admin.IsActive)
         {
             admin.IsActive = true;
@@ -130,8 +128,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-
-Directory.CreateDirectory(Path.Combine(app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"), "uploads"));
+Directory.CreateDirectory(Path.Combine(app.Environment.WebRootPath, "uploads"));
 Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "uploads_private"));
 
 app.UseCors("AllowFrontend");
