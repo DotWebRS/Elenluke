@@ -1,15 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
-import { ADMIN_SITES } from "./adminSites";
+import { ADMIN_SITES, type AdminSiteKey } from "./adminSites";
 import { useAdminSite } from "./useAdminSite";
 import "../../AdminCms.css";
-import type { AdminSiteKey } from "./adminSites";
-
 import { API_BASE } from "../../config/apiBase";
 
-/** =========================
- *  Types
- *  ========================= */
 type HeroCms = {
   prefixes: [string, string, string];
   typeWords: [string, string, string];
@@ -26,15 +21,15 @@ type CmsArtist = {
   id: string;
   name: string;
   bio: string;
-  image: string; // url or dataURL
+  image: string;
   spotifyUrl: string;
-  tracks: CmsTrack[]; // always 5
+  tracks: CmsTrack[];
 };
 
 type CmsRosterPayload = { artists: CmsArtist[] };
 
 type CmsHomeArtistsPayload = {
-  top3: string[]; // ids from roster, ordered
+  top3: string[];
 };
 
 type ServicesItem = { title: string; text: string };
@@ -55,36 +50,17 @@ type CmsSyncPayload = {
   t3: string;
 };
 
-// NEW: Brands for PMG homepage
-type BrandCardItem = {
-  id: string;
-  key: string;
-  title: string;
-  desc: string;
-  logoSrc: string;
-  href: string;
-};
-
-type CmsBrandsPayload = { items: BrandCardItem[] };
-
-/** =========================
- *  CMS Keys
- *  ========================= */
 const CMS_KEYS = {
   hero: "home.hero",
   about: "home.about",
   services: "home.services",
-  homeArtists: "home.artists", // { top3: [...] }
+  homeArtists: "home.artists",
   roster: "artists.roster",
   faq: "home.faq",
   partners: "home.partners",
   syncText: "home.syncText",
-  brands: "home.brands", // NEW
 };
 
-/** =========================
- *  Defaults
- *  ========================= */
 const DEFAULT_HERO: HeroCms = {
   prefixes: ["BUILT FOR", "EMPOWERING", "ELEVATING"],
   typeWords: ["SONGWRITERS.", "CREATORS.", "TALENT."],
@@ -157,16 +133,8 @@ const DEFAULT_SERVICES: CmsServicesPayload = {
 
 const DEFAULT_FAQ: CmsFaqPayload = {
   items: [
-    {
-      id: newId("faq"),
-      q: "WHAT IS MUSIC PUBLISHING?",
-      a: "Publishing covers songwriting rights administration.",
-    },
-    {
-      id: newId("faq"),
-      q: "HOW CAN YOU SUPPORT ME?",
-      a: "We register works, manage rights, and collect royalties.",
-    },
+    { id: newId("faq"), q: "WHAT IS MUSIC PUBLISHING?", a: "Publishing covers songwriting rights administration." },
+    { id: newId("faq"), q: "HOW CAN YOU SUPPORT ME?", a: "We register works, manage rights, and collect royalties." },
   ],
 };
 
@@ -187,39 +155,6 @@ const DEFAULT_SYNC: CmsSyncPayload = {
   t3: "From trending digital sounds to bespoke compositions—built for your audience and your brief.",
 };
 
-// NEW: default brands for PMG BrandCarousel
-const DEFAULT_BRANDS: CmsBrandsPayload = {
-  items: [
-    {
-      id: newId("brand"),
-      key: "records",
-      title: "Purple Crunch Records",
-      desc: "The artist-facing label dedicated to releases, campaigns, and growth in the digital era.",
-      logoSrc: "/record.png",
-      href: "https://purplecrunchrecords.com/",
-    },
-    {
-      id: newId("brand"),
-      key: "pmg",
-      title: "BIGBITE Agency",
-      desc: "At BIGBITE are specialists in TikTok-first music marketing. Focus on turning emerging audio into viral moments on the platform, while also offering marketing across other key channels when needed.",
-      logoSrc: "/BIGBITE.png",
-      href: "https://bigbiteagency.com/",
-    },
-    {
-      id: newId("brand"),
-      key: "publishing",
-      title: "Purple Crunch Publishing",
-      desc: "The creative backbone of the Purple Crunch ecosystem for writers, producers, and artists who define the sound of the digital generation.",
-      logoSrc: "/publishing.png",
-      href: "https://purplecrunchpublishing.com/",
-    },
-  ],
-};
-
-/** =========================
- *  Helpers
- *  ========================= */
 function safeJsonParse<T>(s: any, fallback: T): T {
   try {
     if (!s) return fallback;
@@ -265,20 +200,6 @@ function ensureArtistIds(payload: CmsRosterPayload): CmsRosterPayload {
   return { artists };
 }
 
-// NEW: normalize brands payload da stari zapisi bez id-a ne puknu
-function ensureBrands(payload: CmsBrandsPayload | null | undefined): CmsBrandsPayload {
-  const items = (payload?.items ?? []).map((b: any) => ({
-    id: b?.id || newId("brand"),
-    key: b?.key ?? "",
-    title: b?.title ?? "",
-    desc: b?.desc ?? "",
-    logoSrc: b?.logoSrc ?? "",
-    href: b?.href ?? "",
-  }));
-  if (!items.length) return DEFAULT_BRANDS;
-  return { items };
-}
-
 async function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -288,25 +209,71 @@ async function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-/** =========================
- *  Component
- *  ========================= */
+
+function resolvePreviewSrc(src: string) {
+  const s = (src || "").trim();
+  if (!s) return "";
+
+  if (s.startsWith("data:") || s.startsWith("blob:") || /^https?:\/\//i.test(s)) return s;
+
+  if (s.startsWith("/")) {
+    const base = String(API_BASE || "").replace(/\/+$/, "");
+    return base ? `${base}${s}` : s;
+  }
+
+  return s;
+}
+
+
+function ImagePreview({ src, alt }: { src: string; alt: string }) {
+  const s = resolvePreviewSrc(src);
+  if (!s) return null;
+  return (
+    <div
+      style={{
+        marginTop: 8,
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+      }}
+    >
+      <div
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: 10,
+          overflow: "hidden",
+          border: "1px solid rgba(0,0,0,0.12)",
+          background: "rgba(0,0,0,0.03)",
+          flex: "0 0 auto",
+        }}
+      >
+        <img
+          src={s}
+          alt={alt}
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          loading="lazy"
+          decoding="async"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).style.display = "none";
+          }}
+        />
+      </div>
+      <div style={{ fontSize: 12, opacity: 0.72, overflow: "hidden", textOverflow: "ellipsis" }}>{s}</div>
+    </div>
+  );
+}
+
 export default function AdminCms() {
   const location = useLocation();
-
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const { site, setSite } = useAdminSite();
   const token = localStorage.getItem("token") || "";
+
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
-
-  useEffect(() => {
-    if (!msg) return;
-    const t = window.setTimeout(() => setMsg(null), 1500);
-    return () => window.clearTimeout(t);
-  }, [msg]);
-
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [hero, setHero] = useState<HeroCms>(DEFAULT_HERO);
   const [about, setAbout] = useState<AboutCms>(DEFAULT_ABOUT);
@@ -316,13 +283,9 @@ export default function AdminCms() {
   const [faq, setFaq] = useState<CmsFaqPayload>(DEFAULT_FAQ);
   const [partners, setPartners] = useState<CmsPartnersPayload>(DEFAULT_PARTNERS);
   const [syncText, setSyncText] = useState<CmsSyncPayload>(DEFAULT_SYNC);
-  // NEW: brands state
-  const [brands, setBrands] = useState<CmsBrandsPayload>(DEFAULT_BRANDS);
-
-  const [loading, setLoading] = useState(true);
 
   const [openSection, setOpenSection] = useState<
-    "hero" | "about" | "artists" | "services" | "sync" | "partners" | "brands" | "faq" | null
+    "hero" | "about" | "artists" | "services" | "sync" | "partners" | "faq" | null
   >(null);
 
   const [openArtistId, setOpenArtistId] = useState<string | null>(null);
@@ -330,9 +293,33 @@ export default function AdminCms() {
   const [newArtistId, setNewArtistId] = useState<string | null>(null);
   const [newFaqId, setNewFaqId] = useState<string | null>(null);
   const [newPartnerId, setNewPartnerId] = useState<string | null>(null);
-  const [newBrandId, setNewBrandId] = useState<string | null>(null); // NEW
 
   const scrollRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const [artistPreview, setArtistPreview] = useState<Record<string, string>>({});
+  const [partnerPreview, setPartnerPreview] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    return () => {
+      Object.values(artistPreview).forEach((u) => URL.revokeObjectURL(u));
+      Object.values(partnerPreview).forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [artistPreview, partnerPreview]);
+
+  const setLocalPreview = (kind: "artist" | "partner", id: string, file: File) => {
+    const url = URL.createObjectURL(file);
+    if (kind === "artist") {
+      setArtistPreview((p) => ({ ...p, [id]: url }));
+    } else {
+      setPartnerPreview((p) => ({ ...p, [id]: url }));
+    }
+  };
+
+  useEffect(() => {
+    if (!msg) return;
+    const t = window.setTimeout(() => setMsg(null), 1500);
+    return () => window.clearTimeout(t);
+  }, [msg]);
 
   useEffect(() => {
     const fromUrl = params.get("site");
@@ -360,7 +347,6 @@ export default function AdminCms() {
   );
 
   const cmsGet = async (key: string) => {
-    // ako site još nije postavljen, ne pokušavaj da učitaš
     if (!site) return null;
 
     const url = buildUrl(
@@ -415,7 +401,6 @@ export default function AdminCms() {
   useEffect(() => {
     let alive = true;
 
-    // ako nemamo site, nemoj da pokušavaš fetch
     if (!site) {
       setLoading(false);
       return () => {
@@ -428,14 +413,13 @@ export default function AdminCms() {
 
     (async () => {
       try {
-        const [h, a, sv, f, p, s, br] = await Promise.all([
+        const [h, a, sv, f, p, s] = await Promise.all([
           loadOne<HeroCms>(CMS_KEYS.hero, DEFAULT_HERO),
           loadOne<AboutCms>(CMS_KEYS.about, DEFAULT_ABOUT),
           loadOne<CmsServicesPayload>(CMS_KEYS.services, DEFAULT_SERVICES),
           loadOne<CmsFaqPayload>(CMS_KEYS.faq, DEFAULT_FAQ),
           loadOne<CmsPartnersPayload>(CMS_KEYS.partners, DEFAULT_PARTNERS),
           loadOne<CmsSyncPayload>(CMS_KEYS.syncText, DEFAULT_SYNC),
-          loadOne<CmsBrandsPayload>(CMS_KEYS.brands, DEFAULT_BRANDS),
         ]);
 
         const rosterRaw = await loadOne<any>(CMS_KEYS.roster, null as any);
@@ -481,12 +465,6 @@ export default function AdminCms() {
           });
         }
 
-        if (br) {
-          setBrands(ensureBrands(br));
-        } else {
-          setBrands(DEFAULT_BRANDS);
-        }
-
         if (s) setSyncText(s);
 
         setRoster(finalRoster);
@@ -525,7 +503,6 @@ export default function AdminCms() {
         cmsPut(CMS_KEYS.faq, faq),
         cmsPut(CMS_KEYS.partners, partners),
         cmsPut(CMS_KEYS.syncText, syncText),
-        cmsPut(CMS_KEYS.brands, brands),
       ]);
 
       setHomeArtists(normalizedHomeArtists);
@@ -553,7 +530,7 @@ export default function AdminCms() {
         return data?.url || data?.path || data?.filePath || data?.publicUrl || "";
       }
     } catch {
-      // ignore and fallback
+      //
     }
 
     return readFileAsDataUrl(file);
@@ -602,6 +579,12 @@ export default function AdminCms() {
 
       setHomeArtists((ha) => ({ top3: ha.top3.filter((id) => id !== removed) }));
       if (openArtistId === removed) setOpenArtistId(null);
+
+      setArtistPreview((p) => {
+        const next = { ...p };
+        if (removed) delete next[removed];
+        return next;
+      });
 
       return { artists: nextArtists };
     });
@@ -691,43 +674,15 @@ export default function AdminCms() {
 
   const removePartner = (id: string) => {
     setPartners((prev) => ({ items: prev.items.filter((x) => x.id !== id) }));
+    setPartnerPreview((p) => {
+      const next = { ...p };
+      delete next[id];
+      return next;
+    });
   };
 
   const movePartner = (from: number, to: number) => {
     setPartners((prev) => ({ items: moveItem(prev.items, from, to) }));
-  };
-
-  // NEW: helpers za brands
-  const updateBrand = (id: string, patch: Partial<BrandCardItem>) => {
-    setBrands((prev) => ({
-      items: prev.items.map((x) => (x.id === id ? { ...x, ...patch } : x)),
-    }));
-  };
-
-  const addBrand = () => {
-    const it: BrandCardItem = {
-      id: newId("brand"),
-      key: "",
-      title: "New Brand",
-      desc: "",
-      logoSrc: "",
-      href: "",
-    };
-    setBrands((prev) => ({ items: [it, ...prev.items] }));
-    setNewBrandId(it.id);
-
-    setTimeout(() => {
-      const el = scrollRefs.current[it.id];
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 60);
-  };
-
-  const removeBrand = (id: string) => {
-    setBrands((prev) => ({ items: prev.items.filter((x) => x.id !== id) }));
-  };
-
-  const moveBrand = (from: number, to: number) => {
-    setBrands((prev) => ({ items: moveItem(prev.items, from, to) }));
   };
 
   const toggleSection = (k: typeof openSection) => {
@@ -735,7 +690,6 @@ export default function AdminCms() {
     setNewArtistId(null);
     setNewFaqId(null);
     setNewPartnerId(null);
-    setNewBrandId(null);
   };
 
   if (loading) {
@@ -745,7 +699,6 @@ export default function AdminCms() {
           <div className="cms-header cms-header--fluid">
             <div className="cms-title">Admin CMS: {siteLabel}</div>
           </div>
-
           <div className="cms-loading">Loading CMS…</div>
         </div>
       </div>
@@ -756,9 +709,12 @@ export default function AdminCms() {
     <div className="cms-root">
       <div className="cms-shell">
         <div className="cms-header">
-          <div>
-            <div className="cms-title">Admin CMS: {siteLabel}</div>
-            <div className="cms-subtitle">Purple Crunch Publishing</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        
+            <div>
+              <div className="cms-title">Admin CMS: {siteLabel}</div>
+              <div className="cms-subtitle">Purple Crunch Publishing</div>
+            </div>
           </div>
 
           <div className="cms-actions">
@@ -770,10 +726,8 @@ export default function AdminCms() {
                 setSite(next as any);
 
                 if (next === "purple-music-group") {
-                  // idi na AdminPMG
                   navigate(`/admin/pmg?site=${encodeURIComponent(next)}`);
                 } else {
-                  // svi ostali ostaju na AdminCms
                   navigate(`/admin/cms?site=${encodeURIComponent(next)}`);
                 }
               }}
@@ -784,7 +738,6 @@ export default function AdminCms() {
                 </option>
               ))}
             </select>
-
 
             <button className="cms-btn cms-btn--primary" onClick={saveAll} disabled={saving}>
               {saving ? "Saving…" : "Save all"}
@@ -798,12 +751,8 @@ export default function AdminCms() {
           )}
         </div>
 
-        <div className="cms-sections">
-          <AccordionHeader
-            title="Hero"
-            open={openSection === "hero"}
-            onToggle={() => toggleSection("hero")}
-          />
+        <div className="cms-sections" style={{ marginTop: 0 }}>
+          <AccordionHeader title="Hero" open={openSection === "hero"} onToggle={() => toggleSection("hero")} />
           {openSection === "hero" && (
             <div className="cms-panel">
               <div className="cms-grid3">
@@ -812,10 +761,7 @@ export default function AdminCms() {
                     className="cms-input"
                     value={hero.prefixes[0]}
                     onChange={(e) =>
-                      setHero((p) => ({
-                        ...p,
-                        prefixes: [e.target.value, p.prefixes[1], p.prefixes[2]],
-                      }))
+                      setHero((p) => ({ ...p, prefixes: [e.target.value, p.prefixes[1], p.prefixes[2]] }))
                     }
                   />
                 </Field>
@@ -824,10 +770,7 @@ export default function AdminCms() {
                     className="cms-input"
                     value={hero.prefixes[1]}
                     onChange={(e) =>
-                      setHero((p) => ({
-                        ...p,
-                        prefixes: [p.prefixes[0], e.target.value, p.prefixes[2]],
-                      }))
+                      setHero((p) => ({ ...p, prefixes: [p.prefixes[0], e.target.value, p.prefixes[2]] }))
                     }
                   />
                 </Field>
@@ -836,10 +779,7 @@ export default function AdminCms() {
                     className="cms-input"
                     value={hero.prefixes[2]}
                     onChange={(e) =>
-                      setHero((p) => ({
-                        ...p,
-                        prefixes: [p.prefixes[0], p.prefixes[1], e.target.value],
-                      }))
+                      setHero((p) => ({ ...p, prefixes: [p.prefixes[0], p.prefixes[1], e.target.value] }))
                     }
                   />
                 </Field>
@@ -851,10 +791,7 @@ export default function AdminCms() {
                     className="cms-input"
                     value={hero.typeWords[0]}
                     onChange={(e) =>
-                      setHero((p) => ({
-                        ...p,
-                        typeWords: [e.target.value, p.typeWords[1], p.typeWords[2]],
-                      }))
+                      setHero((p) => ({ ...p, typeWords: [e.target.value, p.typeWords[1], p.typeWords[2]] }))
                     }
                   />
                 </Field>
@@ -863,10 +800,7 @@ export default function AdminCms() {
                     className="cms-input"
                     value={hero.typeWords[1]}
                     onChange={(e) =>
-                      setHero((p) => ({
-                        ...p,
-                        typeWords: [p.typeWords[0], e.target.value, p.typeWords[2]],
-                      }))
+                      setHero((p) => ({ ...p, typeWords: [p.typeWords[0], e.target.value, p.typeWords[2]] }))
                     }
                   />
                 </Field>
@@ -875,10 +809,7 @@ export default function AdminCms() {
                     className="cms-input"
                     value={hero.typeWords[2]}
                     onChange={(e) =>
-                      setHero((p) => ({
-                        ...p,
-                        typeWords: [p.typeWords[0], p.typeWords[1], e.target.value],
-                      }))
+                      setHero((p) => ({ ...p, typeWords: [p.typeWords[0], p.typeWords[1], e.target.value] }))
                     }
                   />
                 </Field>
@@ -894,11 +825,7 @@ export default function AdminCms() {
             </div>
           )}
 
-          <AccordionHeader
-            title="About"
-            open={openSection === "about"}
-            onToggle={() => toggleSection("about")}
-          />
+          <AccordionHeader title="About" open={openSection === "about"} onToggle={() => toggleSection("about")} />
           {openSection === "about" && (
             <div className="cms-panel">
               <Field label="Paragraph 1 (main)">
@@ -918,20 +845,14 @@ export default function AdminCms() {
             </div>
           )}
 
-          <AccordionHeader
-            title="Artist "
-            open={openSection === "artists"}
-            onToggle={() => toggleSection("artists")}
-          />
+          <AccordionHeader title="Artist " open={openSection === "artists"} onToggle={() => toggleSection("artists")} />
           {openSection === "artists" && (
             <div className="cms-panel">
               <div className="cms-block">
                 <div className="cms-block__head">
                   <div>
                     <div className="cms-block__title">Main page (choose Top 3 and order)</div>
-                    <div className="cms-block__desc">
-                      Pick 3 existing artists from roster and reorder with arrows.
-                    </div>
+                    <div className="cms-block__desc">Pick 3 existing artists from roster and reorder with arrows.</div>
                   </div>
                   <button className="cms-btn" onClick={autoFillTop3} type="button">
                     Auto-fill
@@ -956,20 +877,10 @@ export default function AdminCms() {
                     </select>
 
                     <div className="cms-row__actions">
-                      <button
-                        className="cms-iconbtn"
-                        disabled={i === 0}
-                        onClick={() => moveTop3(i, i - 1)}
-                        type="button"
-                      >
+                      <button className="cms-iconbtn" disabled={i === 0} onClick={() => moveTop3(i, i - 1)} type="button">
                         ↑
                       </button>
-                      <button
-                        className="cms-iconbtn"
-                        disabled={i === 2}
-                        onClick={() => moveTop3(i, i + 1)}
-                        type="button"
-                      >
+                      <button className="cms-iconbtn" disabled={i === 2} onClick={() => moveTop3(i, i + 1)} type="button">
                         ↓
                       </button>
                     </div>
@@ -977,10 +888,7 @@ export default function AdminCms() {
                 ))}
 
                 <div className="cms-muted">
-                  Preview:{" "}
-                  {top3Artists.length
-                    ? top3Artists.map((a) => a.name).join(" • ")
-                    : "Top 3 not selected yet"}
+                  Preview: {top3Artists.length ? top3Artists.map((a) => a.name).join(" • ") : "Top 3 not selected yet"}
                 </div>
               </div>
 
@@ -989,18 +897,13 @@ export default function AdminCms() {
                   <div>
                     <div className="cms-block__title">Artist roster</div>
                     <div className="cms-block__desc">
-                      Each artist has: name, spotify URL, image (URL or upload), bio, and 5
-                      tracks (title and URL).
+                      Each artist has: name, spotify URL, image (URL or upload), bio, and 5 tracks (title and URL).
                     </div>
                   </div>
 
                   <div className="cms-inline">
                     <div className="cms-badge">Count: {roster.artists.length}</div>
-                    <button
-                      className="cms-btn cms-btn--primary"
-                      onClick={addRosterArtist}
-                      type="button"
-                    >
+                    <button className="cms-btn cms-btn--primary" onClick={addRosterArtist} type="button">
                       + Add artist
                     </button>
                   </div>
@@ -1010,6 +913,7 @@ export default function AdminCms() {
                   {roster.artists.map((a, i) => {
                     const open = openArtistId === a.id;
                     const isNew = newArtistId === a.id;
+                    const previewSrc = artistPreview[a.id] || a.image;
 
                     return (
                       <div
@@ -1025,9 +929,7 @@ export default function AdminCms() {
                         <div className="cms-card__head">
                           <button
                             className="cms-plus"
-                            onClick={() =>
-                              setOpenArtistId((prev) => (prev === a.id ? null : a.id))
-                            }
+                            onClick={() => setOpenArtistId((prev) => (prev === a.id ? null : a.id))}
                             aria-label="Toggle artist"
                             type="button"
                           >
@@ -1036,18 +938,11 @@ export default function AdminCms() {
 
                           <div className="cms-card__title">
                             <div className="cms-card__index">#{i + 1}</div>
-                            <div className="cms-card__name">
-                              {a.name || "Untitled artist"}
-                            </div>
+                            <div className="cms-card__name">{a.name || "Untitled artist"}</div>
                           </div>
 
                           <div className="cms-card__actions">
-                            <button
-                              className="cms-iconbtn"
-                              disabled={i === 0}
-                              onClick={() => moveRosterArtist(i, i - 1)}
-                              type="button"
-                            >
+                            <button className="cms-iconbtn" disabled={i === 0} onClick={() => moveRosterArtist(i, i - 1)} type="button">
                               ↑
                             </button>
                             <button
@@ -1059,11 +954,7 @@ export default function AdminCms() {
                               ↓
                             </button>
 
-                            <button
-                              className="cms-btn cms-btn--danger"
-                              onClick={() => removeRosterArtist(i)}
-                              type="button"
-                            >
+                            <button className="cms-btn cms-btn--danger" onClick={() => removeRosterArtist(i)} type="button">
                               Delete
                             </button>
                           </div>
@@ -1076,9 +967,7 @@ export default function AdminCms() {
                                 <input
                                   className="cms-input"
                                   value={a.name}
-                                  onChange={(e) =>
-                                    updateRosterArtist(i, { name: e.target.value })
-                                  }
+                                  onChange={(e) => updateRosterArtist(i, { name: e.target.value })}
                                 />
                               </Field>
 
@@ -1086,11 +975,7 @@ export default function AdminCms() {
                                 <input
                                   className="cms-input"
                                   value={a.spotifyUrl}
-                                  onChange={(e) =>
-                                    updateRosterArtist(i, {
-                                      spotifyUrl: e.target.value,
-                                    })
-                                  }
+                                  onChange={(e) => updateRosterArtist(i, { spotifyUrl: e.target.value })}
                                 />
                               </Field>
                             </div>
@@ -1100,10 +985,9 @@ export default function AdminCms() {
                                 <input
                                   className="cms-input"
                                   value={a.image}
-                                  onChange={(e) =>
-                                    updateRosterArtist(i, { image: e.target.value })
-                                  }
+                                  onChange={(e) => updateRosterArtist(i, { image: e.target.value })}
                                 />
+                                <ImagePreview src={previewSrc} alt={`${a.name} preview`} />
                               </Field>
 
                               <Field label="Upload image">
@@ -1112,10 +996,22 @@ export default function AdminCms() {
                                   type="file"
                                   accept="image/*"
                                   onChange={async (e) => {
-                                    const f = (e.target as HTMLInputElement).files?.[0];
+                                    const input = e.target as HTMLInputElement;
+                                    const f = input.files?.[0];
                                     if (!f) return;
+
+                                    setLocalPreview("artist", a.id, f);
+                                    input.value = "";
+
                                     const url = await uploadImage(f);
-                                    if (url) updateRosterArtist(i, { image: url });
+                                    if (url) {
+                                      updateRosterArtist(i, { image: url });
+                                      setArtistPreview((p) => {
+                                        const next = { ...p };
+                                        delete next[a.id];
+                                        return next;
+                                      });
+                                    }
                                   }}
                                 />
                               </Field>
@@ -1125,43 +1021,30 @@ export default function AdminCms() {
                               <textarea
                                 className="cms-textarea"
                                 value={a.bio}
-                                onChange={(e) =>
-                                  updateRosterArtist(i, { bio: e.target.value })
-                                }
+                                onChange={(e) => updateRosterArtist(i, { bio: e.target.value })}
                               />
                             </Field>
 
                             <div className="cms-divider" />
 
-                            <div
-                              className="cms-block__title"
-                              style={{ marginBottom: 10 }}
-                            >
+                            <div className="cms-block__title" style={{ marginBottom: 10 }}>
                               Tracks (5)
                             </div>
 
                             <div className="cms-tracks">
                               {Array.from({ length: 5 }).map((_, ti) => (
                                 <div key={ti} className="cms-trackrow">
-                                  <div className="cms-trackrow__label">
-                                    Track {ti + 1}
-                                  </div>
+                                  <div className="cms-trackrow__label">Track {ti + 1}</div>
                                   <input
                                     className="cms-input"
-                                    value={
-                                      a.tracks?.[ti]?.title ?? `Track ${ti + 1}`
-                                    }
-                                    onChange={(e) =>
-                                      updateTrack(i, ti, { title: e.target.value })
-                                    }
+                                    value={a.tracks?.[ti]?.title ?? `Track ${ti + 1}`}
+                                    onChange={(e) => updateTrack(i, ti, { title: e.target.value })}
                                     placeholder={`Track ${ti + 1} title`}
                                   />
                                   <input
                                     className="cms-input"
                                     value={a.tracks?.[ti]?.url ?? ""}
-                                    onChange={(e) =>
-                                      updateTrack(i, ti, { url: e.target.value })
-                                    }
+                                    onChange={(e) => updateTrack(i, ti, { url: e.target.value })}
                                     placeholder="Spotify track URL"
                                   />
                                 </div>
@@ -1177,11 +1060,7 @@ export default function AdminCms() {
             </div>
           )}
 
-          <AccordionHeader
-            title="Services"
-            open={openSection === "services"}
-            onToggle={() => toggleSection("services")}
-          />
+          <AccordionHeader title="Services" open={openSection === "services"} onToggle={() => toggleSection("services")} />
           {openSection === "services" && (
             <div className="cms-panel">
               <div className="cms-block__head">
@@ -1197,18 +1076,11 @@ export default function AdminCms() {
                     <div className="cms-card__head">
                       <div className="cms-card__title">
                         <div className="cms-card__index">#{i + 1}</div>
-                        <div className="cms-card__name">
-                          {it.title || "Service"}
-                        </div>
+                        <div className="cms-card__name">{it.title || "Service"}</div>
                       </div>
 
                       <div className="cms-card__actions">
-                        <button
-                          className="cms-iconbtn"
-                          disabled={i === 0}
-                          onClick={() => moveService(i, i - 1)}
-                          type="button"
-                        >
+                        <button className="cms-iconbtn" disabled={i === 0} onClick={() => moveService(i, i - 1)} type="button">
                           ↑
                         </button>
 
@@ -1221,11 +1093,7 @@ export default function AdminCms() {
                           ↓
                         </button>
 
-                        <button
-                          className="cms-btn cms-btn--danger"
-                          onClick={() => removeService(i)}
-                          type="button"
-                        >
+                        <button className="cms-btn cms-btn--danger" onClick={() => removeService(i)} type="button">
                           Delete
                         </button>
                       </div>
@@ -1234,23 +1102,11 @@ export default function AdminCms() {
                     <div className="cms-card__body">
                       <div className="cms-grid2">
                         <Field label="Title">
-                          <input
-                            className="cms-input"
-                            value={it.title ?? ""}
-                            onChange={(e) =>
-                              updateService(i, { title: e.target.value })
-                            }
-                          />
+                          <input className="cms-input" value={it.title ?? ""} onChange={(e) => updateService(i, { title: e.target.value })} />
                         </Field>
 
                         <Field label="Text">
-                          <textarea
-                            className="cms-textarea"
-                            value={it.text ?? ""}
-                            onChange={(e) =>
-                              updateService(i, { text: e.target.value })
-                            }
-                          />
+                          <textarea className="cms-textarea" value={it.text ?? ""} onChange={(e) => updateService(i, { text: e.target.value })} />
                         </Field>
                       </div>
                     </div>
@@ -1260,94 +1116,44 @@ export default function AdminCms() {
             </div>
           )}
 
-          <AccordionHeader
-            title="Sync"
-            open={openSection === "sync"}
-            onToggle={() => toggleSection("sync")}
-          />
+          <AccordionHeader title="Sync" open={openSection === "sync"} onToggle={() => toggleSection("sync")} />
           {openSection === "sync" && (
             <div className="cms-panel">
               <div className="cms-grid3">
                 <Field label="H1">
-                  <input
-                    className="cms-input"
-                    value={syncText.h1}
-                    onChange={(e) =>
-                      setSyncText((p) => ({ ...p, h1: e.target.value }))
-                    }
-                  />
+                  <input className="cms-input" value={syncText.h1} onChange={(e) => setSyncText((p) => ({ ...p, h1: e.target.value }))} />
                 </Field>
                 <Field label="H2">
-                  <input
-                    className="cms-input"
-                    value={syncText.h2}
-                    onChange={(e) =>
-                      setSyncText((p) => ({ ...p, h2: e.target.value }))
-                    }
-                  />
+                  <input className="cms-input" value={syncText.h2} onChange={(e) => setSyncText((p) => ({ ...p, h2: e.target.value }))} />
                 </Field>
                 <Field label="H3">
-                  <input
-                    className="cms-input"
-                    value={syncText.h3}
-                    onChange={(e) =>
-                      setSyncText((p) => ({ ...p, h3: e.target.value }))
-                    }
-                  />
+                  <input className="cms-input" value={syncText.h3} onChange={(e) => setSyncText((p) => ({ ...p, h3: e.target.value }))} />
                 </Field>
               </div>
 
               <div className="cms-grid3">
                 <Field label="T1">
-                  <textarea
-                    className="cms-textarea"
-                    value={syncText.t1}
-                    onChange={(e) =>
-                      setSyncText((p) => ({ ...p, t1: e.target.value }))
-                    }
-                  />
+                  <textarea className="cms-textarea" value={syncText.t1} onChange={(e) => setSyncText((p) => ({ ...p, t1: e.target.value }))} />
                 </Field>
                 <Field label="T2">
-                  <textarea
-                    className="cms-textarea"
-                    value={syncText.t2}
-                    onChange={(e) =>
-                      setSyncText((p) => ({ ...p, t2: e.target.value }))
-                    }
-                  />
+                  <textarea className="cms-textarea" value={syncText.t2} onChange={(e) => setSyncText((p) => ({ ...p, t2: e.target.value }))} />
                 </Field>
                 <Field label="T3">
-                  <textarea
-                    className="cms-textarea"
-                    value={syncText.t3}
-                    onChange={(e) =>
-                      setSyncText((p) => ({ ...p, t3: e.target.value }))
-                    }
-                  />
+                  <textarea className="cms-textarea" value={syncText.t3} onChange={(e) => setSyncText((p) => ({ ...p, t3: e.target.value }))} />
                 </Field>
               </div>
             </div>
           )}
 
-          <AccordionHeader
-            title="Partners"
-            open={openSection === "partners"}
-            onToggle={() => toggleSection("partners")}
-          />
+          <AccordionHeader title="Partners" open={openSection === "partners"} onToggle={() => toggleSection("partners")} />
           {openSection === "partners" && (
             <div className="cms-panel">
               <div className="cms-block__head">
                 <div>
                   <div className="cms-block__title">Partners list</div>
-                  <div className="cms-block__desc">
-                    Upload logo, edit link, reorder.
-                  </div>
+                  <div className="cms-block__desc">Upload logo, edit link, reorder.</div>
                 </div>
-                <button
-                  className="cms-btn cms-btn--primary"
-                  onClick={addPartner}
-                  type="button"
-                >
+                <button className="cms-btn cms-btn--primary" onClick={addPartner} type="button">
                   + Add partner
                 </button>
               </div>
@@ -1355,6 +1161,7 @@ export default function AdminCms() {
               <div className="cms-list">
                 {partners.items.map((p, i) => {
                   const isNew = newPartnerId === p.id;
+                  const previewSrc = partnerPreview[p.id] || p.src;
 
                   return (
                     <div
@@ -1370,18 +1177,11 @@ export default function AdminCms() {
                       <div className="cms-card__head">
                         <div className="cms-card__title">
                           <div className="cms-card__index">#{i + 1}</div>
-                          <div className="cms-card__name">
-                            {p.name || "Partner"}
-                          </div>
+                          <div className="cms-card__name">{p.name || "Partner"}</div>
                         </div>
 
                         <div className="cms-card__actions">
-                          <button
-                            className="cms-iconbtn"
-                            disabled={i === 0}
-                            onClick={() => movePartner(i, i - 1)}
-                            type="button"
-                          >
+                          <button className="cms-iconbtn" disabled={i === 0} onClick={() => movePartner(i, i - 1)} type="button">
                             ↑
                           </button>
                           <button
@@ -1392,11 +1192,7 @@ export default function AdminCms() {
                           >
                             ↓
                           </button>
-                          <button
-                            className="cms-btn cms-btn--danger"
-                            onClick={() => removePartner(p.id)}
-                            type="button"
-                          >
+                          <button className="cms-btn cms-btn--danger" onClick={() => removePartner(p.id)} type="button">
                             Delete
                           </button>
                         </div>
@@ -1405,34 +1201,17 @@ export default function AdminCms() {
                       <div className="cms-card__body">
                         <div className="cms-grid2">
                           <Field label="Name">
-                            <input
-                              className="cms-input"
-                              value={p.name}
-                              onChange={(e) =>
-                                updatePartner(p.id, { name: e.target.value })
-                              }
-                            />
+                            <input className="cms-input" value={p.name} onChange={(e) => updatePartner(p.id, { name: e.target.value })} />
                           </Field>
                           <Field label="Href">
-                            <input
-                              className="cms-input"
-                              value={p.href}
-                              onChange={(e) =>
-                                updatePartner(p.id, { href: e.target.value })
-                              }
-                            />
+                            <input className="cms-input" value={p.href} onChange={(e) => updatePartner(p.id, { href: e.target.value })} />
                           </Field>
                         </div>
 
                         <div className="cms-grid2">
                           <Field label="Logo src (URL or dataURL)">
-                            <input
-                              className="cms-input"
-                              value={p.src}
-                              onChange={(e) =>
-                                updatePartner(p.id, { src: e.target.value })
-                              }
-                            />
+                            <input className="cms-input" value={p.src} onChange={(e) => updatePartner(p.id, { src: e.target.value })} />
+                            <ImagePreview src={previewSrc} alt={`${p.name} preview`} />
                           </Field>
 
                           <Field label="Upload logo">
@@ -1441,10 +1220,22 @@ export default function AdminCms() {
                               type="file"
                               accept="image/*"
                               onChange={async (e) => {
-                                const f = (e.target as HTMLInputElement).files?.[0];
+                                const input = e.target as HTMLInputElement;
+                                const f = input.files?.[0];
                                 if (!f) return;
+
+                                setLocalPreview("partner", p.id, f);
+                                input.value = "";
+
                                 const url = await uploadImage(f);
-                                if (url) updatePartner(p.id, { src: url });
+                                if (url) {
+                                  updatePartner(p.id, { src: url });
+                                  setPartnerPreview((pp) => {
+                                    const next = { ...pp };
+                                    delete next[p.id];
+                                    return next;
+                                  });
+                                }
                               }}
                             />
                           </Field>
@@ -1457,163 +1248,7 @@ export default function AdminCms() {
             </div>
           )}
 
-          {/* NEW: Homepage Brands (PMG) */}
-          <AccordionHeader
-            title="Homepage Brands (PMG)"
-            open={openSection === "brands"}
-            onToggle={() => toggleSection("brands")}
-          />
-          {openSection === "brands" && (
-            <div className="cms-panel">
-              <div className="cms-block__head">
-                <div>
-                  <div className="cms-block__title">Brand cards</div>
-                  <div className="cms-block__desc">
-                    These map 1:1 to BrandCarousel cards on PMG site (key,
-                    title, desc, logo, href). Reorder with arrows.
-                  </div>
-                </div>
-                <button
-                  className="cms-btn cms-btn--primary"
-                  onClick={addBrand}
-                  type="button"
-                >
-                  + Add brand
-                </button>
-              </div>
-
-              <div className="cms-list">
-                {brands.items.map((b, i) => {
-                  const isNew = newBrandId === b.id;
-
-                  return (
-                    <div
-                      key={b.id}
-                      ref={(el) => {
-                        scrollRefs.current[b.id] = el;
-                      }}
-                      className={`cms-card ${isNew ? "is-new" : ""}`}
-                      onAnimationEnd={() => {
-                        if (isNew) setNewBrandId(null);
-                      }}
-                    >
-                      <div className="cms-card__head">
-                        <div className="cms-card__title">
-                          <div className="cms-card__index">#{i + 1}</div>
-                          <div className="cms-card__name">
-                            {b.title || "Brand"}
-                          </div>
-                        </div>
-
-                        <div className="cms-card__actions">
-                          <button
-                            className="cms-iconbtn"
-                            disabled={i === 0}
-                            onClick={() => moveBrand(i, i - 1)}
-                            type="button"
-                          >
-                            ↑
-                          </button>
-                          <button
-                            className="cms-iconbtn"
-                            disabled={i === brands.items.length - 1}
-                            onClick={() => moveBrand(i, i + 1)}
-                            type="button"
-                          >
-                            ↓
-                          </button>
-                          <button
-                            className="cms-btn cms-btn--danger"
-                            onClick={() => removeBrand(b.id)}
-                            type="button"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="cms-card__body">
-                        <div className="cms-grid3">
-                          <Field label="Key (stable identifier)">
-                            <input
-                              className="cms-input"
-                              value={b.key}
-                              onChange={(e) =>
-                                updateBrand(b.id, { key: e.target.value })
-                              }
-                              placeholder="e.g. records / pmg / publishing"
-                            />
-                          </Field>
-                          <Field label="Title">
-                            <input
-                              className="cms-input"
-                              value={b.title}
-                              onChange={(e) =>
-                                updateBrand(b.id, { title: e.target.value })
-                              }
-                            />
-                          </Field>
-                          <Field label="Href">
-                            <input
-                              className="cms-input"
-                              value={b.href}
-                              onChange={(e) =>
-                                updateBrand(b.id, { href: e.target.value })
-                              }
-                              placeholder="https://…"
-                            />
-                          </Field>
-                        </div>
-
-                        <Field label="Description">
-                          <textarea
-                            className="cms-textarea"
-                            value={b.desc}
-                            onChange={(e) =>
-                              updateBrand(b.id, { desc: e.target.value })
-                            }
-                          />
-                        </Field>
-
-                        <div className="cms-grid2">
-                          <Field label="Logo src (URL or dataURL)">
-                            <input
-                              className="cms-input"
-                              value={b.logoSrc}
-                              onChange={(e) =>
-                                updateBrand(b.id, { logoSrc: e.target.value })
-                              }
-                              placeholder="/record.png or uploaded URL"
-                            />
-                          </Field>
-                          <Field label="Upload logo">
-                            <input
-                              className="cms-input"
-                              type="file"
-                              accept="image/*"
-                              onChange={async (e) => {
-                                const f = (e.target as HTMLInputElement).files?.[0];
-                                if (!f) return;
-                                const url = await uploadImage(f);
-                                if (url)
-                                  updateBrand(b.id, { logoSrc: url });
-                              }}
-                            />
-                          </Field>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <AccordionHeader
-            title="FAQ"
-            open={openSection === "faq"}
-            onToggle={() => toggleSection("faq")}
-          />
+          <AccordionHeader title="FAQ" open={openSection === "faq"} onToggle={() => toggleSection("faq")} />
           {openSection === "faq" && (
             <div className="cms-panel">
               <div className="cms-block__head">
@@ -1621,11 +1256,7 @@ export default function AdminCms() {
                   <div className="cms-block__title">FAQ items</div>
                   <div className="cms-block__desc">Add/remove/reorder.</div>
                 </div>
-                <button
-                  className="cms-btn cms-btn--primary"
-                  onClick={addFaqItem}
-                  type="button"
-                >
+                <button className="cms-btn cms-btn--primary" onClick={addFaqItem} type="button">
                   + Add FAQ
                 </button>
               </div>
@@ -1648,18 +1279,11 @@ export default function AdminCms() {
                       <div className="cms-card__head">
                         <div className="cms-card__title">
                           <div className="cms-card__index">#{i + 1}</div>
-                          <div className="cms-card__name">
-                            {it.q || "Question"}
-                          </div>
+                          <div className="cms-card__name">{it.q || "Question"}</div>
                         </div>
 
                         <div className="cms-card__actions">
-                          <button
-                            className="cms-iconbtn"
-                            disabled={i === 0}
-                            onClick={() => moveFaq(i, i - 1)}
-                            type="button"
-                          >
+                          <button className="cms-iconbtn" disabled={i === 0} onClick={() => moveFaq(i, i - 1)} type="button">
                             ↑
                           </button>
                           <button
@@ -1670,11 +1294,7 @@ export default function AdminCms() {
                           >
                             ↓
                           </button>
-                          <button
-                            className="cms-btn cms-btn--danger"
-                            onClick={() => removeFaqItem(it.id)}
-                            type="button"
-                          >
+                          <button className="cms-btn cms-btn--danger" onClick={() => removeFaqItem(it.id)} type="button">
                             Delete
                           </button>
                         </div>
@@ -1682,22 +1302,10 @@ export default function AdminCms() {
 
                       <div className="cms-card__body">
                         <Field label="Question">
-                          <input
-                            className="cms-input"
-                            value={it.q}
-                            onChange={(e) =>
-                              updateFaqItem(it.id, { q: e.target.value })
-                            }
-                          />
+                          <input className="cms-input" value={it.q} onChange={(e) => updateFaqItem(it.id, { q: e.target.value })} />
                         </Field>
                         <Field label="Answer">
-                          <textarea
-                            className="cms-textarea"
-                            value={it.a}
-                            onChange={(e) =>
-                              updateFaqItem(it.id, { a: e.target.value })
-                            }
-                          />
+                          <textarea className="cms-textarea" value={it.a} onChange={(e) => updateFaqItem(it.id, { a: e.target.value })} />
                         </Field>
                       </div>
                     </div>
@@ -1712,9 +1320,6 @@ export default function AdminCms() {
   );
 }
 
-/** =========================
- *  UI Components
- *  ========================= */
 function AccordionHeader({
   title,
   open,

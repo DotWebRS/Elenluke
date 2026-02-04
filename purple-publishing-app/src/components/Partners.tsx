@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Container from "react-bootstrap/Container";
 import type { AdminSiteKey } from "../components/admin/adminSites";
-
 import { API_BASE } from "../config/apiBase";
 
 type Partner = {
@@ -16,20 +15,6 @@ type CmsPartnersPayload = {
 
 const CMS_KEY = "home.partners";
 
-const DEFAULT_PARTNERS: Partner[] = [
-  { src: "/branding/partners/idtmM7C19q_logos.png", name: "Partner", href: "https://example.com" },
-  { src: "/branding/partners/Antidote.png", name: "Antidote", href: "https://example.com" },
-  { src: "/branding/partners/black17-logo.png", name: "Black 17", href: "https://example.com" },
-  { src: "/branding/partners/epic-games-logo-png-transparent.png", name: "Epic Games", href: "https://www.epicgames.com" },
-  { src: "/branding/partners/Epidemic-Sound-Secondary-Logo-white-RGB.png", name: "Epidemic Sound", href: "https://www.epidemicsound.com" },
-  { src: "/branding/partners/Launch13.png", name: "Launch13", href: "https://example.com" },
-  { src: "/branding/partners/Rogue@white.png", name: "Rogue", href: "https://example.com" },
-  { src: "/branding/partners/Sonymusic.png", name: "Sony Music", href: "https://www.sonymusic.com" },
-  { src: "/branding/partners/SoundOn.png", name: "SoundOn", href: "https://www.soundon.global/?lang=en" },
-  { src: "/branding/partners/Tiktok2.png", name: "TikTok", href: "https://www.tiktok.com" },
-  { src: "/branding/partners/BIGBITE.png", name: "bigbite", href: "https://www.BIGBITE.com" }
-];
-
 function safeParseJson<T>(raw: any, fallback: T): T {
   try {
     if (!raw) return fallback;
@@ -38,6 +23,19 @@ function safeParseJson<T>(raw: any, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function absolutizeSrc(src: string) {
+  const s = (src || "").trim();
+  if (!s) return "";
+
+  if (s.startsWith("data:")) return s;
+  if (/^https?:\/\//i.test(s)) return s;
+
+  if (s.startsWith("/uploads/")) return buildUrl(s);
+
+
+  return s;
 }
 
 function hostnameToSiteKey(hostname: string): AdminSiteKey {
@@ -60,39 +58,38 @@ async function cmsGet(siteKey: string, key: string, signal: AbortSignal) {
     `/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(key)}&ts=${ts}`
   );
 
-  const res = await fetch(url, {
+  return fetch(url, {
     signal,
     cache: "no-store",
     headers: {
       "Cache-Control": "no-cache, no-store, must-revalidate",
-      Pragma: "no-cache"
-    }
+      Pragma: "no-cache",
+    },
   });
-
-  return res;
 }
 
 function normalizePartnersPayload(payload: any): Partner[] {
   const parsed = safeParseJson<CmsPartnersPayload>(payload?.json, { items: [] });
-
   const items = Array.isArray(parsed?.items) ? parsed.items : [];
 
-  const cleaned: Partner[] = items
+  const cleaned = items
     .map((x: any) => ({
-      src: String(x?.src ?? "").trim(),
+      src: absolutizeSrc(String(x?.src ?? "")),
       name: String(x?.name ?? "").trim(),
-      href: String(x?.href ?? "").trim()
+      href: String(x?.href ?? "").trim(),
     }))
-    .filter((x) => x.src && x.name && x.href);
+    .filter((x) => x.src && x.name);
 
-  return cleaned.length ? cleaned : DEFAULT_PARTNERS;
+  return cleaned;
 }
+
 
 export default function Partners() {
   const sectionRef = useRef<HTMLElement | null>(null);
   const [inView, setInView] = useState(false);
 
-  const [partners, setPartners] = useState<Partner[]>(DEFAULT_PARTNERS);
+  // NEMA DEFAULT-a: kreće prazno dok ne učita iz CMS-a
+  const [partners, setPartners] = useState<Partner[]>([]);
 
   useEffect(() => {
     let alive = true;
@@ -104,15 +101,28 @@ export default function Partners() {
 
       try {
         const res = await cmsGet(siteKey, CMS_KEY, controller.signal);
-        if (res.status === 404) return;
-        if (!res.ok) return;
+
+        if (res.status === 404) {
+          if (!alive) return;
+          setPartners([]);
+          return;
+        }
+
+        if (!res.ok) {
+          if (!alive) return;
+          setPartners([]);
+          return;
+        }
 
         const payload = await res.json().catch(() => null as any);
         const next = normalizePartnersPayload(payload);
 
         if (!alive) return;
         setPartners(next);
-      } catch {}
+      } catch {
+        if (!alive) return;
+        setPartners([]);
+      }
     })();
 
     return () => {
@@ -121,7 +131,11 @@ export default function Partners() {
     };
   }, []);
 
-  const strip = useMemo(() => [...partners, ...partners], [partners]);
+  const strip = useMemo(() => {
+    if (partners.length === 0) return [];
+    if (partners.length < 4) return partners;
+    return [...partners, ...partners];
+  }, [partners]);
 
   useEffect(() => {
     const el = sectionRef.current;
@@ -136,6 +150,9 @@ export default function Partners() {
     return () => obs.disconnect();
   }, []);
 
+  // ako nema ništa iz CMS-a, ne prikazuj sekciju
+  if (partners.length === 0) return null;
+
   return (
     <section ref={sectionRef} className="partners-section" id="partners">
       <Container>
@@ -146,7 +163,10 @@ export default function Partners() {
         </div>
       </Container>
 
-      <div className={`partners-marquee ${inView ? "is-running" : "is-paused"}`} aria-label="Partners carousel">
+      <div
+        className={`partners-marquee ${inView ? "is-running" : "is-paused"}`}
+        aria-label="Partners carousel"
+      >
         <div className="partners-track">
           {strip.map((p, i) => (
             <a
@@ -158,27 +178,35 @@ export default function Partners() {
               aria-label={p.name}
               title={p.name}
             >
-              <img src={p.src} alt={p.name} loading="lazy" decoding="async" draggable={false} />
+              <img
+                src={p.src}
+                alt={p.name}
+                loading="lazy"
+                decoding="async"
+                draggable={false}
+              />
             </a>
           ))}
         </div>
 
-        <div className="partners-track partners-track--clone" aria-hidden="true">
-          {strip.map((p, i) => (
-            <a
-              className="partner-logo"
-              key={`${p.src}-clone-${i}`}
-              href={p.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={p.name}
-              title={p.name}
-              tabIndex={-1}
-            >
-              <img src={p.src} alt="" loading="lazy" decoding="async" draggable={false} />
-            </a>
-          ))}
-        </div>
+        {partners.length >= 4 && (
+          <div className="partners-track partners-track--clone" aria-hidden="true">
+            {strip.map((p, i) => (
+              <a
+                className="partner-logo"
+                key={`${p.src}-clone-${i}`}
+                href={p.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={p.name}
+                title={p.name}
+                tabIndex={-1}
+              >
+                <img src={p.src} alt="" loading="lazy" decoding="async" draggable={false} />
+              </a>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

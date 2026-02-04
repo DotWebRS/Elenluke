@@ -485,7 +485,7 @@ public class SubmissionsController : ControllerBase
         sb.AppendLine($"Submission,Message,{Csv(s.Message)}");
         sb.AppendLine();
 
-        // Sekcija 2: custom polja
+     
         sb.AppendLine("Section,FieldName,FieldValue");
         foreach (var f in fields)
         {
@@ -493,7 +493,7 @@ public class SubmissionsController : ControllerBase
         }
         sb.AppendLine();
 
-        // Sekcija 3: fajlovi
+       
         sb.AppendLine("Section,FileName,ContentType,SizeBytes");
         foreach (var f in files)
         {
@@ -501,7 +501,7 @@ public class SubmissionsController : ControllerBase
         }
         sb.AppendLine();
 
-        // Sekcija 4: replies
+      
         sb.AppendLine("Section,ToEmail,Subject,Body,SentAt,SentBy");
         foreach (var r in replies)
         {

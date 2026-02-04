@@ -1327,3 +1327,14 @@
 
 
 /*********************************mng*/
+.admin-filters-main .admin-input--date:last-of-type{
+  margin: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  width: 140px;
+  line-height: 2.5;
+}
+
+
+/**********************************details*/
+

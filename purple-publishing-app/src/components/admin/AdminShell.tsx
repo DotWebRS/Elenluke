@@ -10,12 +10,11 @@ type AdminShellProps = {
   children: ReactNode;
 };
 
-// helper: gde da idemo za dati section + site
 function buildAdminPath(section: AdminNavKey, site: AdminSiteKey | string) {
   const qs = `?site=${encodeURIComponent(site || "")}`;
 
   if (section === "cms") {
-    // specijalan slučaj: PMG ima svoju rutu
+    
     if (site === "purple-music-group") {
       return `/admin/pmg${qs}`;
     }
@@ -30,7 +29,6 @@ function buildAdminPath(section: AdminNavKey, site: AdminSiteKey | string) {
     return `/admin/users${qs}`;
   }
 
-  // fallback (ne bi trebalo da se desi)
   return `/admin/cms${qs}`;
 }
 
@@ -45,13 +43,11 @@ export function AdminShell({ title, active, children }: AdminShellProps) {
 
   const handleSiteChange = (next: AdminSiteKey) => {
     setSite(next);
-    // ostani u istom tabu (cms / submissions / users) ali za novi site
     goSection(active, next);
   };
 
   return (
     <div className="admin-shell">
-      {/* GORNJI RED: dropdown + CMS levo, Logout desno */}
       <header className="admin-topbar">
         <div className="admin-topbar-left">
           <label className="topbar-site">
@@ -94,7 +90,6 @@ export function AdminShell({ title, active, children }: AdminShellProps) {
         </div>
       </header>
 
-      {/* DRUGI RED: tabovi Submissions / Users – poravnati sa sadržajem */}
       <nav className="admin-subnav">
         <button
           type="button"
@@ -118,7 +113,6 @@ export function AdminShell({ title, active, children }: AdminShellProps) {
         </button>
       </nav>
 
-      {/* Glavni sadržaj (Inbox, tabela, CMS itd.) */}
       {children}
     </div>
   );

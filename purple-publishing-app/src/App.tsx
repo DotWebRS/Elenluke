@@ -145,17 +145,7 @@ function App() {
         }
       />
 
-      <Route
-        path="/admin/submissions/:id"
-        element={
-          <div className={`app app--${theme}`}>
-            <main className="app-main">
-              <AdminSubmissionDetails />
-            </main>
-          </div>
-        }
-      />
-
+     
       <Route
         path="/admin/users"
         element={

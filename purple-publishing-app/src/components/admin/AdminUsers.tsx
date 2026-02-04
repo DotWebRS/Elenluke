@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { AdminShell } from "./AdminShell";
-
 import { API_BASE } from "../../config/apiBase";
 
 type UserRow = {
@@ -18,10 +17,10 @@ function buildUrl(path: string) {
 }
 
 export default function AdminUsers() {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token") || "";
 
   const authHeaders = useMemo<Record<string, string>>(
-    () => (token ? ({ Authorization: `Bearer ${token}` } as Record<string, string>) : ({} as Record<string, string>)),
+    () => (token ? ({ Authorization: `Bearer ${token}` } as Record<string, string>) : {}),
     [token]
   );
 
@@ -35,6 +34,8 @@ export default function AdminUsers() {
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"Admin" | "Editor" | "Inbox">("Inbox");
 
+  const canCreate = email.trim() && password.trim();
+
   const fetchUsers = async () => {
     setLoading(true);
     setError(null);
@@ -43,12 +44,14 @@ export default function AdminUsers() {
       if (!res.ok) {
         const t = await res.text().catch(() => "");
         setError(`Users error: ${res.status}${t ? ` — ${t}` : ""}`);
+        setUsers([]);
         return;
       }
       const json = await res.json().catch(() => null as any);
       setUsers(Array.isArray(json) ? json : []);
     } catch (e: any) {
       setError(e?.message || "Users error");
+      setUsers([]);
     } finally {
       setLoading(false);
     }
@@ -56,17 +59,21 @@ export default function AdminUsers() {
 
   useEffect(() => {
     fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const createUser = async () => {
+    if (!canCreate) return;
+
     setError(null);
+    setBusyId("create");
     try {
       const res = await fetch(buildUrl(`/api/users`), {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
-          email,
-          password,
+          email: email.trim(),
+          password: password,
           role,
           isActive: true,
         }),
@@ -86,6 +93,8 @@ export default function AdminUsers() {
       setRole("Inbox");
     } catch (e: any) {
       setError(e?.message || "Create error");
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -141,40 +150,55 @@ export default function AdminUsers() {
   };
 
   return (
-    <AdminShell title="Admin Users">
-      <div className="admin-main">
-        <div className="admin-toolbar admin-toolbar-users">
-          <input
-            className="admin-input"
-            placeholder="Email (login)"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-
-          <input
-            className="admin-input"
-            placeholder="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-
-          <select className="admin-select" value={role} onChange={(e) => setRole(e.target.value as any)}>
-            <option value="Admin">Admin</option>
-            <option value="Editor">Editor</option>
-            <option value="Inbox">Inbox</option>
-          </select>
-
-          <button className="admin-btn admin-btn-primary" onClick={createUser} disabled={!email || !password}>
-            Create (auto enable)
-          </button>
+    <AdminShell title="Admin Users" active="users">
+      <div className="admin-root">
+        <div className="admin-header">
+          <div className="admin-header-main">
+            <h1>Users</h1>
+            <p className="sub">Create and manage admin accounts and permissions.</p>
+          </div>
         </div>
 
         {error ? (
-          <div style={{ padding: 14, color: "rgba(255,255,255,0.85)" }}>
-            <span style={{ color: "#ff4d6d", fontWeight: 900 }}>Error:</span> {error}
+          <div className="admin-alert" style={{ background: "#fff", border: "1px solid #e5e7eb", color: "#111827" }}>
+            <strong style={{ color: "#111827" }}>Error:</strong> {error}
           </div>
         ) : null}
+
+        <div className="admin-filters-row">
+          <div className="admin-filters-main">
+            <input
+              className="admin-input"
+              placeholder="Email (login)"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="off"
+            />
+
+            <input
+              className="admin-input"
+              placeholder="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+            />
+
+            <select className="admin-select" value={role} onChange={(e) => setRole(e.target.value as any)}>
+              <option value="Admin">Admin</option>
+              <option value="Editor">Editor</option>
+              <option value="Inbox">Inbox</option>
+            </select>
+
+            <button
+              className="admin-btn admin-btn-primary"
+              onClick={createUser}
+              disabled={!canCreate || busyId === "create"}
+            >
+              Create (auto enable)
+            </button>
+          </div>
+        </div>
 
         <div className="admin-table-wrap">
           <table className="admin-table">
@@ -184,21 +208,24 @@ export default function AdminUsers() {
                 <th>Role</th>
                 <th>Status</th>
                 <th>Created</th>
-                <th style={{ width: 340 }}>Actions</th>
+                <th className="th-actions" style={{ width: 340 }}>
+                  Actions
+                </th>
               </tr>
             </thead>
+
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: 18, color: "rgba(255,255,255,0.7)" }}>
-                    Loading...
+                  <td colSpan={5} className="admin-table-empty">
+                    Loading…
                   </td>
                 </tr>
               ) : null}
 
               {!loading && users.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: 18, color: "rgba(255,255,255,0.7)" }}>
+                  <td colSpan={5} className="admin-table-empty">
                     No users.
                   </td>
                 </tr>
@@ -208,12 +235,12 @@ export default function AdminUsers() {
                 const busy = busyId === u.id;
 
                 return (
-                  <tr key={u.id}>
+                  <tr key={u.id} className="admin-row">
                     <td>{u.email}</td>
 
                     <td>
                       <select
-                        className="admin-select"
+                        className="admin-select admin-select--compact"
                         style={{ width: 160 }}
                         value={u.role}
                         disabled={busy}
@@ -227,7 +254,7 @@ export default function AdminUsers() {
                     </td>
 
                     <td>
-                      <span className={`admin-badge ${u.isActive ? "accepted" : "rejected"}`}>
+                      <span className={`admin-badge ${u.isActive ? "badge-accepted" : "badge-rejected"}`}>
                         {u.isActive ? "Enabled" : "Disabled"}
                       </span>
                     </td>
@@ -235,9 +262,9 @@ export default function AdminUsers() {
                     <td>{new Date(u.createdAt).toLocaleString()}</td>
 
                     <td>
-                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <div className="admin-table-actions" style={{ gap: 10, flexWrap: "wrap" }}>
                         <button
-                          className="admin-btn"
+                          className="admin-btn admin-btn-secondary admin-btn--xs"
                           disabled={busy || u.isActive}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -248,23 +275,27 @@ export default function AdminUsers() {
                         </button>
 
                         <button
-                          className="admin-btn admin-btn-danger"
+                          className="admin-btn admin-btn-danger admin-btn--xs"
                           disabled={busy || !u.isActive}
                           onClick={(e) => {
                             e.stopPropagation();
                             updateUser(u.id, { isActive: false });
                           }}
+                          aria-label="Disable"
+                          title="Disable"
                         >
                           <i className="fa fa-ban" aria-hidden="true"></i>
                         </button>
 
                         <button
-                          className="admin-btn admin-btn-danger"
+                          className="admin-btn admin-btn-danger admin-btn--xs"
                           disabled={busy}
                           onClick={(e) => {
                             e.stopPropagation();
                             hardDeleteUser(u.id);
                           }}
+                          aria-label="Delete"
+                          title="Delete"
                         >
                           <i className="fa fa-trash" aria-hidden="true"></i>
                         </button>

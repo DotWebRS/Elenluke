@@ -34,7 +34,6 @@ public class AuthController : ControllerBase
         if (user == null) return Unauthorized();
         if (!PasswordHasher.Verify(password, user.PasswordHash)) return Unauthorized();
 
-        // OBA formata claim-a (da ne zavisiš od konfiguracije RoleClaimType/NameClaimType)
         var claims = new[]
         {
             new Claim(ClaimTypes.Name, user.Email),

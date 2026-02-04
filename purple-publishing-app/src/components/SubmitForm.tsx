@@ -50,15 +50,13 @@ function isAllowedImage(file: File) {
 }
 
 const SubmitForm = () => {
-  // Type MUST be selected (mandatory) -> start empty and force selection
   const [type, setType] = useState<SubmissionType | "">("");
 
+  // These are used for non-Artist/Songwriter (and email is used for Songwriter base Email)
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
 
   const [message, setMessage] = useState("");
-
-  // Privacy policy must be filled/accepted
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
   const [fields, setFields] = useState<ExtraFields>({
@@ -73,14 +71,14 @@ const SubmitForm = () => {
 
     issueType: "",
 
-    // ArtistInformation
+    // shared legal name input (UI) for Artist + Songwriter
     fullLegalName: "",
+
+    // Artist-only (UI) address etc
     streetNumber: "",
     zipCode: "",
     city: "",
     country: "",
-    dayOfBirth: "",
-    instagram: "",
     businessEmail: "",
     spotifyUrl: "",
     appleArtistId: "",
@@ -90,168 +88,199 @@ const SubmitForm = () => {
     publisher: "",
     publisherIpiCae: "",
     genre: "",
+    instagram: "",
 
-    // Guardian (only if under 18)
-    guardianFullLegalName: "",
-    guardianEmail: "",
-
-    // SongwriterInformation
+    // Songwriter-only (UI)
     origin: "",
     age: "",
     yearsMakingMusic: "",
     biography: "",
     notableAchievements: "",
     songwriterLinks: "",
+
+    // DOB UI inputs (separate, because BE expects different keys)
+    dateOfBirthArtist: "",
+    dateOfBirth: "",
+
+    // Guardian UI inputs (separate to match BE)
+    guardianNameArtist: "",
+    guardianEmailArtist: "",
+    guardianName: "",
+    guardianEmail: "",
   });
 
-  // Publishing: DemoUpload removed. Upload only relevant here is songwriter photo.
   const [files, setFiles] = useState<File[]>([]);
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [okId, setOkId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  const isArtist = type === "ArtistInformation";
   const isSongwriter = type === "SongwriterInformation";
   const needsFiles = isSongwriter;
 
-  const ageFromDob = useMemo(() => calcAgeFromISO(fields.dayOfBirth), [fields.dayOfBirth]);
-  const isMinor = type === "ArtistInformation" && typeof ageFromDob === "number" && ageFromDob < 18;
+  // Minor rules come from DOB for each type
+  const ageArtist = useMemo(() => calcAgeFromISO(fields.dateOfBirthArtist), [fields.dateOfBirthArtist]);
+  const artistIsMinor = isArtist && typeof ageArtist === "number" && ageArtist < 18;
 
-  const visibleFieldKeys = useMemo(() => {
-    switch (type) {
-      case "SyncRequest":
-        return ["company", "phone", "productionName", "songTitle", "mediaType", "term", "territory"];
-      case "GeneralContactInquiry":
-        return ["company", "phone"];
-      case "SupportForm":
-        return ["issueType"]; // projectUrl removed
-      case "ArtistInformation":
-        return [
-          "fullLegalName",
-          "streetNumber",
-          "zipCode",
-          "city",
-          "country",
-          "dayOfBirth",
-          "instagram", // optional
-          "businessEmail",
-          "spotifyUrl",
-          "appleArtistId",
-          "downtownEmail",
-          "pro",
-          "ipi",
-          "publisher",
-          "publisherIpiCae",
-          "genre",
-        ];
-      case "SongwriterInformation":
-        return [
-          "fullLegalName",
-          "origin",
-          "age",
-          "yearsMakingMusic",
-          "genre",
-          "biography",
-          "notableAchievements",
-          "songwriterLinks",
-        ];
-      default:
-        return [];
-    }
-  }, [type]);
+  const ageSongwriter = useMemo(() => calcAgeFromISO(fields.dateOfBirth), [fields.dateOfBirth]);
+  const songwriterIsMinor = isSongwriter && typeof ageSongwriter === "number" && ageSongwriter < 18;
 
-  const setField = (key: string, value: string) => {
-    setFields((p) => ({ ...p, [key]: value }));
-  };
+  const setField = (key: string, value: string) => setFields((p) => ({ ...p, [key]: value }));
 
   const onFilesChange = (list: FileList | null) => {
-    if (!list) {
-      setFiles([]);
-      return;
-    }
+    if (!list) return setFiles([]);
     setFiles(Array.from(list));
   };
 
   const totalBytes = useMemo(() => files.reduce((s, f) => s + (f?.size || 0), 0), [files]);
 
   const validate = () => {
-    const n = name.trim();
-    const e = email.trim();
-    const msg = message.trim();
-
     if (!type) return "Submission Type is required.";
-    if (!n || !e) return "Name and Email are required.";
-    if (!looksLikeFullName(n)) return "In Name box enter First name Last name.";
     if (!privacyAccepted) return "Privacy policy must be accepted.";
 
-    // Message mandatory: General Contact + Support
-    if ((type === "GeneralContactInquiry" || type === "SupportForm") && !msg)
+    if ((type === "GeneralContactInquiry" || type === "SupportForm") && !message.trim())
       return "Message is required.";
 
     if (totalBytes > 20 * 1024 * 1024) return "Total upload size must be 20MB or less.";
 
+    // Base required for all (backend requires Name + Email always)
+    // We'll map Name/Email depending on type, but validate the source values.
     if (type === "ArtistInformation") {
-      const required = [
-        "fullLegalName",
-        "streetNumber",
-        "zipCode",
-        "city",
-        "country",
-        "dayOfBirth",
-        "businessEmail",
-        "spotifyUrl",
-        "appleArtistId",
-      ];
+      const legal = fields.fullLegalName.trim();
+      if (!legal || !looksLikeFullName(legal))
+        return "Full legal name is required and must look like a full name for ArtistInformation.";
 
-      for (const k of required) {
-        if (!(fields[k] ?? "").trim()) return `${labelFor(k)} is required.`;
-      }
+      if (!fields.businessEmail.trim()) return "Business email is required.";
 
-      const legal = (fields.fullLegalName ?? "").trim();
-      if (!looksLikeFullName(legal)) return "Full legal name must be First Name Last name.";
+      if (!fields.dateOfBirthArtist.trim()) return "Date of birth is required for ArtistInformation.";
 
-      const apple = (fields.appleArtistId ?? "").trim();
+      const required = ["streetNumber", "zipCode", "city", "country", "spotifyUrl", "appleArtistId"];
+      for (const k of required) if (!(fields[k] ?? "").trim()) return `${labelFor(k)} is required.`;
+
+      const apple = fields.appleArtistId.trim();
       if (apple && !/^\d{10}$/.test(apple)) return "Apple Artist ID must be exactly 10 digits.";
 
-      // Under 18: guardian full legal name + email mandatory
-      if (isMinor) {
-        const gName = (fields.guardianFullLegalName ?? "").trim();
-        const gEmail = (fields.guardianEmail ?? "").trim();
-        if (!gName) return "Guardian full legal name is required for minors.";
-        if (!looksLikeFullName(gName)) return "Guardian full legal name must be First Name Last name.";
-        if (!gEmail) return "Guardian email address is required for minors.";
+      if (artistIsMinor) {
+        if (!fields.guardianNameArtist.trim() || !looksLikeFullName(fields.guardianNameArtist))
+          return "For minors, guardian full legal name is required for ArtistInformation.";
+        if (!fields.guardianEmailArtist.trim())
+          return "For minors, guardian email address is required for ArtistInformation.";
       }
+
+      return null;
     }
 
     if (type === "SongwriterInformation") {
-      const required = ["fullLegalName", "origin", "age", "yearsMakingMusic", "genre", "biography", "notableAchievements"];
-      for (const k of required) {
-        if (!(fields[k] ?? "").trim()) return `${labelFor(k)} is required.`;
-      }
+      const legal = fields.fullLegalName.trim();
+      if (!legal || !looksLikeFullName(legal))
+        return "Full legal name is required and must look like a full name.";
 
-      const legal = (fields.fullLegalName ?? "").trim();
-      if (!looksLikeFullName(legal)) return "Full legal name must be First Name Last name.";
+      // backend still requires top-level Email, we will use `email`
+      if (!email.trim()) return "Email is required.";
+
+      if (!fields.dateOfBirth.trim()) return "Date of birth is required for SongwriterInformation.";
+
+      const required = ["origin", "age", "yearsMakingMusic", "genre", "biography", "notableAchievements"];
+      for (const k of required) if (!(fields[k] ?? "").trim()) return `${labelFor(k)} is required.`;
 
       if (!files || files.length === 0) return "Photo upload is required.";
       if (files.length > 1) return "Please upload only one photo.";
+      if (!isAllowedImage(files[0])) return "Images must be png or jpg.";
 
-      const f = files[0];
-      if (!isAllowedImage(f)) return "Images must be png or jpg.";
+      if (songwriterIsMinor) {
+        if (!fields.guardianName.trim() || !looksLikeFullName(fields.guardianName))
+          return "For minors, guardianName is required for SongwriterInformation.";
+        if (!fields.guardianEmail.trim())
+          return "For minors, guardianEmail is required for SongwriterInformation.";
+      }
+
+      return null;
     }
+
+    // Other types
+    if (!name.trim() || !email.trim()) return "Name and Email are required.";
+    if (!looksLikeFullName(name.trim())) return "In Name box enter First name Last name.";
 
     return null;
   };
 
+  // IMPORTANT: Map UI fields -> backend keys
   const buildFieldsJson = () => {
     const obj: Record<string, string> = {};
-    const keys = [...visibleFieldKeys];
 
-    if (isMinor) keys.push("guardianFullLegalName", "guardianEmail");
+    const put = (k: string, v: string) => {
+      const val = (v ?? "").trim();
+      if (val) obj[k] = val;
+    };
 
-    for (const k of keys) {
-      const v = (fields[k] ?? "").trim();
-      if (v) obj[k] = v;
+    if (type === "SyncRequest") {
+      put("company", fields.company);
+      put("phone", fields.phone);
+      put("productionName", fields.productionName);
+      put("songTitle", fields.songTitle);
+      put("mediaType", fields.mediaType);
+      put("term", fields.term);
+      put("territory", fields.territory);
     }
+
+    if (type === "GeneralContactInquiry") {
+      put("company", fields.company);
+      put("phone", fields.phone);
+    }
+
+    if (type === "SupportForm") {
+      put("issueType", fields.issueType);
+    }
+
+    if (type === "SongwriterInformation") {
+      // BACKEND expects:
+      // fullLegalName, dateOfBirth, guardianName, guardianEmail
+      put("fullLegalName", fields.fullLegalName);
+      put("dateOfBirth", fields.dateOfBirth);
+
+      put("origin", fields.origin);
+      put("age", fields.age);
+      put("yearsMakingMusic", fields.yearsMakingMusic);
+      put("genre", fields.genre);
+      put("biography", fields.biography);
+      put("notableAchievements", fields.notableAchievements);
+      put("songwriterLinks", fields.songwriterLinks);
+
+      if (songwriterIsMinor) {
+        put("guardianName", fields.guardianName);
+        put("guardianEmail", fields.guardianEmail);
+      }
+    }
+
+    if (type === "ArtistInformation") {
+      // BACKEND expects:
+      // fullLegalNameArtist, dateOfBirthArtist, guardianNameArtist, guardianEmailArtist
+      put("fullLegalNameArtist", fields.fullLegalName);
+      put("dateOfBirthArtist", fields.dateOfBirthArtist);
+
+      put("streetNumber", fields.streetNumber);
+      put("zipCode", fields.zipCode);
+      put("city", fields.city);
+      put("country", fields.country);
+
+      put("instagram", fields.instagram); // optional
+      put("businessEmail", fields.businessEmail);
+      put("spotifyUrl", fields.spotifyUrl);
+      put("appleArtistId", fields.appleArtistId);
+
+      put("downtownEmail", fields.downtownEmail);
+      put("pro", fields.pro);
+      put("ipi", fields.ipi);
+      put("publisher", fields.publisher);
+      put("publisherIpiCae", fields.publisherIpiCae);
+      put("genre", fields.genre);
+
+      if (artistIsMinor) {
+        put("guardianNameArtist", fields.guardianNameArtist);
+        put("guardianEmailArtist", fields.guardianEmailArtist);
+      }
+    }
+
     return JSON.stringify(obj);
   };
 
@@ -261,10 +290,7 @@ const SubmitForm = () => {
     setOkId(null);
 
     const v = validate();
-    if (v) {
-      setErr(v);
-      return;
-    }
+    if (v) return setErr(v);
 
     setIsSubmitting(true);
     try {
@@ -272,13 +298,20 @@ const SubmitForm = () => {
 
       fd.append("Type", String(type));
       fd.append("Domain", window.location.hostname || "");
-      fd.append("Name", name.trim());
-      fd.append("Email", email.trim());
-
-      // required by spec + enforced by backend
       fd.append("PrivacyAccepted", privacyAccepted ? "true" : "false");
 
-      // message mandatory only for some, but ok to send always if present
+      // Backend requires Name + Email always
+      if (type === "ArtistInformation") {
+        fd.append("Name", fields.fullLegalName.trim()); // required
+        fd.append("Email", fields.businessEmail.trim()); // required
+      } else if (type === "SongwriterInformation") {
+        fd.append("Name", fields.fullLegalName.trim()); // required
+        fd.append("Email", email.trim()); // required (top field)
+      } else {
+        fd.append("Name", name.trim());
+        fd.append("Email", email.trim());
+      }
+
       if (message.trim()) fd.append("Message", message.trim());
 
       const fieldsJson = buildFieldsJson();
@@ -333,6 +366,8 @@ const SubmitForm = () => {
                   const next = ev.target.value as SubmissionType | "";
                   setType(next);
                   setFiles([]);
+                  setErr(null);
+                  setOkId(null);
                 }}
               >
                 <option value="">Select…</option>
@@ -346,28 +381,45 @@ const SubmitForm = () => {
 
             <div className="submitform-divider" />
 
-            
+            {/* Top name/email only for non-Artist and non-Songwriter */}
+            {!isArtist && !isSongwriter && (
+              <>
+                <label className="submitform-field">
+                  <span className="submitform-label">NAME*</span>
+                  <input
+                    className="submitform-control"
+                    value={name}
+                    onChange={(ev) => setName(ev.target.value)}
+                    placeholder="First name Last name"
+                  />
+                </label>
 
-            <label className="submitform-field">
-              <span className="submitform-label">NAME*</span>
-              <input
-                className="submitform-control"
-                value={name}
-                onChange={(ev) => setName(ev.target.value)}
-                placeholder="First name Last name"
-              />
-            </label>
+                <label className="submitform-field">
+                  <span className="submitform-label">EMAIL*</span>
+                  <input
+                    className="submitform-control"
+                    type="email"
+                    value={email}
+                    onChange={(ev) => setEmail(ev.target.value)}
+                    placeholder="name@email.com"
+                  />
+                </label>
+              </>
+            )}
 
-            <label className="submitform-field">
-              <span className="submitform-label">EMAIL*</span>
-              <input
-                className="submitform-control"
-                type="email"
-                value={email}
-                onChange={(ev) => setEmail(ev.target.value)}
-                placeholder="name@email.com"
-              />
-            </label>
+            {/* Songwriter needs top Email (because backend Email must exist) */}
+            {isSongwriter && (
+              <label className="submitform-field">
+                <span className="submitform-label">EMAIL*</span>
+                <input
+                  className="submitform-control"
+                  type="email"
+                  value={email}
+                  onChange={(ev) => setEmail(ev.target.value)}
+                  placeholder="name@email.com"
+                />
+              </label>
+            )}
 
             {type === "SyncRequest" && (
               <>
@@ -504,8 +556,6 @@ const SubmitForm = () => {
                     <option>Other</option>
                   </select>
                 </label>
-
-                {/* PAGE / URL removed */}
               </>
             )}
 
@@ -566,19 +616,19 @@ const SubmitForm = () => {
                   <input
                     className="submitform-control"
                     type="date"
-                    value={fields.dayOfBirth}
-                    onChange={(ev) => setField("dayOfBirth", ev.target.value)}
+                    value={fields.dateOfBirthArtist}
+                    onChange={(ev) => setField("dateOfBirthArtist", ev.target.value)}
                   />
                 </label>
 
-                {isMinor && (
+                {artistIsMinor && (
                   <>
                     <label className="submitform-field submitform-span2">
                       <span className="submitform-label">GUARDIAN FULL LEGAL NAME* (First Name Last name)</span>
                       <input
                         className="submitform-control"
-                        value={fields.guardianFullLegalName}
-                        onChange={(ev) => setField("guardianFullLegalName", ev.target.value)}
+                        value={fields.guardianNameArtist}
+                        onChange={(ev) => setField("guardianNameArtist", ev.target.value)}
                         placeholder="First Name Last name"
                       />
                     </label>
@@ -588,8 +638,8 @@ const SubmitForm = () => {
                       <input
                         className="submitform-control"
                         type="email"
-                        value={fields.guardianEmail}
-                        onChange={(ev) => setField("guardianEmail", ev.target.value)}
+                        value={fields.guardianEmailArtist}
+                        onChange={(ev) => setField("guardianEmailArtist", ev.target.value)}
                         placeholder="guardian@email.com"
                       />
                     </label>
@@ -632,7 +682,9 @@ const SubmitForm = () => {
                   <input
                     className="submitform-control"
                     value={fields.appleArtistId}
-                    onChange={(ev) => setField("appleArtistId", ev.target.value.replace(/[^\d]/g, "").slice(0, 10))}
+                    onChange={(ev) =>
+                      setField("appleArtistId", ev.target.value.replace(/[^\d]/g, "").slice(0, 10))
+                    }
                     placeholder="1234567890"
                   />
                 </label>
@@ -711,6 +763,41 @@ const SubmitForm = () => {
                     placeholder="First Name Last name"
                   />
                 </label>
+
+                <label className="submitform-field">
+                  <span className="submitform-label">DATE OF BIRTH*</span>
+                  <input
+                    className="submitform-control"
+                    type="date"
+                    value={fields.dateOfBirth}
+                    onChange={(ev) => setField("dateOfBirth", ev.target.value)}
+                  />
+                </label>
+
+                {songwriterIsMinor && (
+                  <>
+                    <label className="submitform-field submitform-span2">
+                      <span className="submitform-label">GUARDIAN FULL LEGAL NAME* (First Name Last name)</span>
+                      <input
+                        className="submitform-control"
+                        value={fields.guardianName}
+                        onChange={(ev) => setField("guardianName", ev.target.value)}
+                        placeholder="First Name Last name"
+                      />
+                    </label>
+
+                    <label className="submitform-field submitform-span2">
+                      <span className="submitform-label">GUARDIAN EMAIL ADDRESS*</span>
+                      <input
+                        className="submitform-control"
+                        type="email"
+                        value={fields.guardianEmail}
+                        onChange={(ev) => setField("guardianEmail", ev.target.value)}
+                        placeholder="guardian@email.com"
+                      />
+                    </label>
+                  </>
+                )}
 
                 <label className="submitform-field">
                   <span className="submitform-label">ORIGIN*</span>
@@ -809,15 +896,14 @@ const SubmitForm = () => {
               />
             </label>
 
-            {/* Privacy checkbox (mandatory) */}
             <label className="submitform-field submitform-span2 submitform-privacy">
-              <span> <input
-                type="checkbox"
-                checked={privacyAccepted}
-                onChange={(ev) => setPrivacyAccepted(ev.target.checked)}
-              />
-              
-                 &nbsp;&nbsp;I agree to the{" "}
+              <span>
+                <input
+                  type="checkbox"
+                  checked={privacyAccepted}
+                  onChange={(ev) => setPrivacyAccepted(ev.target.checked)}
+                />
+                &nbsp;&nbsp;I agree to the{" "}
                 <Link className="submitform-link" to="/privacy-policy">
                   Privacy Policy
                 </Link>{" "}
@@ -828,6 +914,7 @@ const SubmitForm = () => {
                 .
               </span>
             </label>
+
             <div className="submitform-field submitform-span2">
               <div className="submitform-note--disclaimer">{DISCLAIMER}</div>
             </div>
@@ -857,19 +944,18 @@ export default SubmitForm;
 
 function labelFor(k: string) {
   const m: Record<string, string> = {
-    fullLegalName: "Full legal name",
     streetNumber: "Street & Number",
     zipCode: "ZIP Code",
     city: "City",
     country: "Country",
-    dayOfBirth: "Date of birth",
-    guardianFullLegalName: "Guardian full legal name",
-    guardianEmail: "Guardian email address",
-    instagram: "Instagram",
     businessEmail: "Business email",
     spotifyUrl: "Spotify URL",
     appleArtistId: "Apple Artist ID",
     downtownEmail: "Downtown Music account email",
+    pro: "PRO",
+    ipi: "IPI number",
+    publisher: "Publisher",
+    publisherIpiCae: "Publisher IPI/CAE",
     origin: "Origin",
     age: "Age",
     yearsMakingMusic: "How long have you been making music?",

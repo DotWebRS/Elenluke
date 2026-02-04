@@ -20,12 +20,10 @@ public class UsersController : ControllerBase
         _db = db;
     }
 
-    // -------------------------
-    // Helpers
-    // -------------------------
+ 
     private string? GetCurrentIdentifier()
     {
-        // probaj što više varijanti (zavisi šta stavljaš u JWT)
+      
         return User?.Claims?.FirstOrDefault(c =>
                 c.Type == ClaimTypes.NameIdentifier ||
                 c.Type == ClaimTypes.Name ||
@@ -42,15 +40,15 @@ public class UsersController : ControllerBase
         var me = (GetCurrentIdentifier() ?? "").Trim();
         if (string.IsNullOrWhiteSpace(me)) return false;
 
-        // ako u tokenu ima Guid id
+   
         if (Guid.TryParse(me, out var meId))
             return user.Id == meId;
 
-        // email ili "name" (nekad ti je name = "admin")
+        
         if (string.Equals(user.Email, me, StringComparison.OrdinalIgnoreCase))
             return true;
 
-        // fallback: ako ti je name claim "admin" a u bazi email isto "admin"
+       
         if (string.Equals(user.Email?.Trim(), me, StringComparison.OrdinalIgnoreCase))
             return true;
 
@@ -70,7 +68,7 @@ public class UsersController : ControllerBase
     {
         if (!isRemovingAdminPrivilegesOrDeactivating) return Ok();
 
-        // samo ako je target trenutno aktivan Admin
+     
         if (target.Role == "Admin" && target.IsActive)
         {
             if (!ExistsOtherActiveAdmin(target.Id))
@@ -80,9 +78,7 @@ public class UsersController : ControllerBase
         return Ok();
     }
 
-    // -------------------------
-    // Endpoints
-    // -------------------------
+  
 
     [HttpGet]
     public IActionResult List()
@@ -142,7 +138,7 @@ public class UsersController : ControllerBase
         });
     }
 
-    // General update (ne sme da zaobiđe zaštite)
+   
     [HttpPut("{id:guid}")]
     public IActionResult Update([FromRoute] Guid id, [FromBody] UpdateUserRequest request)
     {
@@ -172,7 +168,7 @@ public class UsersController : ControllerBase
             if (IsSelf(user) && !string.Equals(user.Role, nextRole, StringComparison.OrdinalIgnoreCase))
                 return BadRequest("You cannot change your own role.");
 
-            // ako skidaš Admin privilegije -> ne sme ako je poslednji aktivan admin
+            
             var removingAdmin = (user.Role == "Admin" && nextRole != "Admin");
             var guard = BlockIfWouldRemoveLastActiveAdmin(user, removingAdmin);
             if (guard is BadRequestObjectResult) return guard;
@@ -189,7 +185,7 @@ public class UsersController : ControllerBase
             if (!nextActive && IsSelf(user))
                 return BadRequest("You cannot disable your own account.");
 
-            // ako deaktiviraš Admin-a -> ne sme ako je poslednji aktivan admin
+            
             var deactivatingAdmin = (user.Role == "Admin" && user.IsActive && nextActive == false);
             var guard = BlockIfWouldRemoveLastActiveAdmin(user, deactivatingAdmin);
             if (guard is BadRequestObjectResult) return guard;
@@ -213,7 +209,7 @@ public class UsersController : ControllerBase
         });
     }
 
-    // UI koristi ovo za Role dropdown
+
     [HttpPut("{id:guid}/role")]
     public IActionResult UpdateRole([FromRoute] Guid id, [FromBody] UpdateRoleRequest request)
     {
@@ -224,7 +220,7 @@ public class UsersController : ControllerBase
         if (nextRole != "Admin" && nextRole != "Editor" && nextRole != "Inbox")
             return BadRequest("Role must be Admin, Editor, or Inbox.");
 
-        // ne dozvoli sebi promenu role
+        
         if (IsSelf(user) && !string.Equals(user.Role, nextRole, StringComparison.OrdinalIgnoreCase))
             return BadRequest("You cannot change your own role.");
 
@@ -245,18 +241,18 @@ public class UsersController : ControllerBase
         });
     }
 
-    // UI koristi ovo za Enable/Disable
+    
     [HttpPut("{id:guid}/active")]
     public IActionResult SetActive([FromRoute] Guid id, [FromBody] UpdateActiveRequest request)
     {
         var user = _db.Users.FirstOrDefault(x => x.Id == id);
         if (user == null) return NotFound();
 
-        // ne dozvoli sebi disable
+        
         if (request.IsActive == false && IsSelf(user))
             return BadRequest("You cannot disable your own account.");
 
-        // ne dozvoli da ugasiš poslednjeg aktivnog admina
+        
         var deactivatingAdmin = (user.Role == "Admin" && user.IsActive && request.IsActive == false);
         var guard = BlockIfWouldRemoveLastActiveAdmin(user, deactivatingAdmin);
         if (guard is BadRequestObjectResult) return guard;
@@ -274,7 +270,7 @@ public class UsersController : ControllerBase
         });
     }
 
-    // HARD DELETE (potpuno brisanje)
+    
     [HttpDelete("{id:guid}")]
     public IActionResult HardDelete([FromRoute] Guid id)
     {

@@ -7,17 +7,15 @@ type Props = {
   children: ReactNode;
   className?: string;
 
-  // animate.css classes, npr "animate__fadeInLeft"
   inClass?: string;
   outClass?: string;
 
-  // ako true => animira samo prvi put, posle više ne (ti sad NE želiš ovo)
   playOnce?: boolean;
 
-  // ispod ove širine ekrana, koristi samo fade (siguran respons)
+ 
   fadeOnlyBelow?: number;
 
-  // propusti style (koristiš za animationDelay)
+
   style?: CSSProperties;
 };
 
@@ -35,13 +33,10 @@ export default function AnimateOnView({
   const [phase, setPhase] = useState<Phase>("idleOut");
   const phaseRef = useRef<Phase>("idleOut");
 
-  // da spreči flip-flop kad si na granici
   const cooldownRef = useRef<number>(0);
 
-  // kad je playOnce=true i već smo jednom ušli, posle ne animiramo više
   const hasPlayedInRef = useRef<boolean>(false);
 
-  // runtime izbor animacije (fade only na manjim ekranima)
   const pickClasses = () => {
     if (fadeOnlyBelow > 0 && typeof window !== "undefined" && window.innerWidth <= fadeOnlyBelow) {
       return { inC: "animate__fadeIn", outC: "animate__fadeOut" };
@@ -53,8 +48,8 @@ export default function AnimateOnView({
     const el = ref.current;
     if (!el) return;
 
-    const ENTER_RATIO = 0.22; // ulaz kad je “stvarno” vidljivo
-    const EXIT_RATIO = 0.06;  // izlaz kad je skoro nestalo
+    const ENTER_RATIO = 0.22; 
+    const EXIT_RATIO = 0.06;  
 
     const io = new IntersectionObserver(
       (entries) => {
@@ -110,7 +105,7 @@ export default function AnimateOnView({
     }
 
     if (current === "animOut") {
-      // KLJUČ: vrati na idleOut => sledeći put opet dobija lep ulaz
+      
       phaseRef.current = "idleOut";
       setPhase("idleOut");
       return;

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AdminShell } from "./AdminShell";
 import { useAdminSite } from "./useAdminSite";
 import { API_BASE } from "../../config/apiBase";
-
+import "../../styles/AdminSubmissionsModal.css";
+import * as XLSX from "xlsx";
 // -------------------- ENUM-LIKE KONSTANTE --------------------
 
 const SubmissionTypeId = {
@@ -176,9 +177,7 @@ function useAuthHeaders() {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") || "" : "";
   return useMemo(() => {
     if (!token) return {};
-    return {
-      Authorization: `Bearer ${token}`,
-    } as Record<string, string>;
+    return { Authorization: `Bearer ${token}` } as Record<string, string>;
   }, [token]);
 }
 
@@ -200,8 +199,6 @@ async function fetchBlob(input: RequestInfo, init?: RequestInit): Promise<Blob> 
   return await res.blob();
 }
 
-
-
 function getFieldValue(fields: SubmissionField[] | null | undefined, candidates: string[]) {
   const arr = Array.isArray(fields) ? fields : [];
   const norm = (x: string) => (x || "").trim().toLowerCase();
@@ -210,25 +207,17 @@ function getFieldValue(fields: SubmissionField[] | null | undefined, candidates:
     const hit = arr.find((f) => norm(f.name) === norm(c));
     if (hit?.value) return hit.value;
   }
-
   for (const c of candidates) {
     const cn = norm(c);
     const hit = arr.find((f) => norm(f.name).includes(cn));
     if (hit?.value) return hit.value;
   }
-
   return "";
 }
 
 function buildDemoRejectionTemplate(detail: SubmissionDetail) {
   const name = detail.name || "";
-  const trackTitle = getFieldValue(detail.fields, [
-    "Track Title",
-    "Song Title",
-    "Title",
-    "Track",
-    "trackTitle",
-  ]);
+  const trackTitle = getFieldValue(detail.fields, ["Track Title", "Song Title", "Title", "Track", "trackTitle"]);
   const trackPart = trackTitle ? ` ${trackTitle}` : " your track";
 
   return (
@@ -240,11 +229,15 @@ function buildDemoRejectionTemplate(detail: SubmissionDetail) {
   );
 }
 
+function isImageContentType(contentType: string) {
+  return (contentType || "").toLowerCase().startsWith("image/");
+}
+
 // --------------------------- KOMPONENTA ---------------------------
 
 export function AdminSubmissions() {
   const authHeaders = useAuthHeaders();
-  const { site } = useAdminSite(); // za prikaz domena u tekstu ako treba
+  const { site } = useAdminSite();
 
   const [page, setPage] = useState(1);
   const pageSize = 50;
@@ -274,8 +267,10 @@ export function AdminSubmissions() {
   const [replySubject, setReplySubject] = useState("");
   const [replyBody, setReplyBody] = useState("");
 
+  // INLINE PREVIEW (u okviru modala)
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const previewUrlsRef = useRef<Record<string, string>>({});
+  const [activePreviewFileId, setActivePreviewFileId] = useState<string | null>(null);
 
   useEffect(() => {
     previewUrlsRef.current = previewUrls;
@@ -286,9 +281,7 @@ export function AdminSubmissions() {
       for (const k of Object.keys(previewUrlsRef.current)) {
         try {
           URL.revokeObjectURL(previewUrlsRef.current[k]);
-        } catch {
-          // ignore
-        }
+        } catch {}
       }
     };
   }, []);
@@ -299,6 +292,7 @@ export function AdminSubmissions() {
     const qs = new URLSearchParams();
     qs.set("page", String(page));
     qs.set("pageSize", String(pageSize));
+    if (site) qs.set("site", site);
 
     if (search.trim()) qs.set("search", search.trim());
     if (typeFilter !== "all") qs.set("type", String(typeFilter));
@@ -306,29 +300,39 @@ export function AdminSubmissions() {
     if (hasFile !== "all") qs.set("hasFile", hasFile === "yes" ? "true" : "false");
     if (fromDate) qs.set("from", `${fromDate}T00:00:00`);
     if (toDate) qs.set("to", `${toDate}T23:59:59`);
-
     return qs.toString();
   };
 
+  const listAbortRef = useRef<AbortController | null>(null);
+
   const fetchList = async () => {
+    listAbortRef.current?.abort();
+    const controller = new AbortController();
+    listAbortRef.current = controller;
+
     setLoading(true);
     setError(null);
+
     try {
       const res = await fetch(buildUrl(`/api/submissions?${buildQuery()}`), {
+        signal: controller.signal,
         headers: { ...authHeaders },
       });
+
       if (!res.ok) {
         const t = await res.text().catch(() => "");
         setError(`List error: ${res.status}${t ? ` — ${t}` : ""}`);
         setData({ total: 0, items: [] });
         return;
       }
+
       const json = await res.json().catch(() => null);
       setData({
         total: Number(json?.total ?? 0),
         items: Array.isArray(json?.items) ? json.items : [],
       });
     } catch (e: any) {
+      if (e?.name === "AbortError") return;
       setError(e?.message || "List error");
       setData({ total: 0, items: [] });
     } finally {
@@ -338,28 +342,28 @@ export function AdminSubmissions() {
 
   useEffect(() => {
     fetchList();
+    return () => listAbortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, typeFilter, statusFilter, hasFile, fromDate, toDate, search]);
+  }, [page, typeFilter, statusFilter, hasFile, fromDate, toDate, search, site]);
 
   const openSubmission = async (id: string) => {
     setOpenId(id);
     setDetail(null);
     setDetailLoading(true);
     setError(null);
+    setActivePreviewFileId(null);
+
     try {
       const d = await fetchJson<SubmissionDetail>(buildUrl(`/api/submissions/${id}`), {
         headers: { ...authHeaders },
       });
+
       setDetail(d);
 
-      if (d.type === SubmissionTypeId.DemoUpload) {
-        setRejectionBody(buildDemoRejectionTemplate(d));
-      } else {
-        setRejectionBody("");
-      }
+      if (d.type === SubmissionTypeId.DemoUpload) setRejectionBody(buildDemoRejectionTemplate(d));
+      else setRejectionBody("");
 
-      const defaultTo = d.email || "";
-      setReplyTo(defaultTo);
+      setReplyTo(d.email || "");
       setReplySubject("");
       setReplyBody("");
     } catch (e: any) {
@@ -374,7 +378,9 @@ export function AdminSubmissions() {
     setDetail(null);
     setRejectionBody("");
     setReplyTo("");
+    setReplySubject("");
     setReplyBody("");
+    setActivePreviewFileId(null);
   };
 
   const patchStatusLocal = (id: string, newStatus: SubmissionStatusId) => {
@@ -382,16 +388,14 @@ export function AdminSubmissions() {
       ...prev,
       items: (prev.items || []).map((s) => (s.id === id ? { ...s, status: newStatus } : s)),
     }));
-
-    if (detail && detail.id === id) {
-      setDetail({ ...detail, status: newStatus });
-    }
+    setDetail((prev) => (prev && prev.id === id ? { ...prev, status: newStatus } : prev));
   };
 
   const updateStatus = async (id: string, newStatus: SubmissionStatusId) => {
     setSavingStatus(true);
     setBusyRow(id);
     setError(null);
+
     try {
       await fetchJson<void>(buildUrl(`/api/submissions/${id}/status`), {
         method: "PUT",
@@ -413,20 +417,25 @@ export function AdminSubmissions() {
 
     setError(null);
     setBusyRow(id);
+
     try {
       const res = await fetch(buildUrl(`/api/submissions/${id}`), {
         method: "DELETE",
         headers: { ...authHeaders },
       });
+
       if (!res.ok) {
         const t = await res.text().catch(() => "");
         setError(`Delete error: ${res.status}${t ? ` — ${t}` : ""}`);
         return;
       }
+
       setData((prev) => ({
         ...prev,
         items: (prev.items || []).filter((s) => s.id !== id),
+        total: Math.max(0, (prev.total || 0) - 1),
       }));
+
       if (detail && detail.id === id) closeModal();
     } catch (e: any) {
       setError(e?.message || "Delete error");
@@ -441,18 +450,23 @@ export function AdminSubmissions() {
     });
   };
 
-  const previewFile = async (file: SubmissionFile) => {
-    if (!detail) return;
+  const ensurePreviewUrl = async (file: SubmissionFile) => {
+    if (!detail) return "";
+    const existing = previewUrls[file.id];
+    if (existing) return existing;
+
+    const blob = await fetchFileBlob(detail.id, file.id);
+    const url = URL.createObjectURL(blob);
+    setPreviewUrls((p) => ({ ...p, [file.id]: url }));
+    return url;
+  };
+
+  const previewInline = async (file: SubmissionFile) => {
     try {
-      const existing = previewUrls[file.id];
-      if (existing) {
-        window.open(existing, "_blank", "noopener,noreferrer");
-        return;
-      }
-      const blob = await fetchFileBlob(detail.id, file.id);
-      const url = URL.createObjectURL(blob);
-      setPreviewUrls((p) => ({ ...p, [file.id]: url }));
-      window.open(url, "_blank", "noopener,noreferrer");
+      setError(null);
+      const url = await ensurePreviewUrl(file);
+      if (!url) return;
+      setActivePreviewFileId(file.id);
     } catch (e: any) {
       setError(e?.message || "Preview error");
     }
@@ -475,7 +489,69 @@ export function AdminSubmissions() {
     }
   };
 
+const exportOneExcel = () => {
+  if (!detail) return;
+
+  const safeId = (detail.id || "submission").replace(/[^\w\-]+/g, "_");
+
+  // 1) Overview sheet (jedan red)
+  const overviewRow = {
+    Id: detail.id,
+    Type: typeLabel(detail.type),
+    Status: statusLabel(detail.status),
+    Domain: detail.domain,
+    Name: detail.name,
+    Email: detail.email,
+    UploadedBy: detail.uploadedBy || "",
+    CreatedAt: detail.createdAt,
+    Message: detail.message || "",
+    FilesCount: (detail.files || []).length,
+    FieldsCount: (detail.fields || []).length,
+    RepliesCount: (detail.replies || []).length,
+  };
+
+  const wsOverview = XLSX.utils.json_to_sheet([overviewRow]);
+
+ 
+  const fieldsRows = (detail.fields || []).map((f) => ({
+    SubmissionId: detail.id,
+    FieldName: f.name,
+    FieldValue: f.value,
+  }));
+  const wsFields = XLSX.utils.json_to_sheet(fieldsRows.length ? fieldsRows : [{ SubmissionId: detail.id, FieldName: "", FieldValue: "" }]);
+
   
+  const filesRows = (detail.files || []).map((f) => ({
+    SubmissionId: detail.id,
+    FileId: f.id,
+    FileName: f.fileName,
+    ContentType: f.contentType,
+    SizeBytes: f.size,
+    SizeMB: Number((f.size / 1024 / 1024).toFixed(2)),
+  }));
+  const wsFiles = XLSX.utils.json_to_sheet(filesRows.length ? filesRows : [{ SubmissionId: detail.id, FileId: "", FileName: "", ContentType: "", SizeBytes: "", SizeMB: "" }]);
+
+ 
+  const repliesRows = (detail.replies || []).map((r) => ({
+    SubmissionId: detail.id,
+    ReplyId: r.id,
+    ToEmail: r.toEmail,
+    Subject: r.subject,
+    SentAt: r.sentAt,
+    Body: r.body,
+  }));
+  const wsReplies = XLSX.utils.json_to_sheet(repliesRows.length ? repliesRows : [{ SubmissionId: detail.id, ReplyId: "", ToEmail: "", Subject: "", SentAt: "", Body: "" }]);
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, wsOverview, "Overview");
+  XLSX.utils.book_append_sheet(wb, wsFields, "Fields");
+  XLSX.utils.book_append_sheet(wb, wsFiles, "Files");
+  XLSX.utils.book_append_sheet(wb, wsReplies, "Replies");
+
+  // download
+  XLSX.writeFile(wb, `submission_${safeId}.xlsx`);
+};
+
 
   const acceptDemo = async () => {
     if (!detail) return;
@@ -487,6 +563,7 @@ export function AdminSubmissions() {
         method: "PUT",
         headers: { ...authHeaders },
       });
+
       if (!res.ok) {
         const t = await res.text().catch(() => "");
         setError(`Accept error: ${res.status}${t ? ` — ${t}` : ""}`);
@@ -511,6 +588,7 @@ export function AdminSubmissions() {
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ body: rejectionBody }),
       });
+
       if (!res.ok) {
         const t = await res.text().catch(() => "");
         setError(`Reject error: ${res.status}${t ? ` — ${t}` : ""}`);
@@ -554,18 +632,15 @@ export function AdminSubmissions() {
   const canPrev = page > 1;
   const canNext = page < totalPages;
 
+  // ------------------ LIST UI (NE DIRAMO) ------------------
+
   return (
     <AdminShell title="Admin Inbox" active="submissions">
       <div className="admin-root">
         <div className="admin-header">
           <div className="admin-header-main">
             <h1>Inbox</h1>
-            <p className="sub">
-              Unified submissions across all forms. Filter, search and manage decisions.
-            </p>
-            {site ? (
-              <p className="sub sub-small"></p>
-            ) : null}
+            <p className="sub">Unified submissions across all forms. Filter, search and manage decisions.</p>
           </div>
         </div>
 
@@ -577,88 +652,85 @@ export function AdminSubmissions() {
 
         {/* FILTER BAR */}
         <div className="admin-filters-row">
-  <div className="admin-filters-main">
-    <input
-      ref={searchInputRef}
-      className="admin-input admin-input--search"
-      placeholder="Search by name, email, domain or message…"
-      value={search}
-      onChange={(e) => {
-        setPage(1);
-        setSearch(e.target.value);
-      }}
-    />
+          <div className="admin-filters-main">
+            <input
+              ref={searchInputRef}
+              className="admin-input admin-input--search"
+              placeholder="Search by name, email, domain or message…"
+              value={search}
+              onChange={(e) => {
+                setPage(1);
+                setSearch(e.target.value);
+              }}
+            />
 
-    <select
-      className="admin-select"
-      value={typeFilter === "all" ? "all" : String(typeFilter)}
-      onChange={(e) => {
-        const v = e.target.value;
-        setPage(1);
-        setTypeFilter(v === "all" ? "all" : (Number(v) as SubmissionTypeId));
-      }}
-    >
-      <option value="all">All types</option>
-      {SUBMISSION_TYPE_VALUES.map((v) => (
-        <option key={String(v)} value={String(v)}>
-          {typeLabel(v)}
-        </option>
-      ))}
-    </select>
+            <select
+              className="admin-select"
+              value={typeFilter === "all" ? "all" : String(typeFilter)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setPage(1);
+                setTypeFilter(v === "all" ? "all" : (Number(v) as SubmissionTypeId));
+              }}
+            >
+              <option value="all">All types</option>
+              {SUBMISSION_TYPE_VALUES.map((v) => (
+                <option key={String(v)} value={String(v)}>
+                  {typeLabel(v)}
+                </option>
+              ))}
+            </select>
 
-    <select
-      className="admin-select"
-      value={statusFilter === "all" ? "all" : String(statusFilter)}
-      onChange={(e) => {
-        const v = e.target.value;
-        setPage(1);
-        setStatusFilter(
-          v === "all" ? "all" : (Number(v) as SubmissionStatusId)
-        );
-      }}
-    >
-      <option value="all">All statuses</option>
-      {STATUS_FILTER_VALUES.map((v) => (
-        <option key={String(v)} value={String(v)}>
-          {statusLabel(v)}
-        </option>
-      ))}
-    </select>
+            <select
+              className="admin-select"
+              value={statusFilter === "all" ? "all" : String(statusFilter)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setPage(1);
+                setStatusFilter(v === "all" ? "all" : (Number(v) as SubmissionStatusId));
+              }}
+            >
+              <option value="all">All statuses</option>
+              {STATUS_FILTER_VALUES.map((v) => (
+                <option key={String(v)} value={String(v)}>
+                  {statusLabel(v)}
+                </option>
+              ))}
+            </select>
 
-    <select
-      className="admin-select"
-      value={hasFile}
-      onChange={(e) => {
-        setPage(1);
-        setHasFile(e.target.value as FilterHasFile);
-      }}
-    >
-      <option value="all">Files: All</option>
-      <option value="yes">Files: Has file</option>
-      <option value="no">Files: No file</option>
-    </select>
+            <select
+              className="admin-select"
+              value={hasFile}
+              onChange={(e) => {
+                setPage(1);
+                setHasFile(e.target.value as FilterHasFile);
+              }}
+            >
+              <option value="all">Files: All</option>
+              <option value="yes">Files: Has file</option>
+              <option value="no">Files: No file</option>
+            </select>
 
-    <input
-      className="admin-input admin-input--date"
-      type="date"
-      value={fromDate}
-      onChange={(e) => {
-        setPage(1);
-        setFromDate(e.target.value);
-      }}
-    />
-    <input
-      className="admin-input admin-input--date"
-      type="date"
-      value={toDate}
-      onChange={(e) => {
-        setPage(1);
-        setToDate(e.target.value);
-      }}
-    />
-  </div>
-</div>
-
+            <input
+              className="admin-input admin-input--date"
+              type="date"
+              value={fromDate}
+              onChange={(e) => {
+                setPage(1);
+                setFromDate(e.target.value);
+              }}
+            />
+            <input
+              className="admin-input admin-input--date"
+              type="date"
+              value={toDate}
+              onChange={(e) => {
+                setPage(1);
+                setToDate(e.target.value);
+              }}
+            />
+          </div>
+        </div>
 
         {/* TABELA */}
         <div className="admin-table-wrap">
@@ -695,17 +767,11 @@ export function AdminSubmissions() {
               ) : null}
 
               {(visibleItems ?? []).map((s) => (
-                <tr
-                  key={s.id}
-                  className="admin-row"
-                  onClick={() => openSubmission(s.id)}
-                >
+                <tr key={s.id} className="admin-row" onClick={() => openSubmission(s.id)}>
                   <td>{new Date(s.createdAt).toLocaleString()}</td>
                   <td>{typeLabel(s.type)}</td>
                   <td>
-                    <span className={`admin-badge ${statusBadgeClass(s.status)}`}>
-                      {statusLabel(s.status)}
-                    </span>
+                    <span className={`admin-badge ${statusBadgeClass(s.status)}`}>{statusLabel(s.status)}</span>
                   </td>
                   <td>{s.name}</td>
                   <td>{s.email}</td>
@@ -713,20 +779,12 @@ export function AdminSubmissions() {
                   <td>{s.domain}</td>
                   <td>{s.repliesCount}</td>
                   <td>
-                    <div
-                      className="admin-table-actions"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <div className="admin-table-actions" onClick={(e) => e.stopPropagation()}>
                       <select
                         className="admin-select admin-select--compact"
                         value={String(s.status)}
                         disabled={savingStatus && busyRow === s.id}
-                        onChange={(e) =>
-                          updateStatus(
-                            s.id,
-                            Number(e.target.value) as SubmissionStatusId
-                          )
-                        }
+                        onChange={(e) => updateStatus(s.id, Number(e.target.value) as SubmissionStatusId)}
                       >
                         {STATUS_FILTER_VALUES.map((st) => (
                           <option key={String(st)} value={String(st)}>
@@ -738,9 +796,12 @@ export function AdminSubmissions() {
                       <button
                         className="admin-btn admin-btn-danger admin-btn--xs"
                         disabled={savingStatus && busyRow === s.id}
-                        onClick={() => deleteSubmissionById(s.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteSubmissionById(s.id);
+                        }}
                       >
-                        Delete
+                        <i className="fa fa-trash" aria-hidden="true"></i>
                       </button>
                     </div>
                   </td>
@@ -757,18 +818,10 @@ export function AdminSubmissions() {
               </span>
             </div>
             <div className="admin-footer-right">
-              <button
-                className="admin-btn admin-btn-secondary"
-                disabled={!canPrev}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
+              <button className="admin-btn admin-btn-secondary" disabled={!canPrev} onClick={() => setPage((p) => Math.max(1, p - 1))}>
                 Prev
               </button>
-              <button
-                className="admin-btn admin-btn-secondary"
-                disabled={!canNext}
-                onClick={() => setPage((p) => p + 1)}
-              >
+              <button className="admin-btn admin-btn-secondary" disabled={!canNext} onClick={() => setPage((p) => p + 1)}>
                 Next
               </button>
             </div>
@@ -776,283 +829,220 @@ export function AdminSubmissions() {
         </div>
       </div>
 
-      {/* MODAL ZA DETAIL */}
+      {/* MODAL (BELI, ORGANIZOVAN) */}
       {openId ? (
-        <div
-          className="admin-modal-overlay"
-          onMouseDown={(e) =>
-            e.target === e.currentTarget ? closeModal() : null
-          }
-        >
-          <div className="admin-modal">
-            <div className="admin-modal-header">
-              <div className="admin-modal-title">
-                <h2>Submission detail</h2>
-                <p className="sub sub-small">{openId}</p>
+        <div className="subm-modal-overlay" onMouseDown={(e) => (e.target === e.currentTarget ? closeModal() : null)}>
+          <div className="subm-modal" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="subm-modal-top">
+              <div className="subm-modal-title">
+                <div className="subm-h">Submission</div>
+                <div className="subm-sub">{openId}</div>
               </div>
-              <button
-                className="admin-modal-close"
-                onClick={closeModal}
-                aria-label="Close"
-              >
-                ✕
-              </button>
+
+              <div className="subm-modal-actions">
+                <button className="subm-btn subm-btn-soft" onClick={exportOneExcel} disabled={!detail || detailLoading}>
+                  Export
+                </button>
+                <button className="subm-btn subm-btn-close" onClick={closeModal} aria-label="Close">
+                  ✕
+                </button>
+              </div>
             </div>
 
             {!detail || detailLoading ? (
-              <div className="admin-modal-loading">Loading details…</div>
+              <div className="subm-loading">Loading details…</div>
             ) : (
-              <div className="admin-modal-body">
-                <div className="admin-modal-grid">
-                  <div className="admin-card">
-                    <div className="admin-card-header">
-                      <h3>Overview</h3>
-                    </div>
-                    <div className="admin-card-body">
-                      <div className="thread-item">
-                        <div className="tmeta">
-                          <div className="tlabel">Type</div>
-                        </div>
-                        <div className="tbody">{typeLabel(detail.type)}</div>
+              <div className="subm-modal-body">
+                <div className="subm-grid">
+                  {/* LEFT COLUMN */}
+                  <div className="subm-col">
+                    <div className="subm-card">
+                      <div className="subm-card-h">
+                        <span>Overview</span>
+                        <span className={`subm-pill ${statusBadgeClass(detail.status)}`}>{statusLabel(detail.status)}</span>
                       </div>
 
-                      <div className="thread-item">
-                        <div className="tmeta">
-                          <div className="tlabel">Status</div>
+                      <div className="subm-kv">
+                        <div className="subm-kv-row">
+                          <div className="subm-k">Type</div>
+                          <div className="subm-v">{typeLabel(detail.type)}</div>
                         </div>
-                        <div className="tbody">
-                          <span
-                            className={`admin-badge ${statusBadgeClass(
-                              detail.status
-                            )}`}
-                          >
-                            {statusLabel(detail.status)}
-                          </span>
+                        <div className="subm-kv-row">
+                          <div className="subm-k">Created</div>
+                          <div className="subm-v">{new Date(detail.createdAt).toLocaleString()}</div>
+                        </div>
+                        <div className="subm-kv-row">
+                          <div className="subm-k">Domain</div>
+                          <div className="subm-v">{detail.domain}</div>
+                        </div>
+                        <div className="subm-kv-row">
+                          <div className="subm-k">Name</div>
+                          <div className="subm-v">{detail.name}</div>
+                        </div>
+                        <div className="subm-kv-row">
+                          <div className="subm-k">Email</div>
+                          <div className="subm-v">{detail.email}</div>
+                        </div>
+                        <div className="subm-kv-row">
+                          <div className="subm-k">Uploaded by</div>
+                          <div className="subm-v">{detail.uploadedBy || "-"}</div>
                         </div>
                       </div>
-
-                      <div className="thread-item">
-                        <div className="tmeta">
-                          <div className="tlabel">Created</div>
-                        </div>
-                        <div className="tbody">
-                          {new Date(detail.createdAt).toLocaleString()} (
-                          {detail.domain})
-                        </div>
-                      </div>
-
-                      <div className="thread-item">
-                        <div className="tmeta">
-                          <div className="tlabel">Name</div>
-                        </div>
-                        <div className="tbody">{detail.name}</div>
-                      </div>
-
-                      <div className="thread-item">
-                        <div className="tmeta">
-                          <div className="tlabel">Email</div>
-                        </div>
-                        <div className="tbody">{detail.email}</div>
-                      </div>
-
-                      {detail.uploadedBy ? (
-                        <div className="thread-item">
-                          <div className="tmeta">
-                            <div className="tlabel">Uploaded by</div>
-                          </div>
-                          <div className="tbody">{detail.uploadedBy}</div>
-                        </div>
-                      ) : null}
                     </div>
-                  </div>
 
-                  <div className="admin-card">
-                    <div className="admin-card-header">
-                      <h3>Message</h3>
+                    <div className="subm-card">
+                      <div className="subm-card-h">Message</div>
+                      {detail.message ? <pre className="subm-pre">{detail.message}</pre> : <div className="subm-empty">No message provided.</div>}
                     </div>
-                    <div className="admin-card-body">
-                      {detail.message ? (
-                        <pre className="admin-pre">{detail.message}</pre>
-                      ) : (
-                        <div className="admin-empty">
-                          No message provided.
-                        </div>
-                      )}
-                    </div>
-                  </div>
 
-                  <div className="admin-card">
-                    <div className="admin-card-header">
-                      <h3>Files</h3>
-                    </div>
-                    <div className="admin-card-body">
-                      {(detail.files || []).length === 0 ? (
-                        <div className="admin-empty">No files uploaded.</div>
-                      ) : (
-                        (detail.files || []).map((f) => (
-                          <div
-                            key={f.id}
-                            className="thread-item thread-item--between"
-                          >
-                            <div className="tmeta">
-                              <div className="tlabel">{f.fileName}</div>
-                              <div className="tsub">
-                                {f.contentType || "file"} —{" "}
-                                {(f.size / 1024 / 1024).toFixed(2)} MB
-                              </div>
-                            </div>
-                            <div className="tbody tbody-actions">
-                              <button
-                                className="admin-btn admin-btn-secondary admin-btn--xs"
-                                onClick={() => previewFile(f)}
-                              >
-                                Preview
-                              </button>
-                              <button
-                                className="admin-btn admin-btn-secondary admin-btn--xs"
-                                onClick={() => downloadFile(f)}
-                              >
-                                Download
-                              </button>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="admin-card">
-                    <div className="admin-card-header">
-                      <h3>Fields</h3>
-                    </div>
-                    <div className="admin-card-body admin-fields-grid">
+                    <div className="subm-card">
+                      <div className="subm-card-h">Fields</div>
                       {(detail.fields || []).length === 0 ? (
-                        <div className="admin-empty">No extra fields.</div>
+                        <div className="subm-empty">No extra fields.</div>
                       ) : (
-                        (detail.fields || []).map((f, idx) => (
-                          <div
-                            key={`${f.name}-${idx}`}
-                            className="thread-item"
-                          >
-                            <div className="tmeta">
-                              <div className="tlabel tlabel-strong">
-                                {f.name}
-                              </div>
-                              <div className="tsub">Field</div>
+                        <div className="subm-fields">
+                          {(detail.fields || []).map((f, idx) => (
+                            <div key={`${f.name}-${idx}`} className="subm-field-row">
+                              <div className="subm-field-k">{f.name}</div>
+                              <div className="subm-field-v">{f.value}</div>
                             </div>
-                            <div className="tbody">{f.value}</div>
-                          </div>
-                        ))
+                          ))}
+                        </div>
                       )}
                     </div>
-                  </div>
 
-                  <div className="admin-card">
-                    <div className="admin-card-header">
-                      <h3>Replies history</h3>
-                    </div>
-                    <div className="admin-card-body">
+                    {detail.type === SubmissionTypeId.DemoUpload ? (
+                      <div className="subm-card">
+                        <div className="subm-card-h subm-between">
+                          <span>Demo decision</span>
+                          <div className="subm-inline-actions">
+                            <button className="subm-btn subm-btn-ok" onClick={acceptDemo} disabled={detail.status === SubmissionStatusId.Accepted}>
+                              Accept
+                            </button>
+                            <button className="subm-btn subm-btn-bad" onClick={rejectDemo} disabled={detail.status === SubmissionStatusId.Rejected}>
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                        <div className="subm-help">Rejection email body (editable)</div>
+                        <textarea className="subm-textarea" value={rejectionBody} onChange={(e) => setRejectionBody(e.target.value)} rows={10} />
+                      </div>
+                    ) : null}
+
+                    <div className="subm-card">
+                      <div className="subm-card-h">Replies history</div>
                       {(detail.replies || []).length === 0 ? (
-                        <div className="admin-empty">No replies yet.</div>
+                        <div className="subm-empty">No replies yet.</div>
                       ) : (
-                        (detail.replies || []).map((r) => (
-                          <div key={r.id} className="thread-item">
-                            <div className="tmeta">
-                              <div className="tlabel">
-                                To: {r.toEmail} —{" "}
-                                {new Date(r.sentAt).toLocaleString()}
+                        <div className="subm-replies">
+                          {(detail.replies || []).map((r) => (
+                            <div key={r.id} className="subm-reply">
+                              <div className="subm-reply-top">
+                                <span className="subm-chip">{new Date(r.sentAt).toLocaleString()}</span>
+                                <span className="subm-chip">{r.toEmail}</span>
+                                <span className="subm-chip">{r.subject}</span>
                               </div>
-                              <div className="tsub">{r.subject}</div>
+                              <pre className="subm-pre subm-pre--small">{r.body}</pre>
                             </div>
-                            <div className="tbody">
-                              <pre className="admin-pre">{r.body}</pre>
-                            </div>
-                          </div>
-                        ))
+                          ))}
+                        </div>
                       )}
+                    </div>
+
+                    <div className="subm-card">
+                      <div className="subm-card-h">Reply</div>
+
+                      <div className="subm-form">
+                        <div className="subm-form-row">
+                          <label>To</label>
+                          <input className="subm-input" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} placeholder="Recipient email" />
+                        </div>
+                        <div className="subm-form-row">
+                          <label>Subject</label>
+                          <input className="subm-input" value={replySubject} onChange={(e) => setReplySubject(e.target.value)} placeholder="Subject" />
+                        </div>
+                        <div className="subm-form-row subm-form-row--top">
+                          <label>Body</label>
+                          <textarea className="subm-textarea" rows={8} value={replyBody} onChange={(e) => setReplyBody(e.target.value)} placeholder="Write your reply…" />
+                        </div>
+                        <div className="subm-form-row subm-form-row--end">
+                          <span />
+                          <button className="subm-btn subm-btn-main" onClick={sendReply}>
+                            Send reply
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {detail.type === SubmissionTypeId.DemoUpload ? (
-                    <div className="admin-card">
-                      <div className="admin-card-header admin-card-header--between">
-                        <h3>Demo decision</h3>
-                        <div className="admin-card-header-actions">
-                          <button
-                            className="admin-btn admin-btn-primary admin-btn--sm"
-                            onClick={acceptDemo}
-                            disabled={
-                              detail.status === SubmissionStatusId.Accepted
-                            }
-                          >
-                            Accept
-                          </button>
-                          <button
-                            className="admin-btn admin-btn-danger admin-btn--sm"
-                            onClick={rejectDemo}
-                            disabled={
-                              detail.status === SubmissionStatusId.Rejected
-                            }
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      </div>
-                      <div className="admin-card-body">
-                        <div className="admin-help-text">
-                          Rejection email body (editable)
-                        </div>
-                        <textarea
-                          className="admin-textarea"
-                          value={rejectionBody}
-                          onChange={(e) => setRejectionBody(e.target.value)}
-                          rows={10}
-                        />
-                      </div>
-                    </div>
-                  ) : null}
+                  {/* RIGHT COLUMN: FILES + PREVIEW */}
+                  <div className="subm-col">
+                    <div className="subm-card">
+                      <div className="subm-card-h">Files</div>
 
-                  <div className="admin-card admin-card--full">
-                    <div className="admin-card-header">
-                      <h3>Reply</h3>
+                      {(detail.files || []).length === 0 ? (
+                        <div className="subm-empty">No files uploaded.</div>
+                      ) : (
+                        <div className="subm-files-wrap">
+                          <div className="subm-files-list">
+                            {(detail.files || []).map((f) => (
+                              <div key={f.id} className={`subm-file ${activePreviewFileId === f.id ? "is-active" : ""}`}>
+                                <div className="subm-file-info">
+                                  <div className="subm-file-name">{f.fileName}</div>
+                                  <div className="subm-file-meta">
+                                    {f.contentType || "file"} — {(f.size / 1024 / 1024).toFixed(2)} MB
+                                  </div>
+                                </div>
+
+                                <div className="subm-file-actions">
+                                  <button className="subm-btn subm-btn-soft" onClick={() => previewInline(f)}>
+                                    Preview
+                                  </button>
+                                  <button className="subm-btn subm-btn-soft" onClick={() => downloadFile(f)}>
+                                    Download
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="subm-preview-box">
+                            {activePreviewFileId && previewUrls[activePreviewFileId] ? (
+                              (() => {
+                                const f = (detail.files || []).find((x) => x.id === activePreviewFileId);
+                                const url = previewUrls[activePreviewFileId];
+                                const ct = (f?.contentType || "").toLowerCase();
+
+                                if (ct.startsWith("image/")) {
+                                  return <img className="subm-preview-img" src={url} alt={f?.fileName || "preview"} />;
+                                }
+                                if (ct === "application/pdf") {
+                                  return <iframe className="subm-preview-iframe" src={url} title={f?.fileName || "preview"} />;
+                                }
+                                if (ct.startsWith("audio/")) {
+                                  return <audio className="subm-preview-audio" controls src={url} />;
+                                }
+                                if (ct.startsWith("video/")) {
+                                  return <video className="subm-preview-video" controls src={url} />;
+                                }
+
+                                return (
+                                  <div className="subm-preview-fallback">
+                                    <div className="subm-file-name">No inline preview</div>
+                                    <div className="subm-file-meta">{f?.contentType || "unknown"}</div>
+                                  </div>
+                                );
+                              })()
+                            ) : (
+                              <div className="subm-preview-empty">Select a file to preview.</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="admin-card-body admin-reply-form">
-                      <div className="field-row">
-                        <label>To</label>
-                        <input
-                          className="admin-input"
-                          value={replyTo}
-                          onChange={(e) => setReplyTo(e.target.value)}
-                          placeholder="Recipient email"
-                        />
-                      </div>
-                      <div className="field-row">
-                        <label>Subject</label>
-                        <input
-                          className="admin-input"
-                          value={replySubject}
-                          onChange={(e) => setReplySubject(e.target.value)}
-                          placeholder="Subject"
-                        />
-                      </div>
-                      <div className="field-row">
-                        <label>Body</label>
-                        <textarea
-                          className="admin-textarea"
-                          rows={8}
-                          value={replyBody}
-                          onChange={(e) => setReplyBody(e.target.value)}
-                          placeholder="Write your reply…"
-                        />
-                      </div>
-                      <div className="field-row field-row--end">
-                        <button
-                          className="admin-btn admin-btn-primary"
-                          onClick={sendReply}
-                        >
-                          Send reply
-                        </button>
-                      </div>
+
+                    <div className="subm-card subm-card-note">
+                      
                     </div>
                   </div>
                 </div>

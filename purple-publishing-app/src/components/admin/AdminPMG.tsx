@@ -141,7 +141,7 @@ export default function AdminPMG() {
   useEffect(() => {
     const fromUrl = params.get("site");
     if (fromUrl) setSite(fromUrl as any);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   useEffect(() => {
@@ -648,7 +648,7 @@ export default function AdminPMG() {
                                   if (publicUrl) updateBrand(b.id, { logoSrc: publicUrl });
                                   }
                                 } catch {
-                                  // ignore upload error
+                                  
                                 }
                               }}
                             />
