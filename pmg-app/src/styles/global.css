@@ -207,11 +207,9 @@ button{ font:inherit; color:inherit; }
   .brandGrid{ grid-template-columns: 1fr; }
 }
 
-/* Wrapper iz AnimateOnView neka se rastegne */
-.brandGrid > .aov,
-.brandGrid > .animate__animated{
+.brandGrid > .aov{
   display: block;
-  height: 100%;
+  height: auto;
 }
 
 .brandCardWrap{
@@ -1475,4 +1473,282 @@ body{
   .brandGrid{
     gap: 72px; /* malo manji gap da ne bude prevelik razmak, ali i dalje čisto */
   }
+}
+
+
+/* AnimateOnView – only opacity, no flying */
+.aov{ will-change: opacity; }
+
+/* ulazi */
+.aovFadeIn{
+  animation: aovFadeIn 520ms ease forwards;
+}
+
+/* izlazi */
+.aovFadeOut{
+  animation: aovFadeOut 420ms ease forwards;
+  pointer-events: none;
+}
+
+@keyframes aovFadeIn{
+  from{ opacity: 0; }
+  to{ opacity: 1; }
+}
+
+@keyframes aovFadeOut{
+  from{ opacity: 1; }
+  to{ opacity: 0; }
+}
+
+/* Safety: ubij sve transform animacije ako se provuku */
+.brandGrid .animate__animated{
+  transform: none !important;
+}
+
+
+.brandGrid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  column-gap: 22px;
+  row-gap: 96px; /* bitno: prostor za virenje logotipa */
+}
+
+@media (max-width: 900px){
+  .brandGrid{
+    grid-template-columns: 1fr;
+    row-gap: 96px;
+    column-gap: 0;
+  }
+}
+
+.brandGrid > .aov{
+  display: block;
+}
+
+.brandGrid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  column-gap: 22px;
+  row-gap: 96px; /* prostor da virenje ne uđe u sledeći red */
+}
+
+@media (max-width: 900px){
+  .brandGrid{
+    grid-template-columns: 1fr;
+    column-gap: 0;
+    row-gap: 92px;
+  }
+}
+
+
+.brandGrid .animate__animated{
+  transform: none !important;
+}
+
+/* Wrapper mora da bude block i da zauzme celu grid ćeliju */
+.brandGrid > .aov {
+  display: block;
+  height: 100%;
+}
+
+/* Grid: razdvoji redove više nego kolone (zbog logo “overflow” gore) */
+.brandGrid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  column-gap: 22px;
+  row-gap: 96px; /* ključno: sprečava preklapanje između redova */
+}
+
+@media (max-width: 900px){
+  .brandGrid{
+    grid-template-columns: 1fr;
+    row-gap: 92px; /* i na mobilnom ostavi veliki razmak */
+  }
+}
+
+
+/* 3 u redu na desktop */
+.brandGrid{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  column-gap: 22px;
+  row-gap: 110px; /* bitno: prostor za logo koji viri iznad kartice */
+}
+
+/* tablet: 2 u redu */
+@media (max-width: 1024px){
+  .brandGrid{
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    row-gap: 100px;
+  }
+}
+
+/* telefon: 1 u redu */
+@media (max-width: 640px){
+  .brandGrid{
+    grid-template-columns: 1fr;
+    row-gap: 92px;
+  }
+}
+
+/* wrapper iz AnimateOnView da ispuni grid cell */
+.brandGrid > .aov{
+  display: block;
+  height: 100%;
+}
+
+/* bolji osećaj animacije */
+.aov{
+  will-change: opacity, transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* trajanje + easing */
+:root{
+  --aov-in: 520ms;
+  --aov-out: 340ms;
+  --aov-ease: cubic-bezier(.22, 1, .36, 1);
+}
+
+/* ulaz: fade + blagi rise */
+.aovFadeIn{
+  animation: aovFadeIn var(--aov-in) var(--aov-ease) both;
+}
+
+/* izlaz: fade + blagi rise nazad */
+.aovFadeOut{
+  animation: aovFadeOut var(--aov-out) ease-in both;
+  pointer-events: none;
+}
+
+@keyframes aovFadeIn{
+  from{ opacity: 0; transform: translate3d(0, 14px, 0); }
+  to  { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+@keyframes aovFadeOut{
+  from{ opacity: 1; transform: translate3d(0, 0, 0); }
+  to  { opacity: 0; transform: translate3d(0, -10px, 0); }
+}
+
+
+/* ISKLJUCI ulazak sa strane ispod laptopa */
+@media (max-width: 1024px){
+  .brandGrid .animate__animated{ animation: none !important; }
+  .brandGrid .aov,
+  .brandGrid .aov--hidden,
+  .brandGrid .aov--out{
+    opacity: 1 !important;
+    transform: none !important;
+    pointer-events: auto !important;
+  }
+}
+
+:root{
+  --aov-in: 900ms;     /* duze */
+  --aov-out: 700ms;    /* duze */
+  --aov-ease: cubic-bezier(.16, 1, .3, 1); /* smooth */
+}
+
+/* default stanje */
+.aov{
+  will-change: opacity, transform, filter;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* ulaz */
+.aovFadeIn{
+  animation: aovFadeIn var(--aov-in) var(--aov-ease) both;
+}
+
+/* izlaz */
+.aovFadeOut{
+  animation: aovFadeOut var(--aov-out) cubic-bezier(.4, 0, 1, 1) both;
+  pointer-events: none;
+}
+
+@keyframes aovFadeIn{
+  from{
+    opacity: 0;
+    transform: translate3d(0, 22px, 0);
+    filter: blur(3px);
+  }
+  to{
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0px);
+  }
+}
+
+@keyframes aovFadeOut{
+  from{
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0px);
+  }
+  to{
+    opacity: 0;
+    transform: translate3d(0, -16px, 0);
+    filter: blur(2px);
+  }
+}
+.aov--hidden{
+  opacity: 0;
+  pointer-events: none;
+  /* nemoj display:none; */
+}
+
+.aov.animIn .brandCard:hover,
+.aov.animOut .brandCard:hover{
+  transform: none;
+}
+
+
+/******************************************NOVI*/
+:root{
+  --animate-duration: 1200ms; /* duže i fluidnije */
+}
+
+/* AOV wrapper: ne sme da pravi horizontalni scroll */
+.aov{ will-change: opacity, transform; }
+.aov--hidden{ opacity:0; pointer-events:none; }
+
+/* Grid: 3 kolone desktop, 2 tablet, 1 mobile */
+.brandGrid{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 22px;
+  row-gap: 120px; /* KLJUČNO: da redovi ne preklapaju zbog “virenja” */
+}
+
+/* tablet */
+@media (max-width: 1024px){
+  .brandGrid{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 110px;
+  }
+}
+
+/* mobile */
+@media (max-width: 640px){
+  .brandGrid{
+    grid-template-columns: 1fr;
+    row-gap: 96px;
+  }
+}
+
+/* Kartica ostaje ista (logo viri) */
+.brandCard{ overflow: visible; }
+.brandCard__stage{ overflow: visible; }
+.brandCard__logo{ transform: translateY(-66px) !important; }
+
+
+.brandCard.is-disabled {
+  opacity: 0.85;
+  cursor: default;
+}
+.brandCard.is-disabled:hover {
+  transform: none;
 }

@@ -3,6 +3,7 @@ import BrandCarousel from "../components/BrandCarousel";
 import Snow from "../components/Snow";
 import { PMG_COPY } from "../content/copy";
 import { API_BASE, buildApiUrl } from "../config/apiBase";
+import "../styles/Hero.css";
 
 console.log("[DBG] API_BASE =", API_BASE);
 
@@ -30,7 +31,6 @@ export default function Home() {
   const [heroOut, setHeroOut] = useState(false);
   const [heroCms, setHeroCms] = useState<HeroCmsPayload | null>(null);
 
-  // IntersectionObserver za animaciju hero sekcije
   useEffect(() => {
     const el = brandsRef.current;
     if (!el) return;
@@ -48,7 +48,7 @@ export default function Home() {
     return () => io.disconnect();
   }, []);
 
-  // Učitaj hero CMS (fallback na PMG_COPY)
+  
   useEffect(() => {
     let alive = true;
 
@@ -75,7 +75,6 @@ export default function Home() {
           return;
         }
 
-        // Očekujemo { siteKey, key, json: string }
         const raw: any = await res.json().catch(() => null);
         console.log("[PMG hero] raw response", raw);
 

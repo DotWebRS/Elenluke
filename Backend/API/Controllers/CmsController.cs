@@ -22,9 +22,7 @@ public class CmsController : ControllerBase
     [AllowAnonymous]
     public IActionResult Get([FromQuery] string siteKey, [FromQuery] string key)
     {
-        Console.WriteLine("/n/n/n/n/n/n");
-        Console.WriteLine("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        Console.WriteLine("/n/n/n/n/n/n");
+      
 
         if (string.IsNullOrWhiteSpace(siteKey) || string.IsNullOrWhiteSpace(key))
             return BadRequest("siteKey and key are required.");
@@ -50,9 +48,7 @@ public class CmsController : ControllerBase
     public IActionResult Upsert([FromBody] CmsUpsertDto dto)
     {
 
-        Console.WriteLine("/n/n/n/n/n/n");
-        Console.WriteLine("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        Console.WriteLine("/n/n/n/n/n/n");
+        
 
         if (dto == null ||
             string.IsNullOrWhiteSpace(dto.SiteKey) ||
@@ -97,9 +93,7 @@ public class CmsController : ControllerBase
 
         };
 
-        Console.WriteLine("/n/n/n/n/n/n");
-        Console.WriteLine("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        Console.WriteLine("/n/n/n/n/n/n");
+        
 
         _db.AuditLogs.Add(log);
 
@@ -107,13 +101,7 @@ public class CmsController : ControllerBase
         return Ok();
     }
 
-    // ======================================
-    // 2) NOVI CONTENT CMS (sa locale-om)
-    //    koristi ContentEntry tabelu
-    // ======================================
-
-    // PUBLIC READ za ContentEntry:
-    // GET /api/cms/content?key=purple-music-group.home.hero&locale=en
+   
     [HttpGet("content")]
     [AllowAnonymous]
     public IActionResult GetContent([FromQuery] string key, [FromQuery] string? locale = "en")
@@ -141,8 +129,6 @@ public class CmsController : ControllerBase
         });
     }
 
-    // ADMIN UPSERT za ContentEntry:
-    // PUT /api/cms/content
     [HttpPut("content")]
     [Authorize(Roles = "Admin,Editor")]
     public IActionResult UpsertContent([FromBody] ContentUpsertDto dto)

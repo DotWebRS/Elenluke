@@ -200,13 +200,7 @@ async function fetchBlob(input: RequestInfo, init?: RequestInit): Promise<Blob> 
   return await res.blob();
 }
 
-function csvEscape(value: string | number | boolean | null | undefined): string {
-  const s = String(value ?? "");
-  if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\r")) {
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-  return s;
-}
+
 
 function getFieldValue(fields: SubmissionField[] | null | undefined, candidates: string[]) {
   const arr = Array.isArray(fields) ? fields : [];

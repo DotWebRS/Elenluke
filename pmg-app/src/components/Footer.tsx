@@ -18,9 +18,15 @@ export default function Footer() {
         </div>
 
         <div className="footer__right">  
-          <a className="footer__link" href="/cookies">Cookies</a>
-          <a className="footer__link" href="/privacy">Privacy Policy</a>
-          <a className="footer__link" href="/terms">Terms of Use</a>
+          <Link className="footer__link" to="/cookies">
+            Cookies
+          </Link>
+          <Link className="footer__link" to="/privacy">
+            Privacy Policy
+          </Link>
+          <Link className="footer__link" to="/terms">
+            Terms of Use
+          </Link>
           <Link className="footer__link" to="/impressum">
             Impressum
           </Link>

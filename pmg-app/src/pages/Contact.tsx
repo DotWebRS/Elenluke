@@ -51,7 +51,7 @@ export default function Contact() {
   const backendType = useMemo<BackendSubmissionType | "">(() => {
     if (type === "Sync") return "SyncRequest";
     if (type === "General") return "GeneralContactInquiry";
-    if (type === "Legal") return "LegalRequest"; // you will add this in backend
+    if (type === "Legal") return "LegalRequest"; 
     return "";
   }, [type]);
 

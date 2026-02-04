@@ -9,7 +9,7 @@ import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { ADMIN_SITES, type AdminSiteKey } from "./adminSites";
 import { useAdminSite } from "./useAdminSite";
 import "../../AdminCms.css";
-import { API_BASE, buildApiUrl } from "../../config/apiBase";
+import { buildApiUrl } from "../../config/apiBase";
 
 type HeroCms = {
   title: string;
@@ -617,7 +617,7 @@ export default function AdminPMG() {
                                   fd.append("file", f);
 
                                   const res = await fetch(
-                                    buildApiUrl(`/uploads/file`),
+                                    buildApiUrl(`/api/uploads/file`),
                                     {
                                       method: "POST",
                                       headers: {
@@ -635,7 +635,17 @@ export default function AdminPMG() {
                                       data?.filePath ||
                                       data?.publicUrl ||
                                       "";
-                                    if (url) updateBrand(b.id, { logoSrc: url });
+                                    const normalizePublicUrl = (u: string) => {
+                                    if (!u) return "";
+                                  
+                                    if (/^https?:\/\//i.test(u)) return u;
+
+                                    const withSlash = u.startsWith("/") ? u : `/${u}`;
+                                    return buildApiUrl(withSlash);
+                                  };
+
+                                  const publicUrl = normalizePublicUrl(url);
+                                  if (publicUrl) updateBrand(b.id, { logoSrc: publicUrl });
                                   }
                                 } catch {
                                   // ignore upload error

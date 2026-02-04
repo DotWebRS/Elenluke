@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AnimateOnView from "./AnimateOnView";
 import { buildApiUrl } from "../config/apiBase";
 
@@ -11,7 +11,7 @@ type BrandCardItem = {
 };
 
 type CmsBrandsPayload = {
-  items: BrandCardItem[];
+  items: Partial<BrandCardItem>[];
 };
 
 const CMS_SITE_KEY = "purple-music-group";
@@ -41,7 +41,7 @@ const DEFAULT_BRANDS: BrandCardItem[] = [
   },
 ];
 
-function safeJsonParse<T>(value: any, fallback: T): T {
+function safeJsonParse<T>(value: unknown, fallback: T): T {
   try {
     if (!value) return fallback;
     if (typeof value === "string") return JSON.parse(value) as T;
@@ -51,42 +51,22 @@ function safeJsonParse<T>(value: any, fallback: T): T {
   }
 }
 
+function normalizeUrl(href: string) {
+  const s = (href || "").trim();
+  if (!s) return "";
+  // ako user upiše "example.com" bez protokola, dodaj https
+  if (!/^https?:\/\//i.test(s) && !s.startsWith("#") && !s.startsWith("/")) {
+    return `https://${s}`;
+  }
+  return s;
+}
+
 function getAnimationClasses(index: number, total: number) {
-  if (total <= 1) {
-    return {
-      inClass: "animate__fadeInUpBig",
-      outClass: "animate__fadeOutDownBig",
-    };
-  }
-
-  const middle = Math.floor(total / 2);
-  const last = total - 1;
-
-  if (index === 0) {
-    return {
-      inClass: "animate__fadeInLeftBig",
-      outClass: "animate__fadeOutLeftBig",
-    };
-  }
-
-  if (index === middle) {
-    return {
-      inClass: "animate__fadeInDownBig",
-      outClass: "animate__fadeOutDownBig",
-    };
-  }
-
-  if (index === last) {
-    return {
-      inClass: "animate__fadeInRightBig",
-      outClass: "animate__fadeOutRightBig",
-    };
-  }
-
-  return {
-    inClass: "animate__fadeInUpBig",
-    outClass: "animate__fadeOutDownBig",
-  };
+  if (total <= 1) return { inClass: "animate__fadeInUp", outClass: "animate__fadeOut" };
+  if (index === 0) return { inClass: "animate__fadeInLeft", outClass: "animate__fadeOutLeft" };
+  if (index === 1) return { inClass: "animate__fadeInUp", outClass: "animate__fadeOutUp" };
+  if (index === 2) return { inClass: "animate__fadeInRight", outClass: "animate__fadeOutRight" };
+  return { inClass: "animate__fadeInUp", outClass: "animate__fadeOut" };
 }
 
 export default function BrandCarousel() {
@@ -98,42 +78,39 @@ export default function BrandCarousel() {
     async function loadBrands() {
       try {
         const url = buildApiUrl(
-          `/api/cms?siteKey=${encodeURIComponent(
-            CMS_SITE_KEY
-          )}&key=${encodeURIComponent(CMS_KEY_BRANDS)}&ts=${Date.now()}`
+          `/api/cms?siteKey=${encodeURIComponent(CMS_SITE_KEY)}&key=${encodeURIComponent(
+            CMS_KEY_BRANDS
+          )}&ts=${Date.now()}`
         );
 
         const res = await fetch(url);
 
-        if (res.status === 404) {
-          return;
-        }
+        // nema entry -> ostavi default
+        if (res.status === 404) return;
 
         const text = await res.text().catch(() => "");
-        if (!res.ok) {
-          return;
-        }
+        if (!res.ok) return;
 
         const raw = text ? JSON.parse(text) : null;
-        const payload = safeJsonParse<CmsBrandsPayload>(raw?.json, {
-          items: [],
+        const payload = safeJsonParse<CmsBrandsPayload>(raw?.json, { items: [] });
+
+        const cleaned: BrandCardItem[] = (payload.items || []).map((b, idx) => {
+          const title = String(b?.title ?? "").trim();
+          const desc = String(b?.desc ?? "").trim();
+          const logoSrc = String(b?.logoSrc ?? "").trim();
+          const href = normalizeUrl(String(b?.href ?? ""));
+
+          return {
+            id: String(b?.id ?? `brand_${idx}`),
+            title: title || "Untitled",
+            desc: desc || "",
+            logoSrc: logoSrc || "/branding/placeholder-logo.png",
+            href: href || "#",
+          };
         });
 
-        const cleaned = (payload.items || []).map((b, idx) => ({
-          id: b.id || `brand_${idx}_${Date.now()}`,
-          title: b.title ?? "",
-          desc: b.desc ?? "",
-          logoSrc: b.logoSrc ?? "",
-          href: b.href ?? "",
-        }));
-
         if (!alive) return;
-
-        if (cleaned.length > 0) {
-          setBrands(cleaned);
-        } else {
-          setBrands(DEFAULT_BRANDS);
-        }
+        setBrands(cleaned.length > 0 ? cleaned : DEFAULT_BRANDS);
       } catch {
         if (!alive) return;
         setBrands(DEFAULT_BRANDS);
@@ -141,14 +118,16 @@ export default function BrandCarousel() {
     }
 
     loadBrands();
-
     return () => {
       alive = false;
     };
   }, []);
 
   const total = brands.length;
-  const middle = Math.floor(total / 2);
+
+  const getDelayMs = useMemo(() => {
+    return (index: number) => Math.min(index, 7) * 90;
+  }, []);
 
   return (
     <section className="brands">
@@ -156,32 +135,36 @@ export default function BrandCarousel() {
         <div className="brandGrid">
           {brands.map((brand, index) => {
             const { inClass, outClass } = getAnimationClasses(index, total);
-            const isMiddle = total >= 3 && index === middle;
-            const cardClass = isMiddle ? "brandCard brandCard--white" : "brandCard";
+            const isDisabled = !brand.href || brand.href === "#";
 
             return (
               <AnimateOnView
                 key={brand.id || `${brand.title}-${index}`}
                 inClass={inClass}
                 outClass={outClass}
+                playOnce={false}
+                fadeOnlyBelow={1024}
+                style={{ animationDelay: `${getDelayMs(index)}ms` }}
               >
                 <a
-                  className={cardClass}
-                  href={brand.href}
-                  target="_blank"
-                  rel="noreferrer"
+                  className={`brandCard ${isDisabled ? "is-disabled" : ""}`}
+                  href={isDisabled ? undefined : brand.href}
+                  target={isDisabled ? undefined : "_blank"}
+                  rel={isDisabled ? undefined : "noreferrer"}
+                  aria-disabled={isDisabled ? true : undefined}
+                  onClick={isDisabled ? (e) => e.preventDefault() : undefined}
                 >
-                  <span className="brandCard__frame" aria-hidden="true" />
-                  <span
-                    className="brandCard__frame brandCard__frame--inner"
-                    aria-hidden="true"
-                  />
-
                   <div className="brandCard__stage">
                     <img
                       className="brandCard__logo"
                       src={brand.logoSrc}
                       alt={`${brand.title} logo`}
+                      loading="lazy"
+                      decoding="async"
+                      onError={(e) => {
+                        
+                        (e.currentTarget as HTMLImageElement).src = "/branding/placeholder-logo.png";
+                      }}
                     />
                   </div>
 
