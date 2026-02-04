@@ -34,12 +34,13 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-          .WithOrigins(
+          /*.WithOrigins(
             "https://purplecrunchpublishing.com",
             "https://www.purplecrunchpublishing.com",
             "http://localhost:5173",
             "http://localhost:5174"
-          )
+          )*/
+          .AllowAnyOrigin()
           .AllowAnyHeader()
           .AllowAnyMethod();
     });
