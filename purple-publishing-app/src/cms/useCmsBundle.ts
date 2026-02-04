@@ -30,8 +30,11 @@ export function useCmsBundle(siteKey: string) {
         if (h) setHomeArtists(h);
 
         // if homeArtists empty -> default to first 3
-        if ((!h || !Array.isArray(h.top3) || h.top3.length === 0) && r?.artists?.length) {
-          setHomeArtists({ top3: r.artists.slice(0, 3).map(a => a.id) });
+        if (
+          (!h || !Array.isArray(h.top3) || h.top3.length === 0) &&
+          r?.artists?.length
+        ) {
+          setHomeArtists({ top3: r.artists.slice(0, 3).map((a) => a.id) });
         }
       } catch (e: any) {
         if (!cancelled) setError(e?.message || String(e));
@@ -40,8 +43,19 @@ export function useCmsBundle(siteKey: string) {
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [siteKey]);
 
-  return { footer, roster, homeArtists, loading, error, setFooter, setRoster, setHomeArtists };
+  return {
+    footer,
+    roster,
+    homeArtists,
+    loading,
+    error,
+    setFooter,
+    setRoster,
+    setHomeArtists,
+  };
 }

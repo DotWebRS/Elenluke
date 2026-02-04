@@ -1,0 +1,486 @@
+.submitform-page{
+  min-height: 100vh;
+  background: #000;
+  position: relative;
+  overflow: hidden;
+}
+
+.submitform-page::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:
+    radial-gradient(ellipse at 50% 10%, rgba(168,85,247,0.12) 0%, rgba(0,0,0,0) 55%),
+    radial-gradient(ellipse at 50% 115%, rgba(99,102,241,0.10) 0%, rgba(0,0,0,0) 55%),
+    radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(0,0,0,0.78) 100%);
+  opacity: 1;
+}
+
+.submitform-wrap{
+  position: relative;
+  z-index: 1;
+  width: min(980px, 92vw);
+  margin: 0 auto;
+  padding: clamp(84px, 10vh, 120px) 0 clamp(70px, 8vh, 110px);
+  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+.submitform-head{
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+.submitform-title{
+  margin: 0 0 10px 0;
+  font-size: clamp(2.0rem, 3.2vw, 2.9rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 10px 40px rgba(0,0,0,0.60);
+}
+
+.submitform-titleGrad{
+  background-image: linear-gradient(
+    to right,
+    rgb(168, 85, 247),
+    rgb(99, 102, 241),
+    rgb(168, 85, 247),
+    rgb(99, 102, 241)
+  );
+  background-size: 200% 200%;
+  background-position: 0% 50%;
+  animation: submitformFlow 6s ease infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 10px rgba(138, 79, 255, 0.14));
+}
+
+@keyframes submitformFlow{
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.submitform-sub{
+  margin: 0 auto;
+  max-width: 860px;
+  color: rgba(255,255,255,0.72);
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.submitform-card{
+  margin-top: 16px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.03);
+  border-radius: 18px;
+  padding: clamp(16px, 2.2vw, 22px);
+  box-shadow:
+    0 18px 60px rgba(0,0,0,0.55),
+    inset 0 0 0 1px rgba(168,85,247,0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.submitform-card::after{
+  content:"";
+  position:absolute;
+  left: 18px;
+  right: 18px;
+  top: 16px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(168,85,247,0.45), transparent);
+  opacity: 0.55;
+  pointer-events:none;
+}
+
+.submitform-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.submitform-field{
+  display:flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.submitform-label{
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.78);
+}
+
+.submitform-control{
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.92);
+  padding: 12px 12px;
+  outline: none;
+  font-size: 1rem;
+  line-height: 1.2;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.submitform-control:focus{
+  border-color: rgba(168,85,247,0.65);
+  box-shadow: 0 0 0 4px rgba(168,85,247,0.12);
+  background: rgba(255,255,255,0.045);
+}
+
+.submitform-textarea{
+  resize: vertical;
+  min-height: 160px;
+}
+
+.submitform-file{
+  padding: 10px 12px;
+}
+
+.submitform-span2{
+  grid-column: 1 / -1;
+}
+
+.submitform-divider{
+  grid-column: 1 / -1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent);
+  opacity: 0.9;
+  margin: 6px 0 2px;
+}
+
+.submitform-alert{
+  margin-top: 14px;
+  border-radius: 14px;
+  padding: 12px 12px;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.03);
+  color: rgba(255,255,255,0.86);
+}
+
+.submitform-alert--err{
+  border-color: rgba(255,90,90,0.35);
+  background: rgba(255,90,90,0.06);
+  color: rgba(255,225,225,0.92);
+}
+
+.submitform-alert--ok{
+  border-color: rgba(120,255,180,0.28);
+  background: rgba(120,255,180,0.06);
+  color: rgba(220,255,235,0.92);
+}
+
+.submitform-mono{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-weight: 700;
+}
+
+.submitform-foot{
+  margin-top: 14px;
+  display:flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.submitform-link{
+  color: rgba(168,85,247,0.95);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(168,85,247,0.55);
+  transition: color 160ms ease, border-color 160ms ease;
+}
+
+.submitform-link:hover{
+  color: #fff;
+  border-color: rgba(168,85,247,0.95);
+}
+
+.submitform-btn{
+  border: 1px solid rgba(168,85,247,0.55);
+  background: rgba(168,85,247,0.12);
+  color: rgba(255,255,255,0.95);
+  padding: 13px 18px;
+  border-radius: 14px;
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  min-width: 170px;
+  display:grid;
+  place-items:center;
+  white-space: nowrap;
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.submitform-btn:hover{
+  transform: translateY(-1px);
+  background: rgba(168,85,247,0.18);
+  border-color: rgba(168,85,247,0.9);
+}
+
+.submitform-btn:disabled{
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* SELECT — custom arrow */
+select.submitform-control{
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+
+  padding-right: 56px;
+
+  background-image:
+    linear-gradient(rgba(255,255,255,0.25), rgba(255,255,255,0.25)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat, no-repeat;
+  background-position: right 44px center, right 18px center;
+  background-size: 1px 60%, 14px 14px;
+  background-clip: padding-box;
+  cursor: pointer;
+}
+
+select.submitform-control option{
+  background: #000;
+  color: rgba(255,255,255,0.92);
+}
+
+select.submitform-control:hover{
+  border-color: rgba(255,255,255,0.22);
+}
+
+select.submitform-control:focus{
+  border-color: rgba(138,79,255,0.9);
+  box-shadow: 0 0 0 3px rgba(138,79,255,0.25);
+  outline: none;
+  background-color: inherit;
+}
+
+/* FILE INPUT — premium button */
+input.submitform-control[type="file"]{
+  padding: 10px 12px;
+  cursor: pointer;
+  color: rgba(255,255,255,0.78);
+}
+
+input.submitform-control[type="file"]::file-selector-button{
+  margin-right: 12px;
+  border: 1px solid rgba(168,85,247,0.55);
+  background: rgba(168,85,247,0.12);
+  color: rgba(255,255,255,0.95);
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+input.submitform-control[type="file"]::file-selector-button:hover{
+  transform: translateY(-1px);
+  background: rgba(168,85,247,0.18);
+  border-color: rgba(168,85,247,0.9);
+}
+
+input.submitform-control[type="file"]::-webkit-file-upload-button{
+  margin-right: 12px;
+  border: 1px solid rgba(168,85,247,0.55);
+  background: rgba(168,85,247,0.12);
+  color: rgba(255,255,255,0.95);
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+input.submitform-control[type="file"]::-webkit-file-upload-button:hover{
+  transform: translateY(-1px);
+  background: rgba(168,85,247,0.18);
+  border-color: rgba(168,85,247,0.9);
+}
+
+/* Privacy row */
+.submitform-privacy{
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  justify-content: flex-start;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.submitform-privacy input[type="checkbox"]{
+  margin: 3px 0 0 0;
+  flex: 0 0 auto;
+  accent-color: rgba(138,79,255,1);
+}
+
+.submitform-privacy span{
+  color: rgba(255,255,255,0.92);
+  line-height: 1.6;
+}
+
+.submitform-privacy .submitform-link{
+  color: rgba(200,175,255,1);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(200,175,255,0.45);
+}
+
+.submitform-privacy .submitform-link:hover{
+  border-bottom-color: rgba(200,175,255,0.75);
+}
+
+/* Disclaimer block */
+.submitform-note--disclaimer{
+  color: white;
+}
+
+/* Responsive */
+@media (max-width: 860px){
+  .submitform-grid{
+    grid-template-columns: 1fr;
+  }
+  .submitform-foot{
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .submitform-btn{
+    width: 100%;
+  }
+}
+
+
+
+/* =========================================================
+   HARD FIX: iPhone overflow right + perfect responsive
+   Paste at END of submission.css
+========================================================= */
+
+/* page-scoped border-box da padding ne širi element preko ekrana */
+.submitform-page,
+.submitform-page *,
+.submitform-page *::before,
+.submitform-page *::after {
+  box-sizing: border-box;
+}
+
+/* nema horizontalnog curenja */
+html, body { max-width: 100%; overflow-x: hidden; }
+.submitform-page { width: 100%; max-width: 100%; overflow-x: hidden; }
+
+/* WRAP: umesto vw širine (koja + padding pravi overflow), koristi 100% + max-width */
+.submitform-wrap{
+  width: 100% !important;
+  max-width: 980px !important;
+  margin: 0 auto !important;
+
+  /* horizontal padding uvek “unutra”, bez overflow-a */
+  padding-left: clamp(12px, 4vw, 24px) !important;
+  padding-right: clamp(12px, 4vw, 24px) !important;
+
+  /* zadrži tvoje top/bottom vrednosti */
+  padding-top: clamp(84px, 10vh, 120px) !important;
+  padding-bottom: clamp(70px, 8vh, 110px) !important;
+}
+
+/* card i grid nikad ne smeju da pređu parent */
+.submitform-card{ width: 100%; max-width: 100%; overflow: hidden; }
+.submitform-grid{ width: 100%; max-width: 100%; }
+
+/* inputs/select/textarea 100% i bez “min-width” iz browsera */
+.submitform-control{
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* select: spreči da se “razvuče” zbog long text-a */
+select.submitform-control{
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* na manjim širinama: 1 kolona (sigurno) */
+@media (max-width: 860px){
+  .submitform-grid{ grid-template-columns: 1fr; }
+  .submitform-span2{ grid-column: 1 / -1; }
+  .submitform-foot{ flex-direction: column; align-items: stretch; }
+  .submitform-btn{ width: 100%; }
+}
+
+/* iPhone 14 Pro Max (430px) + general phones */
+@media (max-width: 480px){
+  .submitform-title{ font-size: clamp(1.55rem, 6.2vw, 2.2rem); }
+  .submitform-sub{ font-size: 0.98rem; }
+
+  /* malo kompaktnije */
+  .submitform-card{ padding: 14px; border-radius: 16px; }
+  .submitform-label{ font-size: 0.74rem; letter-spacing: 0.14em; }
+
+  /* textarea da ne bude preogromna */
+  .submitform-textarea{ min-height: 140px; }
+}
+
+/* ultra small phones */
+@media (max-width: 360px){
+  .submitform-card{ padding: 12px; }
+  .submitform-control{ font-size: 0.96rem; }
+}
+
+/* =========================================================
+   iOS: stabilizuj select (iOS zna da poludi sa custom arrow/separator)
+   - ovde gasiš background arrow/separator samo na iOS
+========================================================= */
+@supports (-webkit-touch-callout: none) {
+  select.submitform-control{
+    -webkit-appearance: menulist !important;
+    appearance: auto !important;
+    background-image: none !important;
+    padding-right: 12px !important;
+  }
+}
+
+/* =========================================================
+   Footer transparent only on this page
+   - pokriva najčešće klase: .pcp-footer, .footer, i generic footer
+========================================================= */
+.submitform-page .pcp-footer,
+.submitform-page .footer,
+.submitform-page footer{
+  background: transparent !important;
+  border-top: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ako footer ima unutrašnji container sa pozadinom */
+.submitform-page .pcp-footer *,
+.submitform-page .footer *{
+  background-color: transparent;
+}
+

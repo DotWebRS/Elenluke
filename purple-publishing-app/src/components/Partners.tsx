@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Container from "react-bootstrap/Container";
 import type { AdminSiteKey } from "../components/admin/adminSites";
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || "http://localhost:5284";
+import { API_BASE } from "../config/apiBase";
 
 type Partner = {
   src: string;
@@ -16,7 +16,6 @@ type CmsPartnersPayload = {
 
 const CMS_KEY = "home.partners";
 
-// fallback ako CMS nema ništa
 const DEFAULT_PARTNERS: Partner[] = [
   { src: "/branding/partners/idtmM7C19q_logos.png", name: "Partner", href: "https://example.com" },
   { src: "/branding/partners/Antidote.png", name: "Antidote", href: "https://example.com" },
@@ -26,7 +25,7 @@ const DEFAULT_PARTNERS: Partner[] = [
   { src: "/branding/partners/Launch13.png", name: "Launch13", href: "https://example.com" },
   { src: "/branding/partners/Rogue@white.png", name: "Rogue", href: "https://example.com" },
   { src: "/branding/partners/Sonymusic.png", name: "Sony Music", href: "https://www.sonymusic.com" },
-  { src: "/branding/partners/SoundOn.png", name: "SoundOn", href: "https://soundon.tiktok.com" },
+  { src: "/branding/partners/SoundOn.png", name: "SoundOn", href: "https://www.soundon.global/?lang=en" },
   { src: "/branding/partners/Tiktok2.png", name: "TikTok", href: "https://www.tiktok.com" },
   { src: "/branding/partners/BIGBITE.png", name: "bigbite", href: "https://www.BIGBITE.com" }
 ];
@@ -49,9 +48,17 @@ function hostnameToSiteKey(hostname: string): AdminSiteKey {
   return "purple-crunch-publishing";
 }
 
+function buildUrl(path: string) {
+  const base = String(API_BASE || "").replace(/\/+$/, "");
+  const p = String(path || "").replace(/^\/+/, "");
+  return base ? `${base}/${p}` : `/${p}`;
+}
+
 async function cmsGet(siteKey: string, key: string, signal: AbortSignal) {
   const ts = Date.now();
-  const url = `${API_BASE}/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(key)}&ts=${ts}`;
+  const url = buildUrl(
+    `/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(key)}&ts=${ts}`
+  );
 
   const res = await fetch(url, {
     signal,
@@ -97,7 +104,7 @@ export default function Partners() {
 
       try {
         const res = await cmsGet(siteKey, CMS_KEY, controller.signal);
-        if (res.status === 404) return; // nema u bazi -> default
+        if (res.status === 404) return;
         if (!res.ok) return;
 
         const payload = await res.json().catch(() => null as any);
@@ -105,9 +112,7 @@ export default function Partners() {
 
         if (!alive) return;
         setPartners(next);
-      } catch {
-        // ignore -> default
-      }
+      } catch {}
     })();
 
     return () => {
@@ -134,14 +139,13 @@ export default function Partners() {
   return (
     <section ref={sectionRef} className="partners-section" id="partners">
       <Container>
-        <div className={`partners-head ${inView ? "is-in" : ""}`}>
+        <div className="services-head services-head--center">
           <h2 className="about-title about-title-centered">
             OUR <span className="about-us-animated">PARTNERS</span>
           </h2>
         </div>
       </Container>
 
-      {/* EDGE-TO-EDGE STRIP */}
       <div className={`partners-marquee ${inView ? "is-running" : "is-paused"}`} aria-label="Partners carousel">
         <div className="partners-track">
           {strip.map((p, i) => (

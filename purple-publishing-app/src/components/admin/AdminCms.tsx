@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { ADMIN_SITES } from "./adminSites";
 import { useAdminSite } from "./useAdminSite";
 import "../../AdminCms.css";
 import type { AdminSiteKey } from "./adminSites";
+
+import { API_BASE } from "../../config/apiBase";
 
 /** =========================
  *  Types
@@ -53,6 +55,18 @@ type CmsSyncPayload = {
   t3: string;
 };
 
+// NEW: Brands for PMG homepage
+type BrandCardItem = {
+  id: string;
+  key: string;
+  title: string;
+  desc: string;
+  logoSrc: string;
+  href: string;
+};
+
+type CmsBrandsPayload = { items: BrandCardItem[] };
+
 /** =========================
  *  CMS Keys
  *  ========================= */
@@ -64,7 +78,8 @@ const CMS_KEYS = {
   roster: "artists.roster",
   faq: "home.faq",
   partners: "home.partners",
-  syncText: "home.syncText"
+  syncText: "home.syncText",
+  brands: "home.brands", // NEW
 };
 
 /** =========================
@@ -73,7 +88,8 @@ const CMS_KEYS = {
 const DEFAULT_HERO: HeroCms = {
   prefixes: ["BUILT FOR", "EMPOWERING", "ELEVATING"],
   typeWords: ["SONGWRITERS.", "CREATORS.", "TALENT."],
-  subtext: "Your trusted partner in music publishing, global rights administration, and creative career growth."
+  subtext:
+    "Your trusted partner in music publishing, global rights administration, and creative career growth.",
 };
 
 const DEFAULT_ABOUT: AboutCms = {
@@ -82,14 +98,14 @@ const DEFAULT_ABOUT: AboutCms = {
     "",
     "",
     "",
-    ""
-  ]
+    "",
+  ],
 };
 
 function make5Tracks(): CmsTrack[] {
   return Array.from({ length: 5 }).map((_, i) => ({
     title: `Track ${i + 1}`,
-    url: ""
+    url: "",
   }));
 }
 
@@ -105,7 +121,7 @@ function newArtist(idSeed?: string): CmsArtist {
     bio: "",
     image: "",
     spotifyUrl: "",
-    tracks: make5Tracks()
+    tracks: make5Tracks(),
   };
 }
 
@@ -113,33 +129,53 @@ const DEFAULT_ROSTER: CmsRosterPayload = {
   artists: Array.from({ length: 10 }).map((_, i) => {
     const a = newArtist(`seed_${i + 1}`);
     return { ...a, name: `Artist ${i + 1}` };
-  })
+  }),
 };
 
 const DEFAULT_HOME_ARTISTS: CmsHomeArtistsPayload = { top3: [] };
 
 const DEFAULT_SERVICES: CmsServicesPayload = {
   items: [
-    { title: "Rights management & Administration", text: "We ensure every work is properly registered and protected worldwide." },
-    { title: "Royalty collection & Accounting", text: "We track, collect, and transparently report royalties across all platforms." },
-    { title: "Sync opportunities & Pitching", text: "We connect your music with global film, TV, gaming, and brand placements." },
-    { title: "Publishing right registration", text: "We manage and register publishing rights to guarantee accurate ownership and payment." }
-  ]
+    {
+      title: "Rights management & Administration",
+      text: "We ensure every work is properly registered and protected worldwide.",
+    },
+    {
+      title: "Royalty collection & Accounting",
+      text: "We track, collect, and transparently report royalties across all platforms.",
+    },
+    {
+      title: "Sync opportunities & Pitching",
+      text: "We connect your music with global film, TV, gaming, and brand placements.",
+    },
+    {
+      title: "Publishing right registration",
+      text: "We manage and register publishing rights to guarantee accurate ownership and payment.",
+    },
+  ],
 };
 
 const DEFAULT_FAQ: CmsFaqPayload = {
   items: [
-    { id: newId("faq"), q: "WHAT IS MUSIC PUBLISHING?", a: "Publishing covers songwriting rights administration." },
-    { id: newId("faq"), q: "HOW CAN YOU SUPPORT ME?", a: "We register works, manage rights, and collect royalties." }
-  ]
+    {
+      id: newId("faq"),
+      q: "WHAT IS MUSIC PUBLISHING?",
+      a: "Publishing covers songwriting rights administration.",
+    },
+    {
+      id: newId("faq"),
+      q: "HOW CAN YOU SUPPORT ME?",
+      a: "We register works, manage rights, and collect royalties.",
+    },
+  ],
 };
 
 const DEFAULT_PARTNERS: CmsPartnersPayload = {
   items: [
     { id: newId("partner"), src: "", name: "Partner 1", href: "" },
     { id: newId("partner"), src: "", name: "Partner 2", href: "" },
-    { id: newId("partner"), src: "", name: "Partner 3", href: "" }
-  ]
+    { id: newId("partner"), src: "", name: "Partner 3", href: "" },
+  ],
 };
 
 const DEFAULT_SYNC: CmsSyncPayload = {
@@ -148,7 +184,37 @@ const DEFAULT_SYNC: CmsSyncPayload = {
   h2: "Where Music meets Global impact.",
   t2: "Worldwide rights administration and strategic placements that grow your catalog and revenue.",
   h3: "Where premium sound meets viral energy.",
-  t3: "From trending digital sounds to bespoke compositions—built for your audience and your brief."
+  t3: "From trending digital sounds to bespoke compositions—built for your audience and your brief.",
+};
+
+// NEW: default brands for PMG BrandCarousel
+const DEFAULT_BRANDS: CmsBrandsPayload = {
+  items: [
+    {
+      id: newId("brand"),
+      key: "records",
+      title: "Purple Crunch Records",
+      desc: "The artist-facing label dedicated to releases, campaigns, and growth in the digital era.",
+      logoSrc: "/record.png",
+      href: "https://purplecrunchrecords.com/",
+    },
+    {
+      id: newId("brand"),
+      key: "pmg",
+      title: "BIGBITE Agency",
+      desc: "At BIGBITE are specialists in TikTok-first music marketing. Focus on turning emerging audio into viral moments on the platform, while also offering marketing across other key channels when needed.",
+      logoSrc: "/BIGBITE.png",
+      href: "https://bigbiteagency.com/",
+    },
+    {
+      id: newId("brand"),
+      key: "publishing",
+      title: "Purple Crunch Publishing",
+      desc: "The creative backbone of the Purple Crunch ecosystem for writers, producers, and artists who define the sound of the digital generation.",
+      logoSrc: "/publishing.png",
+      href: "https://purplecrunchpublishing.com/",
+    },
+  ],
 };
 
 /** =========================
@@ -162,6 +228,12 @@ function safeJsonParse<T>(s: any, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function buildUrl(path: string) {
+  const base = String(API_BASE || "").replace(/\/+$/, "");
+  const p = String(path || "").replace(/^\/+/, "");
+  return base ? `${base}/${p}` : `/${p}`;
 }
 
 function moveItem<T>(arr: T[], from: number, to: number): T[] {
@@ -188,9 +260,23 @@ function ensureArtistIds(payload: CmsRosterPayload): CmsRosterPayload {
     bio: a?.bio ?? "",
     image: a?.image ?? "",
     spotifyUrl: a?.spotifyUrl ?? "",
-    tracks: Array.isArray(a?.tracks) && a.tracks.length ? a.tracks : make5Tracks()
+    tracks: Array.isArray(a?.tracks) && a.tracks.length ? a.tracks : make5Tracks(),
   }));
   return { artists };
+}
+
+// NEW: normalize brands payload da stari zapisi bez id-a ne puknu
+function ensureBrands(payload: CmsBrandsPayload | null | undefined): CmsBrandsPayload {
+  const items = (payload?.items ?? []).map((b: any) => ({
+    id: b?.id || newId("brand"),
+    key: b?.key ?? "",
+    title: b?.title ?? "",
+    desc: b?.desc ?? "",
+    logoSrc: b?.logoSrc ?? "",
+    href: b?.href ?? "",
+  }));
+  if (!items.length) return DEFAULT_BRANDS;
+  return { items };
 }
 
 async function readFileAsDataUrl(file: File): Promise<string> {
@@ -212,10 +298,8 @@ export default function AdminCms() {
   const [params] = useSearchParams();
   const { site, setSite } = useAdminSite();
   const token = localStorage.getItem("token") || "";
-
-  const API_BASE = (import.meta as any).env?.VITE_API_BASE || "http://localhost:5284";
-
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+
   useEffect(() => {
     if (!msg) return;
     const t = window.setTimeout(() => setMsg(null), 1500);
@@ -224,7 +308,6 @@ export default function AdminCms() {
 
   const [saving, setSaving] = useState(false);
 
-  // main cms state
   const [hero, setHero] = useState<HeroCms>(DEFAULT_HERO);
   const [about, setAbout] = useState<AboutCms>(DEFAULT_ABOUT);
   const [services, setServices] = useState<CmsServicesPayload>(DEFAULT_SERVICES);
@@ -233,32 +316,29 @@ export default function AdminCms() {
   const [faq, setFaq] = useState<CmsFaqPayload>(DEFAULT_FAQ);
   const [partners, setPartners] = useState<CmsPartnersPayload>(DEFAULT_PARTNERS);
   const [syncText, setSyncText] = useState<CmsSyncPayload>(DEFAULT_SYNC);
+  // NEW: brands state
+  const [brands, setBrands] = useState<CmsBrandsPayload>(DEFAULT_BRANDS);
 
   const [loading, setLoading] = useState(true);
 
-  // accordion state (CONTACT izbačen)
   const [openSection, setOpenSection] = useState<
-    "hero" | "about" | "artists" | "services" | "sync" | "partners" | "faq" | null
+    "hero" | "about" | "artists" | "services" | "sync" | "partners" | "brands" | "faq" | null
   >(null);
 
-  // artist accordion
   const [openArtistId, setOpenArtistId] = useState<string | null>(null);
 
-  // highlight newly added
   const [newArtistId, setNewArtistId] = useState<string | null>(null);
   const [newFaqId, setNewFaqId] = useState<string | null>(null);
   const [newPartnerId, setNewPartnerId] = useState<string | null>(null);
+  const [newBrandId, setNewBrandId] = useState<string | null>(null); // NEW
 
   const scrollRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // site from url (query param)
   useEffect(() => {
     const fromUrl = params.get("site");
     if (fromUrl) setSite(fromUrl as any);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ALSO allow setting site from location.search (your extra handler)
   useEffect(() => {
     const qp = new URLSearchParams(location.search);
     const s = qp.get("site");
@@ -274,13 +354,25 @@ export default function AdminCms() {
     if (!token) navigate("/admin/login");
   }, [token, navigate]);
 
-  const siteLabel = useMemo(() => ADMIN_SITES.find((s) => s.key === site)?.label ?? site, [site]);
+  const siteLabel = useMemo(
+    () => ADMIN_SITES.find((s) => s.key === site)?.label ?? site,
+    [site]
+  );
 
   const cmsGet = async (key: string) => {
-    const res = await fetch(`${API_BASE}/api/cms?siteKey=${encodeURIComponent(site)}&key=${encodeURIComponent(key)}`);
+    // ako site još nije postavljen, ne pokušavaj da učitaš
+    if (!site) return null;
+
+    const url = buildUrl(
+      `/api/cms?siteKey=${encodeURIComponent(site)}&key=${encodeURIComponent(key)}&ts=${Date.now()}`
+    );
+
+    const res = await fetch(url);
     if (res.status === 404) return null;
-    const text = await res.text();
+
+    const text = await res.text().catch(() => "");
     if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
+
     try {
       return JSON.parse(text);
     } catch {
@@ -289,17 +381,19 @@ export default function AdminCms() {
   };
 
   const cmsPut = async (key: string, payload: any) => {
-    const res = await fetch(`${API_BASE}/api/cms`, {
+    const url = buildUrl(`/api/cms`);
+
+    const res = await fetch(url, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         siteKey: site,
         key,
-        json: JSON.stringify(payload)
-      })
+        json: JSON.stringify(payload),
+      }),
     });
 
     if (res.status === 401) {
@@ -307,7 +401,8 @@ export default function AdminCms() {
       navigate("/admin/login");
       throw new Error("Unauthorized");
     }
-    const text = await res.text();
+
+    const text = await res.text().catch(() => "");
     if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
   };
 
@@ -317,21 +412,30 @@ export default function AdminCms() {
     return safeJsonParse<T>(data.json, fallback);
   };
 
-  // LOAD ALL (CONTACT izbačen)
   useEffect(() => {
     let alive = true;
+
+    // ako nemamo site, nemoj da pokušavaš fetch
+    if (!site) {
+      setLoading(false);
+      return () => {
+        alive = false;
+      };
+    }
+
     setMsg(null);
     setLoading(true);
 
     (async () => {
       try {
-        const [h, a, sv, f, p, s] = await Promise.all([
+        const [h, a, sv, f, p, s, br] = await Promise.all([
           loadOne<HeroCms>(CMS_KEYS.hero, DEFAULT_HERO),
           loadOne<AboutCms>(CMS_KEYS.about, DEFAULT_ABOUT),
           loadOne<CmsServicesPayload>(CMS_KEYS.services, DEFAULT_SERVICES),
           loadOne<CmsFaqPayload>(CMS_KEYS.faq, DEFAULT_FAQ),
           loadOne<CmsPartnersPayload>(CMS_KEYS.partners, DEFAULT_PARTNERS),
-          loadOne<CmsSyncPayload>(CMS_KEYS.syncText, DEFAULT_SYNC)
+          loadOne<CmsSyncPayload>(CMS_KEYS.syncText, DEFAULT_SYNC),
+          loadOne<CmsBrandsPayload>(CMS_KEYS.brands, DEFAULT_BRANDS),
         ]);
 
         const rosterRaw = await loadOne<any>(CMS_KEYS.roster, null as any);
@@ -361,8 +465,8 @@ export default function AdminCms() {
             items: (f.items || []).map((it: any) => ({
               id: it.id || newId("faq"),
               q: it.q ?? "",
-              a: it.a ?? ""
-            }))
+              a: it.a ?? "",
+            })),
           });
         }
 
@@ -372,9 +476,15 @@ export default function AdminCms() {
               id: it.id || newId("partner"),
               src: it.src ?? "",
               name: it.name ?? "",
-              href: it.href ?? ""
-            }))
+              href: it.href ?? "",
+            })),
           });
+        }
+
+        if (br) {
+          setBrands(ensureBrands(br));
+        } else {
+          setBrands(DEFAULT_BRANDS);
         }
 
         if (s) setSyncText(s);
@@ -382,7 +492,6 @@ export default function AdminCms() {
         setRoster(finalRoster);
         setHomeArtists(nextHomeArtists);
 
-        // open Hero by default
         setOpenSection((prev) => prev ?? "hero");
       } catch (e: any) {
         if (!alive) return;
@@ -396,19 +505,15 @@ export default function AdminCms() {
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [site]);
 
-  /** =========================
-   *  Save (GLOBAL) (CONTACT izbačen)
-   *  ========================= */
   const saveAll = async () => {
     setMsg(null);
     setSaving(true);
     try {
       const rosterIds = roster.artists.map((x) => x.id);
       const normalizedHomeArtists: CmsHomeArtistsPayload = {
-        top3: normalizeTop3(homeArtists.top3, rosterIds)
+        top3: normalizeTop3(homeArtists.top3, rosterIds),
       };
 
       await Promise.all([
@@ -419,7 +524,8 @@ export default function AdminCms() {
         cmsPut(CMS_KEYS.homeArtists, normalizedHomeArtists),
         cmsPut(CMS_KEYS.faq, faq),
         cmsPut(CMS_KEYS.partners, partners),
-        cmsPut(CMS_KEYS.syncText, syncText)
+        cmsPut(CMS_KEYS.syncText, syncText),
+        cmsPut(CMS_KEYS.brands, brands),
       ]);
 
       setHomeArtists(normalizedHomeArtists);
@@ -431,34 +537,28 @@ export default function AdminCms() {
     }
   };
 
-  /** =========================
-   *  Upload helper
-   *  ========================= */
   const uploadImage = async (file: File): Promise<string> => {
-    // Try backend upload endpoint (preferred)
     try {
       const fd = new FormData();
       fd.append("file", file);
 
-      const res = await fetch(`${API_BASE}/api/uploads/file`, {
+      const res = await fetch(buildUrl(`/api/uploads/file`), {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body: fd
+        body: fd,
       });
 
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => null as any);
         return data?.url || data?.path || data?.filePath || data?.publicUrl || "";
       }
     } catch {
       // ignore and fallback
     }
+
     return readFileAsDataUrl(file);
   };
 
-  /** =========================
-   *  Artists (Top 3)
-   *  ========================= */
   const top3Artists = useMemo(() => {
     const map = new Map(roster.artists.map((a) => [a.id, a]));
     return homeArtists.top3.map((id) => map.get(id)).filter(Boolean) as CmsArtist[];
@@ -487,9 +587,6 @@ export default function AdminCms() {
     });
   };
 
-  /** =========================
-   *  Artists (Roster)
-   *  ========================= */
   const updateRosterArtist = (idx: number, patch: Partial<CmsArtist>) => {
     setRoster((prev) => {
       const next = [...prev.artists];
@@ -526,9 +623,6 @@ export default function AdminCms() {
     }, 60);
   };
 
-  /** =========================
-   *  Tracks (always 5)
-   *  ========================= */
   const updateTrack = (artistIndex: number, trackIndex: number, patch: Partial<CmsTrack>) => {
     const a = roster.artists[artistIndex];
     const tracks = Array.isArray(a.tracks) && a.tracks.length ? [...a.tracks] : make5Tracks();
@@ -537,20 +631,12 @@ export default function AdminCms() {
     updateRosterArtist(artistIndex, { tracks });
   };
 
-  /** =========================
-   *  Services
-   *  ========================= */
   const updateService = (i: number, patch: Partial<ServicesItem>) => {
     setServices((prev) => {
       const items = [...prev.items];
       items[i] = { ...items[i], ...patch };
       return { items };
     });
-  };
-
-  const addService = () => {
-    const item: ServicesItem = { title: "New service", text: "" };
-    setServices((prev) => ({ items: [item, ...prev.items] }));
   };
 
   const removeService = (i: number) => {
@@ -561,12 +647,9 @@ export default function AdminCms() {
     setServices((prev) => ({ items: moveItem(prev.items, from, to) }));
   };
 
-  /** =========================
-   *  FAQ
-   *  ========================= */
   const updateFaqItem = (id: string, patch: Partial<FaqItem>) => {
     setFaq((prev) => ({
-      items: prev.items.map((x) => (x.id === id ? { ...x, ...patch } : x))
+      items: prev.items.map((x) => (x.id === id ? { ...x, ...patch } : x)),
     }));
   };
 
@@ -589,12 +672,9 @@ export default function AdminCms() {
     setFaq((prev) => ({ items: moveItem(prev.items, from, to) }));
   };
 
-  /** =========================
-   *  Partners
-   *  ========================= */
   const updatePartner = (id: string, patch: Partial<PartnerItem>) => {
     setPartners((prev) => ({
-      items: prev.items.map((x) => (x.id === id ? { ...x, ...patch } : x))
+      items: prev.items.map((x) => (x.id === id ? { ...x, ...patch } : x)),
     }));
   };
 
@@ -617,14 +697,45 @@ export default function AdminCms() {
     setPartners((prev) => ({ items: moveItem(prev.items, from, to) }));
   };
 
-  /** =========================
-   *  UI
-   *  ========================= */
+  // NEW: helpers za brands
+  const updateBrand = (id: string, patch: Partial<BrandCardItem>) => {
+    setBrands((prev) => ({
+      items: prev.items.map((x) => (x.id === id ? { ...x, ...patch } : x)),
+    }));
+  };
+
+  const addBrand = () => {
+    const it: BrandCardItem = {
+      id: newId("brand"),
+      key: "",
+      title: "New Brand",
+      desc: "",
+      logoSrc: "",
+      href: "",
+    };
+    setBrands((prev) => ({ items: [it, ...prev.items] }));
+    setNewBrandId(it.id);
+
+    setTimeout(() => {
+      const el = scrollRefs.current[it.id];
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+  };
+
+  const removeBrand = (id: string) => {
+    setBrands((prev) => ({ items: prev.items.filter((x) => x.id !== id) }));
+  };
+
+  const moveBrand = (from: number, to: number) => {
+    setBrands((prev) => ({ items: moveItem(prev.items, from, to) }));
+  };
+
   const toggleSection = (k: typeof openSection) => {
     setOpenSection((prev) => (prev === k ? null : k));
     setNewArtistId(null);
     setNewFaqId(null);
     setNewPartnerId(null);
+    setNewBrandId(null);
   };
 
   if (loading) {
@@ -644,7 +755,6 @@ export default function AdminCms() {
   return (
     <div className="cms-root">
       <div className="cms-shell">
-        {/* HEADER (sticky) */}
         <div className="cms-header">
           <div>
             <div className="cms-title">Admin CMS: {siteLabel}</div>
@@ -658,7 +768,14 @@ export default function AdminCms() {
               onChange={(e) => {
                 const next = e.target.value;
                 setSite(next as any);
-                navigate(`/admin/cms?site=${encodeURIComponent(next)}`);
+
+                if (next === "purple-music-group") {
+                  // idi na AdminPMG
+                  navigate(`/admin/pmg?site=${encodeURIComponent(next)}`);
+                } else {
+                  // svi ostali ostaju na AdminCms
+                  navigate(`/admin/cms?site=${encodeURIComponent(next)}`);
+                }
               }}
             >
               {ADMIN_SITES.map((s) => (
@@ -668,18 +785,25 @@ export default function AdminCms() {
               ))}
             </select>
 
+
             <button className="cms-btn cms-btn--primary" onClick={saveAll} disabled={saving}>
               {saving ? "Saving…" : "Save all"}
             </button>
           </div>
 
-          {msg && <div className={`cms-headerToast ${msg.kind === "ok" ? "is-ok" : "is-err"}`}>{msg.text}</div>}
+          {msg && (
+            <div className={`cms-headerToast ${msg.kind === "ok" ? "is-ok" : "is-err"}`}>
+              {msg.text}
+            </div>
+          )}
         </div>
 
-        {/* SECTIONS */}
         <div className="cms-sections">
-          {/* HERO */}
-          <AccordionHeader title="Hero" open={openSection === "hero"} onToggle={() => toggleSection("hero")} />
+          <AccordionHeader
+            title="Hero"
+            open={openSection === "hero"}
+            onToggle={() => toggleSection("hero")}
+          />
           {openSection === "hero" && (
             <div className="cms-panel">
               <div className="cms-grid3">
@@ -687,21 +811,36 @@ export default function AdminCms() {
                   <input
                     className="cms-input"
                     value={hero.prefixes[0]}
-                    onChange={(e) => setHero((p) => ({ ...p, prefixes: [e.target.value, p.prefixes[1], p.prefixes[2]] }))}
+                    onChange={(e) =>
+                      setHero((p) => ({
+                        ...p,
+                        prefixes: [e.target.value, p.prefixes[1], p.prefixes[2]],
+                      }))
+                    }
                   />
                 </Field>
                 <Field label="Prefix 2">
                   <input
                     className="cms-input"
                     value={hero.prefixes[1]}
-                    onChange={(e) => setHero((p) => ({ ...p, prefixes: [p.prefixes[0], e.target.value, p.prefixes[2]] }))}
+                    onChange={(e) =>
+                      setHero((p) => ({
+                        ...p,
+                        prefixes: [p.prefixes[0], e.target.value, p.prefixes[2]],
+                      }))
+                    }
                   />
                 </Field>
                 <Field label="Prefix 3">
                   <input
                     className="cms-input"
                     value={hero.prefixes[2]}
-                    onChange={(e) => setHero((p) => ({ ...p, prefixes: [p.prefixes[0], p.prefixes[1], e.target.value] }))}
+                    onChange={(e) =>
+                      setHero((p) => ({
+                        ...p,
+                        prefixes: [p.prefixes[0], p.prefixes[1], e.target.value],
+                      }))
+                    }
                   />
                 </Field>
               </div>
@@ -711,33 +850,55 @@ export default function AdminCms() {
                   <input
                     className="cms-input"
                     value={hero.typeWords[0]}
-                    onChange={(e) => setHero((p) => ({ ...p, typeWords: [e.target.value, p.typeWords[1], p.typeWords[2]] }))}
+                    onChange={(e) =>
+                      setHero((p) => ({
+                        ...p,
+                        typeWords: [e.target.value, p.typeWords[1], p.typeWords[2]],
+                      }))
+                    }
                   />
                 </Field>
                 <Field label="Typed text 2">
                   <input
                     className="cms-input"
                     value={hero.typeWords[1]}
-                    onChange={(e) => setHero((p) => ({ ...p, typeWords: [p.typeWords[0], e.target.value, p.typeWords[2]] }))}
+                    onChange={(e) =>
+                      setHero((p) => ({
+                        ...p,
+                        typeWords: [p.typeWords[0], e.target.value, p.typeWords[2]],
+                      }))
+                    }
                   />
                 </Field>
                 <Field label="Typed text 3">
                   <input
                     className="cms-input"
                     value={hero.typeWords[2]}
-                    onChange={(e) => setHero((p) => ({ ...p, typeWords: [p.typeWords[0], p.typeWords[1], e.target.value] }))}
+                    onChange={(e) =>
+                      setHero((p) => ({
+                        ...p,
+                        typeWords: [p.typeWords[0], p.typeWords[1], e.target.value],
+                      }))
+                    }
                   />
                 </Field>
               </div>
 
               <Field label="Subtitle (subtext)">
-                <textarea className="cms-textarea" value={hero.subtext} onChange={(e) => setHero((p) => ({ ...p, subtext: e.target.value }))} />
+                <textarea
+                  className="cms-textarea"
+                  value={hero.subtext}
+                  onChange={(e) => setHero((p) => ({ ...p, subtext: e.target.value }))}
+                />
               </Field>
             </div>
           )}
 
-          {/* ABOUT */}
-          <AccordionHeader title="About" open={openSection === "about"} onToggle={() => toggleSection("about")} />
+          <AccordionHeader
+            title="About"
+            open={openSection === "about"}
+            onToggle={() => toggleSection("about")}
+          />
           {openSection === "about" && (
             <div className="cms-panel">
               <Field label="Paragraph 1 (main)">
@@ -757,16 +918,20 @@ export default function AdminCms() {
             </div>
           )}
 
-          {/* ARTISTS */}
-          <AccordionHeader title="Artist " open={openSection === "artists"} onToggle={() => toggleSection("artists")} />
+          <AccordionHeader
+            title="Artist "
+            open={openSection === "artists"}
+            onToggle={() => toggleSection("artists")}
+          />
           {openSection === "artists" && (
             <div className="cms-panel">
-              {/* Top 3 */}
               <div className="cms-block">
                 <div className="cms-block__head">
                   <div>
                     <div className="cms-block__title">Main page (choose Top 3 and order)</div>
-                    <div className="cms-block__desc">Pick 3 existing artists from roster and reorder with arrows.</div>
+                    <div className="cms-block__desc">
+                      Pick 3 existing artists from roster and reorder with arrows.
+                    </div>
                   </div>
                   <button className="cms-btn" onClick={autoFillTop3} type="button">
                     Auto-fill
@@ -777,7 +942,11 @@ export default function AdminCms() {
                   <div key={i} className="cms-row">
                     <div className="cms-row__label">Top {i + 1}</div>
 
-                    <select className="cms-select" value={homeArtists.top3[i] ?? ""} onChange={(e) => setTop3At(i, e.target.value)}>
+                    <select
+                      className="cms-select"
+                      value={homeArtists.top3[i] ?? ""}
+                      onChange={(e) => setTop3At(i, e.target.value)}
+                    >
                       <option value="">— select artist —</option>
                       {roster.artists.map((a) => (
                         <option key={a.id} value={a.id}>
@@ -787,10 +956,20 @@ export default function AdminCms() {
                     </select>
 
                     <div className="cms-row__actions">
-                      <button className="cms-iconbtn" disabled={i === 0} onClick={() => moveTop3(i, i - 1)} type="button">
+                      <button
+                        className="cms-iconbtn"
+                        disabled={i === 0}
+                        onClick={() => moveTop3(i, i - 1)}
+                        type="button"
+                      >
                         ↑
                       </button>
-                      <button className="cms-iconbtn" disabled={i === 2} onClick={() => moveTop3(i, i + 1)} type="button">
+                      <button
+                        className="cms-iconbtn"
+                        disabled={i === 2}
+                        onClick={() => moveTop3(i, i + 1)}
+                        type="button"
+                      >
                         ↓
                       </button>
                     </div>
@@ -798,23 +977,30 @@ export default function AdminCms() {
                 ))}
 
                 <div className="cms-muted">
-                  Preview: {top3Artists.length ? top3Artists.map((a) => a.name).join(" • ") : "Top 3 not selected yet"}
+                  Preview:{" "}
+                  {top3Artists.length
+                    ? top3Artists.map((a) => a.name).join(" • ")
+                    : "Top 3 not selected yet"}
                 </div>
               </div>
 
-              {/* Roster */}
               <div className="cms-block">
                 <div className="cms-block__head">
                   <div>
                     <div className="cms-block__title">Artist roster</div>
                     <div className="cms-block__desc">
-                      Each artist has: name, spotify URL, image (URL or upload), bio, and 5 tracks (title and URL).
+                      Each artist has: name, spotify URL, image (URL or upload), bio, and 5
+                      tracks (title and URL).
                     </div>
                   </div>
 
                   <div className="cms-inline">
                     <div className="cms-badge">Count: {roster.artists.length}</div>
-                    <button className="cms-btn cms-btn--primary" onClick={addRosterArtist} type="button">
+                    <button
+                      className="cms-btn cms-btn--primary"
+                      onClick={addRosterArtist}
+                      type="button"
+                    >
                       + Add artist
                     </button>
                   </div>
@@ -839,7 +1025,9 @@ export default function AdminCms() {
                         <div className="cms-card__head">
                           <button
                             className="cms-plus"
-                            onClick={() => setOpenArtistId((prev) => (prev === a.id ? null : a.id))}
+                            onClick={() =>
+                              setOpenArtistId((prev) => (prev === a.id ? null : a.id))
+                            }
                             aria-label="Toggle artist"
                             type="button"
                           >
@@ -848,11 +1036,18 @@ export default function AdminCms() {
 
                           <div className="cms-card__title">
                             <div className="cms-card__index">#{i + 1}</div>
-                            <div className="cms-card__name">{a.name || "Untitled artist"}</div>
+                            <div className="cms-card__name">
+                              {a.name || "Untitled artist"}
+                            </div>
                           </div>
 
                           <div className="cms-card__actions">
-                            <button className="cms-iconbtn" disabled={i === 0} onClick={() => moveRosterArtist(i, i - 1)} type="button">
+                            <button
+                              className="cms-iconbtn"
+                              disabled={i === 0}
+                              onClick={() => moveRosterArtist(i, i - 1)}
+                              type="button"
+                            >
                               ↑
                             </button>
                             <button
@@ -864,7 +1059,11 @@ export default function AdminCms() {
                               ↓
                             </button>
 
-                            <button className="cms-btn cms-btn--danger" onClick={() => removeRosterArtist(i)} type="button">
+                            <button
+                              className="cms-btn cms-btn--danger"
+                              onClick={() => removeRosterArtist(i)}
+                              type="button"
+                            >
                               Delete
                             </button>
                           </div>
@@ -874,21 +1073,37 @@ export default function AdminCms() {
                           <div className="cms-card__body">
                             <div className="cms-grid2">
                               <Field label="Artist name">
-                                <input className="cms-input" value={a.name} onChange={(e) => updateRosterArtist(i, { name: e.target.value })} />
+                                <input
+                                  className="cms-input"
+                                  value={a.name}
+                                  onChange={(e) =>
+                                    updateRosterArtist(i, { name: e.target.value })
+                                  }
+                                />
                               </Field>
 
                               <Field label="Spotify URL">
                                 <input
                                   className="cms-input"
                                   value={a.spotifyUrl}
-                                  onChange={(e) => updateRosterArtist(i, { spotifyUrl: e.target.value })}
+                                  onChange={(e) =>
+                                    updateRosterArtist(i, {
+                                      spotifyUrl: e.target.value,
+                                    })
+                                  }
                                 />
                               </Field>
                             </div>
 
                             <div className="cms-grid2">
                               <Field label="Image URL (or dataURL)">
-                                <input className="cms-input" value={a.image} onChange={(e) => updateRosterArtist(i, { image: e.target.value })} />
+                                <input
+                                  className="cms-input"
+                                  value={a.image}
+                                  onChange={(e) =>
+                                    updateRosterArtist(i, { image: e.target.value })
+                                  }
+                                />
                               </Field>
 
                               <Field label="Upload image">
@@ -897,7 +1112,7 @@ export default function AdminCms() {
                                   type="file"
                                   accept="image/*"
                                   onChange={async (e) => {
-                                    const f = e.target.files?.[0];
+                                    const f = (e.target as HTMLInputElement).files?.[0];
                                     if (!f) return;
                                     const url = await uploadImage(f);
                                     if (url) updateRosterArtist(i, { image: url });
@@ -907,29 +1122,46 @@ export default function AdminCms() {
                             </div>
 
                             <Field label="Bio">
-                              <textarea className="cms-textarea" value={a.bio} onChange={(e) => updateRosterArtist(i, { bio: e.target.value })} />
+                              <textarea
+                                className="cms-textarea"
+                                value={a.bio}
+                                onChange={(e) =>
+                                  updateRosterArtist(i, { bio: e.target.value })
+                                }
+                              />
                             </Field>
 
                             <div className="cms-divider" />
 
-                            <div className="cms-block__title" style={{ marginBottom: 10 }}>
+                            <div
+                              className="cms-block__title"
+                              style={{ marginBottom: 10 }}
+                            >
                               Tracks (5)
                             </div>
 
                             <div className="cms-tracks">
                               {Array.from({ length: 5 }).map((_, ti) => (
                                 <div key={ti} className="cms-trackrow">
-                                  <div className="cms-trackrow__label">Track {ti + 1}</div>
+                                  <div className="cms-trackrow__label">
+                                    Track {ti + 1}
+                                  </div>
                                   <input
                                     className="cms-input"
-                                    value={a.tracks?.[ti]?.title ?? `Track ${ti + 1}`}
-                                    onChange={(e) => updateTrack(i, ti, { title: e.target.value })}
+                                    value={
+                                      a.tracks?.[ti]?.title ?? `Track ${ti + 1}`
+                                    }
+                                    onChange={(e) =>
+                                      updateTrack(i, ti, { title: e.target.value })
+                                    }
                                     placeholder={`Track ${ti + 1} title`}
                                   />
                                   <input
                                     className="cms-input"
                                     value={a.tracks?.[ti]?.url ?? ""}
-                                    onChange={(e) => updateTrack(i, ti, { url: e.target.value })}
+                                    onChange={(e) =>
+                                      updateTrack(i, ti, { url: e.target.value })
+                                    }
                                     placeholder="Spotify track URL"
                                   />
                                 </div>
@@ -945,8 +1177,11 @@ export default function AdminCms() {
             </div>
           )}
 
-          {/* SERVICES */}
-          <AccordionHeader title="Services" open={openSection === "services"} onToggle={() => toggleSection("services")} />
+          <AccordionHeader
+            title="Services"
+            open={openSection === "services"}
+            onToggle={() => toggleSection("services")}
+          />
           {openSection === "services" && (
             <div className="cms-panel">
               <div className="cms-block__head">
@@ -962,11 +1197,18 @@ export default function AdminCms() {
                     <div className="cms-card__head">
                       <div className="cms-card__title">
                         <div className="cms-card__index">#{i + 1}</div>
-                        <div className="cms-card__name">{it.title || "Service"}</div>
+                        <div className="cms-card__name">
+                          {it.title || "Service"}
+                        </div>
                       </div>
 
                       <div className="cms-card__actions">
-                        <button className="cms-iconbtn" disabled={i === 0} onClick={() => moveService(i, i - 1)} type="button">
+                        <button
+                          className="cms-iconbtn"
+                          disabled={i === 0}
+                          onClick={() => moveService(i, i - 1)}
+                          type="button"
+                        >
                           ↑
                         </button>
 
@@ -979,7 +1221,11 @@ export default function AdminCms() {
                           ↓
                         </button>
 
-                        <button className="cms-btn cms-btn--danger" onClick={() => removeService(i)} type="button">
+                        <button
+                          className="cms-btn cms-btn--danger"
+                          onClick={() => removeService(i)}
+                          type="button"
+                        >
                           Delete
                         </button>
                       </div>
@@ -988,11 +1234,23 @@ export default function AdminCms() {
                     <div className="cms-card__body">
                       <div className="cms-grid2">
                         <Field label="Title">
-                          <input className="cms-input" value={it.title ?? ""} onChange={(e) => updateService(i, { title: e.target.value })} />
+                          <input
+                            className="cms-input"
+                            value={it.title ?? ""}
+                            onChange={(e) =>
+                              updateService(i, { title: e.target.value })
+                            }
+                          />
                         </Field>
 
                         <Field label="Text">
-                          <textarea className="cms-textarea" value={it.text ?? ""} onChange={(e) => updateService(i, { text: e.target.value })} />
+                          <textarea
+                            className="cms-textarea"
+                            value={it.text ?? ""}
+                            onChange={(e) =>
+                              updateService(i, { text: e.target.value })
+                            }
+                          />
                         </Field>
                       </div>
                     </div>
@@ -1002,46 +1260,94 @@ export default function AdminCms() {
             </div>
           )}
 
-          {/* SYNC */}
-          <AccordionHeader title="Sync" open={openSection === "sync"} onToggle={() => toggleSection("sync")} />
+          <AccordionHeader
+            title="Sync"
+            open={openSection === "sync"}
+            onToggle={() => toggleSection("sync")}
+          />
           {openSection === "sync" && (
             <div className="cms-panel">
               <div className="cms-grid3">
                 <Field label="H1">
-                  <input className="cms-input" value={syncText.h1} onChange={(e) => setSyncText((p) => ({ ...p, h1: e.target.value }))} />
+                  <input
+                    className="cms-input"
+                    value={syncText.h1}
+                    onChange={(e) =>
+                      setSyncText((p) => ({ ...p, h1: e.target.value }))
+                    }
+                  />
                 </Field>
                 <Field label="H2">
-                  <input className="cms-input" value={syncText.h2} onChange={(e) => setSyncText((p) => ({ ...p, h2: e.target.value }))} />
+                  <input
+                    className="cms-input"
+                    value={syncText.h2}
+                    onChange={(e) =>
+                      setSyncText((p) => ({ ...p, h2: e.target.value }))
+                    }
+                  />
                 </Field>
                 <Field label="H3">
-                  <input className="cms-input" value={syncText.h3} onChange={(e) => setSyncText((p) => ({ ...p, h3: e.target.value }))} />
+                  <input
+                    className="cms-input"
+                    value={syncText.h3}
+                    onChange={(e) =>
+                      setSyncText((p) => ({ ...p, h3: e.target.value }))
+                    }
+                  />
                 </Field>
               </div>
 
               <div className="cms-grid3">
                 <Field label="T1">
-                  <textarea className="cms-textarea" value={syncText.t1} onChange={(e) => setSyncText((p) => ({ ...p, t1: e.target.value }))} />
+                  <textarea
+                    className="cms-textarea"
+                    value={syncText.t1}
+                    onChange={(e) =>
+                      setSyncText((p) => ({ ...p, t1: e.target.value }))
+                    }
+                  />
                 </Field>
                 <Field label="T2">
-                  <textarea className="cms-textarea" value={syncText.t2} onChange={(e) => setSyncText((p) => ({ ...p, t2: e.target.value }))} />
+                  <textarea
+                    className="cms-textarea"
+                    value={syncText.t2}
+                    onChange={(e) =>
+                      setSyncText((p) => ({ ...p, t2: e.target.value }))
+                    }
+                  />
                 </Field>
                 <Field label="T3">
-                  <textarea className="cms-textarea" value={syncText.t3} onChange={(e) => setSyncText((p) => ({ ...p, t3: e.target.value }))} />
+                  <textarea
+                    className="cms-textarea"
+                    value={syncText.t3}
+                    onChange={(e) =>
+                      setSyncText((p) => ({ ...p, t3: e.target.value }))
+                    }
+                  />
                 </Field>
               </div>
             </div>
           )}
 
-          {/* PARTNERS */}
-          <AccordionHeader title="Partners" open={openSection === "partners"} onToggle={() => toggleSection("partners")} />
+          <AccordionHeader
+            title="Partners"
+            open={openSection === "partners"}
+            onToggle={() => toggleSection("partners")}
+          />
           {openSection === "partners" && (
             <div className="cms-panel">
               <div className="cms-block__head">
                 <div>
                   <div className="cms-block__title">Partners list</div>
-                  <div className="cms-block__desc">Upload logo, edit link, reorder.</div>
+                  <div className="cms-block__desc">
+                    Upload logo, edit link, reorder.
+                  </div>
                 </div>
-                <button className="cms-btn cms-btn--primary" onClick={addPartner} type="button">
+                <button
+                  className="cms-btn cms-btn--primary"
+                  onClick={addPartner}
+                  type="button"
+                >
                   + Add partner
                 </button>
               </div>
@@ -1064,11 +1370,18 @@ export default function AdminCms() {
                       <div className="cms-card__head">
                         <div className="cms-card__title">
                           <div className="cms-card__index">#{i + 1}</div>
-                          <div className="cms-card__name">{p.name || "Partner"}</div>
+                          <div className="cms-card__name">
+                            {p.name || "Partner"}
+                          </div>
                         </div>
 
                         <div className="cms-card__actions">
-                          <button className="cms-iconbtn" disabled={i === 0} onClick={() => movePartner(i, i - 1)} type="button">
+                          <button
+                            className="cms-iconbtn"
+                            disabled={i === 0}
+                            onClick={() => movePartner(i, i - 1)}
+                            type="button"
+                          >
                             ↑
                           </button>
                           <button
@@ -1079,7 +1392,11 @@ export default function AdminCms() {
                           >
                             ↓
                           </button>
-                          <button className="cms-btn cms-btn--danger" onClick={() => removePartner(p.id)} type="button">
+                          <button
+                            className="cms-btn cms-btn--danger"
+                            onClick={() => removePartner(p.id)}
+                            type="button"
+                          >
                             Delete
                           </button>
                         </div>
@@ -1088,16 +1405,34 @@ export default function AdminCms() {
                       <div className="cms-card__body">
                         <div className="cms-grid2">
                           <Field label="Name">
-                            <input className="cms-input" value={p.name} onChange={(e) => updatePartner(p.id, { name: e.target.value })} />
+                            <input
+                              className="cms-input"
+                              value={p.name}
+                              onChange={(e) =>
+                                updatePartner(p.id, { name: e.target.value })
+                              }
+                            />
                           </Field>
                           <Field label="Href">
-                            <input className="cms-input" value={p.href} onChange={(e) => updatePartner(p.id, { href: e.target.value })} />
+                            <input
+                              className="cms-input"
+                              value={p.href}
+                              onChange={(e) =>
+                                updatePartner(p.id, { href: e.target.value })
+                              }
+                            />
                           </Field>
                         </div>
 
                         <div className="cms-grid2">
                           <Field label="Logo src (URL or dataURL)">
-                            <input className="cms-input" value={p.src} onChange={(e) => updatePartner(p.id, { src: e.target.value })} />
+                            <input
+                              className="cms-input"
+                              value={p.src}
+                              onChange={(e) =>
+                                updatePartner(p.id, { src: e.target.value })
+                              }
+                            />
                           </Field>
 
                           <Field label="Upload logo">
@@ -1106,7 +1441,7 @@ export default function AdminCms() {
                               type="file"
                               accept="image/*"
                               onChange={async (e) => {
-                                const f = e.target.files?.[0];
+                                const f = (e.target as HTMLInputElement).files?.[0];
                                 if (!f) return;
                                 const url = await uploadImage(f);
                                 if (url) updatePartner(p.id, { src: url });
@@ -1122,8 +1457,163 @@ export default function AdminCms() {
             </div>
           )}
 
-          {/* FAQ */}
-          <AccordionHeader title="FAQ" open={openSection === "faq"} onToggle={() => toggleSection("faq")} />
+          {/* NEW: Homepage Brands (PMG) */}
+          <AccordionHeader
+            title="Homepage Brands (PMG)"
+            open={openSection === "brands"}
+            onToggle={() => toggleSection("brands")}
+          />
+          {openSection === "brands" && (
+            <div className="cms-panel">
+              <div className="cms-block__head">
+                <div>
+                  <div className="cms-block__title">Brand cards</div>
+                  <div className="cms-block__desc">
+                    These map 1:1 to BrandCarousel cards on PMG site (key,
+                    title, desc, logo, href). Reorder with arrows.
+                  </div>
+                </div>
+                <button
+                  className="cms-btn cms-btn--primary"
+                  onClick={addBrand}
+                  type="button"
+                >
+                  + Add brand
+                </button>
+              </div>
+
+              <div className="cms-list">
+                {brands.items.map((b, i) => {
+                  const isNew = newBrandId === b.id;
+
+                  return (
+                    <div
+                      key={b.id}
+                      ref={(el) => {
+                        scrollRefs.current[b.id] = el;
+                      }}
+                      className={`cms-card ${isNew ? "is-new" : ""}`}
+                      onAnimationEnd={() => {
+                        if (isNew) setNewBrandId(null);
+                      }}
+                    >
+                      <div className="cms-card__head">
+                        <div className="cms-card__title">
+                          <div className="cms-card__index">#{i + 1}</div>
+                          <div className="cms-card__name">
+                            {b.title || "Brand"}
+                          </div>
+                        </div>
+
+                        <div className="cms-card__actions">
+                          <button
+                            className="cms-iconbtn"
+                            disabled={i === 0}
+                            onClick={() => moveBrand(i, i - 1)}
+                            type="button"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            className="cms-iconbtn"
+                            disabled={i === brands.items.length - 1}
+                            onClick={() => moveBrand(i, i + 1)}
+                            type="button"
+                          >
+                            ↓
+                          </button>
+                          <button
+                            className="cms-btn cms-btn--danger"
+                            onClick={() => removeBrand(b.id)}
+                            type="button"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="cms-card__body">
+                        <div className="cms-grid3">
+                          <Field label="Key (stable identifier)">
+                            <input
+                              className="cms-input"
+                              value={b.key}
+                              onChange={(e) =>
+                                updateBrand(b.id, { key: e.target.value })
+                              }
+                              placeholder="e.g. records / pmg / publishing"
+                            />
+                          </Field>
+                          <Field label="Title">
+                            <input
+                              className="cms-input"
+                              value={b.title}
+                              onChange={(e) =>
+                                updateBrand(b.id, { title: e.target.value })
+                              }
+                            />
+                          </Field>
+                          <Field label="Href">
+                            <input
+                              className="cms-input"
+                              value={b.href}
+                              onChange={(e) =>
+                                updateBrand(b.id, { href: e.target.value })
+                              }
+                              placeholder="https://…"
+                            />
+                          </Field>
+                        </div>
+
+                        <Field label="Description">
+                          <textarea
+                            className="cms-textarea"
+                            value={b.desc}
+                            onChange={(e) =>
+                              updateBrand(b.id, { desc: e.target.value })
+                            }
+                          />
+                        </Field>
+
+                        <div className="cms-grid2">
+                          <Field label="Logo src (URL or dataURL)">
+                            <input
+                              className="cms-input"
+                              value={b.logoSrc}
+                              onChange={(e) =>
+                                updateBrand(b.id, { logoSrc: e.target.value })
+                              }
+                              placeholder="/record.png or uploaded URL"
+                            />
+                          </Field>
+                          <Field label="Upload logo">
+                            <input
+                              className="cms-input"
+                              type="file"
+                              accept="image/*"
+                              onChange={async (e) => {
+                                const f = (e.target as HTMLInputElement).files?.[0];
+                                if (!f) return;
+                                const url = await uploadImage(f);
+                                if (url)
+                                  updateBrand(b.id, { logoSrc: url });
+                              }}
+                            />
+                          </Field>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <AccordionHeader
+            title="FAQ"
+            open={openSection === "faq"}
+            onToggle={() => toggleSection("faq")}
+          />
           {openSection === "faq" && (
             <div className="cms-panel">
               <div className="cms-block__head">
@@ -1131,7 +1621,11 @@ export default function AdminCms() {
                   <div className="cms-block__title">FAQ items</div>
                   <div className="cms-block__desc">Add/remove/reorder.</div>
                 </div>
-                <button className="cms-btn cms-btn--primary" onClick={addFaqItem} type="button">
+                <button
+                  className="cms-btn cms-btn--primary"
+                  onClick={addFaqItem}
+                  type="button"
+                >
                   + Add FAQ
                 </button>
               </div>
@@ -1154,11 +1648,18 @@ export default function AdminCms() {
                       <div className="cms-card__head">
                         <div className="cms-card__title">
                           <div className="cms-card__index">#{i + 1}</div>
-                          <div className="cms-card__name">{it.q || "Question"}</div>
+                          <div className="cms-card__name">
+                            {it.q || "Question"}
+                          </div>
                         </div>
 
                         <div className="cms-card__actions">
-                          <button className="cms-iconbtn" disabled={i === 0} onClick={() => moveFaq(i, i - 1)} type="button">
+                          <button
+                            className="cms-iconbtn"
+                            disabled={i === 0}
+                            onClick={() => moveFaq(i, i - 1)}
+                            type="button"
+                          >
                             ↑
                           </button>
                           <button
@@ -1169,7 +1670,11 @@ export default function AdminCms() {
                           >
                             ↓
                           </button>
-                          <button className="cms-btn cms-btn--danger" onClick={() => removeFaqItem(it.id)} type="button">
+                          <button
+                            className="cms-btn cms-btn--danger"
+                            onClick={() => removeFaqItem(it.id)}
+                            type="button"
+                          >
                             Delete
                           </button>
                         </div>
@@ -1177,10 +1682,22 @@ export default function AdminCms() {
 
                       <div className="cms-card__body">
                         <Field label="Question">
-                          <input className="cms-input" value={it.q} onChange={(e) => updateFaqItem(it.id, { q: e.target.value })} />
+                          <input
+                            className="cms-input"
+                            value={it.q}
+                            onChange={(e) =>
+                              updateFaqItem(it.id, { q: e.target.value })
+                            }
+                          />
                         </Field>
                         <Field label="Answer">
-                          <textarea className="cms-textarea" value={it.a} onChange={(e) => updateFaqItem(it.id, { a: e.target.value })} />
+                          <textarea
+                            className="cms-textarea"
+                            value={it.a}
+                            onChange={(e) =>
+                              updateFaqItem(it.id, { a: e.target.value })
+                            }
+                          />
                         </Field>
                       </div>
                     </div>
@@ -1189,10 +1706,6 @@ export default function AdminCms() {
               </div>
             </div>
           )}
-        </div>
-
-        <div className="cms-bottomhint">
-          Tip: Otvori samo sekciju koja ti treba. Sve se snima na <b>Save all</b> (gore u headeru).
         </div>
       </div>
     </div>
@@ -1205,7 +1718,7 @@ export default function AdminCms() {
 function AccordionHeader({
   title,
   open,
-  onToggle
+  onToggle,
 }: {
   title: string;
   open: boolean;
@@ -1219,7 +1732,7 @@ function AccordionHeader({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="cms-field">
       <div className="cms-label">{label}</div>

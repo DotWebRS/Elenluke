@@ -1,44 +1,69 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AdminShell } from "./AdminShell";
 import { useAdminSite } from "./useAdminSite";
-import type { AdminSiteKey } from "./adminSites";
+import { API_BASE } from "../../config/apiBase";
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || "http://localhost:5284";
+// -------------------- ENUM-LIKE KONSTANTE --------------------
 
-const SubmissionType = {
+const SubmissionTypeId = {
   DemoUpload: 1,
-  PublishingInquiry: 2,
-  LegalInquiry: 3,
-  SupportRequest: 4,
-  InfoRequest: 5,
-  GeneralContactInquiry: 6
+  ArtistInformation: 2,
+  SongwriterInformation: 3,
+  SyncRequest: 4,
+  GeneralContactInquiry: 5,
+  SupportForm: 6,
+  LegalRequest: 7,
 } as const;
 
-type SubmissionType = (typeof SubmissionType)[keyof typeof SubmissionType];
-
-const SubmissionStatus = {
+const SubmissionStatusId = {
   Unread: 1,
   Read: 2,
   InProgress: 3,
   Done: 4,
   Accepted: 5,
-  Rejected: 6
+  Rejected: 6,
 } as const;
 
-type SubmissionStatus = (typeof SubmissionStatus)[keyof typeof SubmissionStatus];
+type SubmissionTypeId = (typeof SubmissionTypeId)[keyof typeof SubmissionTypeId];
+type SubmissionStatusId = (typeof SubmissionStatusId)[keyof typeof SubmissionStatusId];
 
-const SUBMISSION_TYPE_VALUES = Object.values(SubmissionType) as SubmissionType[];
-const SUBMISSION_STATUS_CORE: SubmissionStatus[] = [
-  SubmissionStatus.Unread,
-  SubmissionStatus.Read,
-  SubmissionStatus.InProgress,
-  SubmissionStatus.Done
+const SUBMISSION_TYPE_VALUES: SubmissionTypeId[] = [
+  SubmissionTypeId.DemoUpload,
+  SubmissionTypeId.ArtistInformation,
+  SubmissionTypeId.SongwriterInformation,
+  SubmissionTypeId.SyncRequest,
+  SubmissionTypeId.GeneralContactInquiry,
+  SubmissionTypeId.SupportForm,
+  SubmissionTypeId.LegalRequest,
 ];
+
+const STATUS_FILTER_VALUES: SubmissionStatusId[] = [
+  SubmissionStatusId.Unread,
+  SubmissionStatusId.Read,
+  SubmissionStatusId.InProgress,
+  SubmissionStatusId.Done,
+  SubmissionStatusId.Accepted,
+  SubmissionStatusId.Rejected,
+];
+
+// -------------------- TIPOVI PODATAKA --------------------
+
+type SubmissionFile = {
+  id: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+};
+
+type SubmissionField = {
+  name: string;
+  value: string;
+};
 
 type SubmissionListItem = {
   id: string;
-  type: SubmissionType;
-  status: SubmissionStatus;
+  type: SubmissionTypeId;
+  status: SubmissionStatusId;
   domain: string;
   name: string;
   email: string;
@@ -46,101 +71,144 @@ type SubmissionListItem = {
   uploadedBy: string | null;
   createdAt: string;
   repliesCount: number;
-  fields: Array<{ name: string; value: string }>;
-  files: Array<{ id: string; fileName: string; contentType: string; size: number }>;
+  fields: SubmissionField[];
+  files: SubmissionFile[];
+};
+
+type SubmissionReply = {
+  id: string;
+  toEmail: string;
+  subject: string;
+  body: string;
+  sentAt: string;
 };
 
 type SubmissionDetail = {
   id: string;
-  type: SubmissionType;
-  status: SubmissionStatus;
+  type: SubmissionTypeId;
+  status: SubmissionStatusId;
   domain: string;
   name: string;
   email: string;
   message: string | null;
   uploadedBy: string | null;
   createdAt: string;
-  fields: Array<{ name: string; value: string }>;
-  files: Array<{ id: string; fileName: string; contentType: string; size: number }>;
-  replies: Array<{ id: string; toEmail: string; subject: string; body: string; sentAt: string }>;
+  fields: SubmissionField[];
+  files: SubmissionFile[];
+  replies: SubmissionReply[];
 };
 
-function typeLabel(t: SubmissionType) {
+type ListResponse = {
+  total: number;
+  items: SubmissionListItem[];
+};
+
+type FilterHasFile = "all" | "yes" | "no";
+
+// -------------------- POMOĆNE FUNKCIJE --------------------
+
+function typeLabel(t: SubmissionTypeId) {
   switch (t) {
-    case SubmissionType.GeneralContactInquiry:
-      return "General";
-    case SubmissionType.PublishingInquiry:
-      return "Publishing";
-    case SubmissionType.LegalInquiry:
-      return "Legal";
-    case SubmissionType.SupportRequest:
-      return "Support";
-    case SubmissionType.InfoRequest:
-      return "Info";
-    case SubmissionType.DemoUpload:
+    case SubmissionTypeId.DemoUpload:
       return "Demo";
+    case SubmissionTypeId.ArtistInformation:
+      return "Artist info";
+    case SubmissionTypeId.SongwriterInformation:
+      return "Songwriter info";
+    case SubmissionTypeId.SyncRequest:
+      return "Sync request";
+    case SubmissionTypeId.GeneralContactInquiry:
+      return "General contact";
+    case SubmissionTypeId.SupportForm:
+      return "Support";
+    case SubmissionTypeId.LegalRequest:
+      return "Legal";
     default:
       return String(t);
   }
 }
 
-function statusLabel(s: SubmissionStatus) {
+function statusLabel(s: SubmissionStatusId) {
   switch (s) {
-    case SubmissionStatus.Unread:
+    case SubmissionStatusId.Unread:
       return "Unread";
-    case SubmissionStatus.Read:
+    case SubmissionStatusId.Read:
       return "Read";
-    case SubmissionStatus.InProgress:
+    case SubmissionStatusId.InProgress:
       return "In progress";
-    case SubmissionStatus.Done:
+    case SubmissionStatusId.Done:
       return "Done";
-    case SubmissionStatus.Accepted:
+    case SubmissionStatusId.Accepted:
       return "Accepted";
-    case SubmissionStatus.Rejected:
+    case SubmissionStatusId.Rejected:
       return "Rejected";
     default:
       return String(s);
   }
 }
 
-function statusBadgeClass(s: SubmissionStatus) {
+function statusBadgeClass(s: SubmissionStatusId) {
   switch (s) {
-    case SubmissionStatus.Unread:
-      return "unread";
-    case SubmissionStatus.Read:
-      return "read";
-    case SubmissionStatus.InProgress:
-      return "inprogress";
-    case SubmissionStatus.Done:
-      return "done";
-    case SubmissionStatus.Accepted:
-      return "accepted";
-    case SubmissionStatus.Rejected:
-      return "rejected";
+    case SubmissionStatusId.Unread:
+      return "badge-unread";
+    case SubmissionStatusId.Read:
+      return "badge-read";
+    case SubmissionStatusId.InProgress:
+      return "badge-inprogress";
+    case SubmissionStatusId.Done:
+      return "badge-done";
+    case SubmissionStatusId.Accepted:
+      return "badge-accepted";
+    case SubmissionStatusId.Rejected:
+      return "badge-rejected";
     default:
-      return "read";
+      return "";
   }
 }
 
-function bytes(n: number) {
-  if (!Number.isFinite(n)) return "";
-  const units = ["B", "KB", "MB", "GB"];
-  let x = n;
-  let i = 0;
-  while (x >= 1024 && i < units.length - 1) {
-    x /= 1024;
-    i++;
-  }
-  return `${x.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+function buildUrl(path: string) {
+  const base = String(API_BASE || "").replace(/\/+$/, "");
+  const p = String(path || "").replace(/^\/+/, "");
+  return base ? `${base}/${p}` : `/${p}`;
 }
 
-function csvEscape(v: string) {
-  const s = v ?? "";
-  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+function useAuthHeaders() {
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") || "" : "";
+  return useMemo(() => {
+    if (!token) return {};
+    return {
+      Authorization: `Bearer ${token}`,
+    } as Record<string, string>;
+  }, [token]);
+}
+
+async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
+  const res = await fetch(input, init);
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(t || `Request failed with status ${res.status}`);
+  }
+  return (await res.json().catch(() => null)) as T;
+}
+
+async function fetchBlob(input: RequestInfo, init?: RequestInit): Promise<Blob> {
+  const res = await fetch(input, init);
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(t || `Request failed with status ${res.status}`);
+  }
+  return await res.blob();
+}
+
+function csvEscape(value: string | number | boolean | null | undefined): string {
+  const s = String(value ?? "");
+  if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\r")) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
   return s;
 }
 
-function getFieldValue(fields: Array<{ name: string; value: string }> | null | undefined, candidates: string[]) {
+function getFieldValue(fields: SubmissionField[] | null | undefined, candidates: string[]) {
   const arr = Array.isArray(fields) ? fields : [];
   const norm = (x: string) => (x || "").trim().toLowerCase();
 
@@ -158,61 +226,54 @@ function getFieldValue(fields: Array<{ name: string; value: string }> | null | u
   return "";
 }
 
-// Rejection template samo za DemoUpload (type=1)
 function buildDemoRejectionTemplate(detail: SubmissionDetail) {
   const name = detail.name || "";
-  const trackTitle = getFieldValue(detail.fields, ["Track Title", "Song Title", "Title", "Track", "trackTitle"]);
+  const trackTitle = getFieldValue(detail.fields, [
+    "Track Title",
+    "Song Title",
+    "Title",
+    "Track",
+    "trackTitle",
+  ]);
   const trackPart = trackTitle ? ` ${trackTitle}` : " your track";
 
   return (
     `Hi ${name},\n\n` +
     `Thank you for sending${trackPart}. After careful consideration, we have decided not to move forward with a release for this track.\n\n` +
-    `Due to the volume of submissions we receive, we can’t always provide detailed feedback, but we truly appreciate you sharing your work with us. Please don’t hesitate to send future demos. We are always keen to hear what you are working on next.\n\n` +
+    `Due to the volume of submissions we receive, we can’t always provide detailed feedback, but we truly appreciate you sharing your work with us. Please don’t hesitate to send future demos, we are always keen to hear what you are working on next.\n\n` +
     `Wishing you the best,\n\n` +
-    `Your Purple Crunch Records Team\n`
+    `Your Purple Crunch Records Team`
   );
 }
 
-export default function AdminSubmissions() {
-  const token = localStorage.getItem("token");
-  const { site } = useAdminSite();
+// --------------------------- KOMPONENTA ---------------------------
 
-  // Default: false =>  SVE prijave sa svih sajtova.
-  const [filterBySite, setFilterBySite] = useState(false);
-
-
-  useEffect(() => {
-    if (site) {
-      setFilterBySite(true);
-      setPage(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [site]);
-
-  const authHeaders = useMemo<Record<string, string>>(
-    () => (token ? ({ Authorization: `Bearer ${token}` } as Record<string, string>) : ({} as Record<string, string>)),
-    [token]
-  );
-
-  const [loading, setLoading] = useState(false);
-  const [busyRow, setBusyRow] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+export function AdminSubmissions() {
+  const authHeaders = useAuthHeaders();
+  const { site } = useAdminSite(); // za prikaz domena u tekstu ako treba
 
   const [page, setPage] = useState(1);
   const pageSize = 50;
 
+  const [data, setData] = useState<ListResponse>({ total: 0, items: [] });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [typeFilter, setTypeFilter] = useState<SubmissionTypeId | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<SubmissionStatusId | "all">("all");
+  const [hasFile, setHasFile] = useState<FilterHasFile>("all");
+  const [fromDate, setFromDate] = useState<string>("");
+  const [toDate, setToDate] = useState<string>("");
+
   const [search, setSearch] = useState("");
-  const [type, setType] = useState<SubmissionType | "all">("all");
-  const [status, setStatus] = useState<SubmissionStatus | "all">("all");
-  const [hasFile, setHasFile] = useState<"all" | "yes" | "no">("all");
-
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
-
-  const [data, setData] = useState<{ total: number; items: SubmissionListItem[] }>({ total: 0, items: [] });
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const [openId, setOpenId] = useState<string | null>(null);
   const [detail, setDetail] = useState<SubmissionDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const [busyRow, setBusyRow] = useState<string | null>(null);
+  const [savingStatus, setSavingStatus] = useState(false);
 
   const [rejectionBody, setRejectionBody] = useState("");
   const [replyTo, setReplyTo] = useState("");
@@ -232,7 +293,7 @@ export default function AdminSubmissions() {
         try {
           URL.revokeObjectURL(previewUrlsRef.current[k]);
         } catch {
-          null;
+          // ignore
         }
       }
     };
@@ -245,15 +306,13 @@ export default function AdminSubmissions() {
     qs.set("page", String(page));
     qs.set("pageSize", String(pageSize));
 
-    // ✅ domain se šalje SAMO ako je filterBySite uključen
-    if (filterBySite && site) qs.set("domain", site);
-
     if (search.trim()) qs.set("search", search.trim());
-    if (type !== "all") qs.set("type", String(type));
-    if (status !== "all") qs.set("status", String(status));
+    if (typeFilter !== "all") qs.set("type", String(typeFilter));
+    if (statusFilter !== "all") qs.set("status", String(statusFilter));
     if (hasFile !== "all") qs.set("hasFile", hasFile === "yes" ? "true" : "false");
     if (fromDate) qs.set("from", `${fromDate}T00:00:00`);
     if (toDate) qs.set("to", `${toDate}T23:59:59`);
+
     return qs.toString();
   };
 
@@ -261,8 +320,8 @@ export default function AdminSubmissions() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/submissions?${buildQuery()}`, {
-        headers: { ...authHeaders }
+      const res = await fetch(buildUrl(`/api/submissions?${buildQuery()}`), {
+        headers: { ...authHeaders },
       });
       if (!res.ok) {
         const t = await res.text().catch(() => "");
@@ -270,10 +329,10 @@ export default function AdminSubmissions() {
         setData({ total: 0, items: [] });
         return;
       }
-      const json = await res.json().catch(() => null as any);
+      const json = await res.json().catch(() => null);
       setData({
         total: Number(json?.total ?? 0),
-        items: Array.isArray(json?.items) ? json.items : []
+        items: Array.isArray(json?.items) ? json.items : [],
       });
     } catch (e: any) {
       setError(e?.message || "List error");
@@ -286,169 +345,71 @@ export default function AdminSubmissions() {
   useEffect(() => {
     fetchList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, type, status, hasFile, fromDate, toDate, filterBySite, site]);
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setPage(1);
-      fetchList();
-    }, 350);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, filterBySite, site]);
-
-  const patchStatusLocal = (id: string, next: SubmissionStatus) => {
-    setData((prev) => ({
-      total: prev.total,
-      items: (prev.items ?? []).map((x) => (x.id === id ? { ...x, status: next } : x))
-    }));
-    setDetail((d) => (d && d.id === id ? { ...d, status: next } : d));
-  };
-
-  const updateStatusInternal = async (id: string, next: SubmissionStatus, silent?: boolean) => {
-    try {
-      const res = await fetch(`${API_BASE}/api/submissions/${id}/status`, {
-        method: "PUT",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
-        body: JSON.stringify({ status: next })
-      });
-      if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        if (!silent) setError(`Status error: ${res.status}${t ? ` — ${t}` : ""}`);
-        return false;
-      }
-      patchStatusLocal(id, next);
-      return true;
-    } catch (e: any) {
-      if (!silent) setError(e?.message || "Status error");
-      return false;
-    }
-  };
+  }, [page, typeFilter, statusFilter, hasFile, fromDate, toDate, search]);
 
   const openSubmission = async (id: string) => {
     setOpenId(id);
     setDetail(null);
-    setRejectionBody("");
-    setReplyTo("");
-    setReplySubject("");
-    setReplyBody("");
-
-    for (const k of Object.keys(previewUrlsRef.current)) {
-      try {
-        URL.revokeObjectURL(previewUrlsRef.current[k]);
-      } catch {
-        null;
-      }
-    }
-    setPreviewUrls({});
-
+    setDetailLoading(true);
+    setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/submissions/${id}`, { headers: { ...authHeaders } });
-      if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        setError(`Detail error: ${res.status}${t ? ` — ${t}` : ""}`);
-        return;
-      }
-      const json: SubmissionDetail = await res.json();
-      setDetail(json);
+      const d = await fetchJson<SubmissionDetail>(buildUrl(`/api/submissions/${id}`), {
+        headers: { ...authHeaders },
+      });
+      setDetail(d);
 
-      if (json.status === SubmissionStatus.Unread) {
-        await updateStatusInternal(id, SubmissionStatus.Read, true);
+      if (d.type === SubmissionTypeId.DemoUpload) {
+        setRejectionBody(buildDemoRejectionTemplate(d));
+      } else {
+        setRejectionBody("");
       }
 
-      if (json.type === SubmissionType.DemoUpload) {
-        setRejectionBody(buildDemoRejectionTemplate(json));
-      }
-
-      setReplyTo(json.email || "");
-      setReplySubject(`Re: ${typeLabel(json.type)} submission`);
+      const defaultTo = d.email || "";
+      setReplyTo(defaultTo);
+      setReplySubject("");
+      setReplyBody("");
     } catch (e: any) {
       setError(e?.message || "Detail error");
+    } finally {
+      setDetailLoading(false);
     }
   };
 
   const closeModal = () => {
     setOpenId(null);
     setDetail(null);
-    for (const k of Object.keys(previewUrlsRef.current)) {
-      try {
-        URL.revokeObjectURL(previewUrlsRef.current[k]);
-      } catch {
-        null;
-      }
+    setRejectionBody("");
+    setReplyTo("");
+    setReplyBody("");
+  };
+
+  const patchStatusLocal = (id: string, newStatus: SubmissionStatusId) => {
+    setData((prev) => ({
+      ...prev,
+      items: (prev.items || []).map((s) => (s.id === id ? { ...s, status: newStatus } : s)),
+    }));
+
+    if (detail && detail.id === id) {
+      setDetail({ ...detail, status: newStatus });
     }
-    setPreviewUrls({});
   };
 
-  const updateStatus = async (next: SubmissionStatus) => {
-    if (!detail) return;
-    await updateStatusInternal(detail.id, next);
-  };
-
-  const acceptDemo = async () => {
-    if (!detail) return;
-    if (detail.type !== SubmissionType.DemoUpload) return;
-
+  const updateStatus = async (id: string, newStatus: SubmissionStatusId) => {
+    setSavingStatus(true);
+    setBusyRow(id);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/submissions/${detail.id}/accept`, {
-        method: "PUT",
-        headers: { ...authHeaders }
-      });
-      if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        setError(`Accept error: ${res.status}${t ? ` — ${t}` : ""}`);
-        return;
-      }
-
-      patchStatusLocal(detail.id, SubmissionStatus.Accepted);
-      await openSubmission(detail.id);
-    } catch (e: any) {
-      setError(e?.message || "Accept error");
-    }
-  };
-
-  const rejectDemo = async () => {
-    if (!detail) return;
-    if (detail.type !== SubmissionType.DemoUpload) return;
-
-    setError(null);
-    try {
-      const res = await fetch(`${API_BASE}/api/submissions/${detail.id}/reject`, {
+      await fetchJson<void>(buildUrl(`/api/submissions/${id}/status`), {
         method: "PUT",
         headers: { ...authHeaders, "Content-Type": "application/json" },
-        body: JSON.stringify({ body: rejectionBody })
+        body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        setError(`Reject error: ${res.status}${t ? ` — ${t}` : ""}`);
-        return;
-      }
-
-      patchStatusLocal(detail.id, SubmissionStatus.Rejected);
-      await openSubmission(detail.id);
+      patchStatusLocal(id, newStatus);
     } catch (e: any) {
-      setError(e?.message || "Reject error");
-    }
-  };
-
-  const sendReply = async () => {
-    if (!detail) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/submissions/${detail.id}/reply`, {
-        method: "POST",
-        headers: { ...authHeaders, "Content-Type": "application/json" },
-        body: JSON.stringify({ toEmail: replyTo, subject: replySubject, body: replyBody })
-      });
-      if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        setError(`Reply error: ${res.status}${t ? ` — ${t}` : ""}`);
-        return;
-      }
-      setReplyBody("");
-      await openSubmission(detail.id);
-    } catch (e: any) {
-      setError(e?.message || "Reply error");
+      setError(e?.message || "Status update error");
+    } finally {
+      setSavingStatus(false);
+      setBusyRow(null);
     }
   };
 
@@ -459,9 +420,9 @@ export default function AdminSubmissions() {
     setError(null);
     setBusyRow(id);
     try {
-      const res = await fetch(`${API_BASE}/api/submissions/${id}`, {
+      const res = await fetch(buildUrl(`/api/submissions/${id}`), {
         method: "DELETE",
-        headers: { ...authHeaders }
+        headers: { ...authHeaders },
       });
       if (!res.ok) {
         const t = await res.text().catch(() => "");
@@ -469,10 +430,10 @@ export default function AdminSubmissions() {
         return;
       }
       setData((prev) => ({
-        total: Math.max(0, (prev.total ?? 0) - 1),
-        items: (prev.items ?? []).filter((x) => x.id !== id)
+        ...prev,
+        items: (prev.items || []).filter((s) => s.id !== id),
       }));
-      if (openId === id) closeModal();
+      if (detail && detail.id === id) closeModal();
     } catch (e: any) {
       setError(e?.message || "Delete error");
     } finally {
@@ -480,184 +441,232 @@ export default function AdminSubmissions() {
     }
   };
 
-  const fetchBlob = async (submissionId: string, fileId: string) => {
-    const res = await fetch(`${API_BASE}/api/submissions/${submissionId}/files/${fileId}/download`, {
-      headers: { ...authHeaders }
+  const fetchFileBlob = async (submissionId: string, fileId: string) => {
+    return await fetchBlob(buildUrl(`/api/submissions/${submissionId}/files/${fileId}/download`), {
+      headers: { ...authHeaders },
     });
-    if (!res.ok) {
-      const t = await res.text().catch(() => "");
-      throw new Error(`File error: ${res.status}${t ? ` — ${t}` : ""}`);
-    }
-    return await res.blob();
   };
 
-  const previewFile = async (file: { id: string; fileName: string; contentType: string }) => {
+  const previewFile = async (file: SubmissionFile) => {
     if (!detail) return;
-    if (previewUrls[file.id]) return;
-
     try {
-      const blob = await fetchBlob(detail.id, file.id);
+      const existing = previewUrls[file.id];
+      if (existing) {
+        window.open(existing, "_blank", "noopener,noreferrer");
+        return;
+      }
+      const blob = await fetchFileBlob(detail.id, file.id);
       const url = URL.createObjectURL(blob);
       setPreviewUrls((p) => ({ ...p, [file.id]: url }));
+      window.open(url, "_blank", "noopener,noreferrer");
     } catch (e: any) {
       setError(e?.message || "Preview error");
     }
   };
 
-  const downloadFile = async (file: { id: string; fileName: string; contentType: string }) => {
+  const downloadFile = async (file: SubmissionFile) => {
     if (!detail) return;
     try {
-      const blob = await fetchBlob(detail.id, file.id);
+      const blob = await fetchFileBlob(detail.id, file.id);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = file.fileName || "download";
       document.body.appendChild(a);
       a.click();
-      a.remove();
-      setTimeout(() => {
-        try {
-          URL.revokeObjectURL(url);
-        } catch {
-          null;
-        }
-      }, 5000);
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
     } catch (e: any) {
       setError(e?.message || "Download error");
     }
   };
 
-  const exportCsv = () => {
-    const rows = (visibleItems ?? []).map((x) => ({
-      createdAt: x.createdAt,
-      domain: x.domain,
-      type: typeLabel(x.type),
-      status: statusLabel(x.status),
-      name: x.name,
-      email: x.email,
-      uploadedBy: x.uploadedBy || "",
-      message: x.message || "",
-      files: (x.files || []).map((f) => f.fileName).join(" | "),
-      fields: (x.fields || []).map((f) => `${f.name}:${f.value}`).join(" | ")
-    }));
+  
 
-    const header = Object.keys(rows[0] || { createdAt: "" }).join(",");
-    const body = rows
-      .map((r) =>
-        [r.createdAt, r.domain, r.type, r.status, r.name, r.email, r.uploadedBy, r.message, r.files, r.fields]
-          .map(csvEscape)
-          .join(",")
-      )
-      .join("\n");
+  const acceptDemo = async () => {
+    if (!detail) return;
+    if (detail.type !== SubmissionTypeId.DemoUpload) return;
 
-    const csv = `${header}\n${body}`;
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
+    setError(null);
+    try {
+      const res = await fetch(buildUrl(`/api/submissions/${detail.id}/accept`), {
+        method: "PUT",
+        headers: { ...authHeaders },
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        setError(`Accept error: ${res.status}${t ? ` — ${t}` : ""}`);
+        return;
+      }
 
-    const csvScope = filterBySite && site ? (site as AdminSiteKey) : ("all" as any);
-    a.download = `submissions_${csvScope}_${new Date().toISOString().slice(0, 10)}.csv`;
-
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
+      patchStatusLocal(detail.id, SubmissionStatusId.Accepted);
+      await openSubmission(detail.id);
+    } catch (e: any) {
+      setError(e?.message || "Accept error");
+    }
   };
 
+  const rejectDemo = async () => {
+    if (!detail) return;
+    if (detail.type !== SubmissionTypeId.DemoUpload) return;
+
+    setError(null);
+    try {
+      const res = await fetch(buildUrl(`/api/submissions/${detail.id}/reject`), {
+        method: "PUT",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({ body: rejectionBody }),
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        setError(`Reject error: ${res.status}${t ? ` — ${t}` : ""}`);
+        return;
+      }
+
+      patchStatusLocal(detail.id, SubmissionStatusId.Rejected);
+      await openSubmission(detail.id);
+    } catch (e: any) {
+      setError(e?.message || "Reject error");
+    }
+  };
+
+  const sendReply = async () => {
+    if (!detail) return;
+    const toEmail = replyTo.trim();
+    if (!toEmail) {
+      alert("Recipient email is required.");
+      return;
+    }
+
+    setError(null);
+    try {
+      await fetchJson<void>(buildUrl(`/api/submissions/${detail.id}/reply`), {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          toEmail,
+          subject: replySubject || "(no subject)",
+          body: replyBody || "",
+        }),
+      });
+
+      await openSubmission(detail.id);
+    } catch (e: any) {
+      setError(e?.message || "Reply error");
+    }
+  };
+
+  const totalPages = Math.max(1, Math.ceil((data.total || 0) / pageSize));
   const canPrev = page > 1;
-  const canNext = page * pageSize < (data.total ?? 0);
+  const canNext = page < totalPages;
 
   return (
-    <AdminShell title="Admin Inbox">
-      <div className="admin-main">
-        <div className="admin-toolbar">
-          <input
-            className="admin-input"
-            placeholder="Search name, email, message..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-
-          <select
-            className="admin-select"
-            value={type === "all" ? "all" : String(type)}
-            onChange={(e) => setType(e.target.value === "all" ? "all" : (Number(e.target.value) as SubmissionType))}
-          >
-            <option value="all">All types</option>
-            {SUBMISSION_TYPE_VALUES.map((v) => (
-              <option key={String(v)} value={String(v)}>
-                {typeLabel(v)}
-              </option>
-            ))}
-          </select>
-
-          <select
-            className="admin-select"
-            value={status === "all" ? "all" : String(status)}
-            onChange={(e) => setStatus(e.target.value === "all" ? "all" : (Number(e.target.value) as SubmissionStatus))}
-          >
-            <option value="all">All statuses</option>
-            {[
-              SubmissionStatus.Unread,
-              SubmissionStatus.Read,
-              SubmissionStatus.InProgress,
-              SubmissionStatus.Done,
-              SubmissionStatus.Accepted,
-              SubmissionStatus.Rejected
-            ].map((v) => (
-              <option key={String(v)} value={String(v)}>
-                {statusLabel(v)}
-              </option>
-            ))}
-          </select>
-
-          <select className="admin-select" value={hasFile} onChange={(e) => setHasFile(e.target.value as any)}>
-            <option value="all">Has file: All</option>
-            <option value="yes">Has file: Yes</option>
-            <option value="no">Has file: No</option>
-          </select>
-
-          <input className="admin-input" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-          <input className="admin-input" type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-
-          {/* ✅ Toggle filter po sajtu (radi samo kad je site poznat) */}
-          {site ? (
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "0 10px",
-                borderRadius: 10,
-                border: "1px solid rgba(255,255,255,0.12)",
-                height: 40,
-                color: "rgba(255,255,255,0.82)"
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={filterBySite}
-                onChange={(e) => {
-                  setPage(1);
-                  setFilterBySite(e.target.checked);
-                }}
-              />
-              Only this site
-            </label>
-          ) : null}
-
-          <button className="admin-btn admin-btn-primary" onClick={exportCsv}>
-            Export CSV
-          </button>
+    <AdminShell title="Admin Inbox" active="submissions">
+      <div className="admin-root">
+        <div className="admin-header">
+          <div className="admin-header-main">
+            <h1>Inbox</h1>
+            <p className="sub">
+              Unified submissions across all forms. Filter, search and manage decisions.
+            </p>
+            {site ? (
+              <p className="sub sub-small"></p>
+            ) : null}
+          </div>
         </div>
 
         {error ? (
-          <div style={{ padding: 14, color: "rgba(255,255,255,0.85)" }}>
-            <span style={{ color: "#ff4d6d", fontWeight: 900 }}>Error:</span> {error}
+          <div className="admin-alert admin-alert-error">
+            <strong>Error:</strong> {error}
           </div>
         ) : null}
 
+        {/* FILTER BAR */}
+        <div className="admin-filters-row">
+  <div className="admin-filters-main">
+    <input
+      ref={searchInputRef}
+      className="admin-input admin-input--search"
+      placeholder="Search by name, email, domain or message…"
+      value={search}
+      onChange={(e) => {
+        setPage(1);
+        setSearch(e.target.value);
+      }}
+    />
+
+    <select
+      className="admin-select"
+      value={typeFilter === "all" ? "all" : String(typeFilter)}
+      onChange={(e) => {
+        const v = e.target.value;
+        setPage(1);
+        setTypeFilter(v === "all" ? "all" : (Number(v) as SubmissionTypeId));
+      }}
+    >
+      <option value="all">All types</option>
+      {SUBMISSION_TYPE_VALUES.map((v) => (
+        <option key={String(v)} value={String(v)}>
+          {typeLabel(v)}
+        </option>
+      ))}
+    </select>
+
+    <select
+      className="admin-select"
+      value={statusFilter === "all" ? "all" : String(statusFilter)}
+      onChange={(e) => {
+        const v = e.target.value;
+        setPage(1);
+        setStatusFilter(
+          v === "all" ? "all" : (Number(v) as SubmissionStatusId)
+        );
+      }}
+    >
+      <option value="all">All statuses</option>
+      {STATUS_FILTER_VALUES.map((v) => (
+        <option key={String(v)} value={String(v)}>
+          {statusLabel(v)}
+        </option>
+      ))}
+    </select>
+
+    <select
+      className="admin-select"
+      value={hasFile}
+      onChange={(e) => {
+        setPage(1);
+        setHasFile(e.target.value as FilterHasFile);
+      }}
+    >
+      <option value="all">Files: All</option>
+      <option value="yes">Files: Has file</option>
+      <option value="no">Files: No file</option>
+    </select>
+
+    <input
+      className="admin-input admin-input--date"
+      type="date"
+      value={fromDate}
+      onChange={(e) => {
+        setPage(1);
+        setFromDate(e.target.value);
+      }}
+    />
+    <input
+      className="admin-input admin-input--date"
+      type="date"
+      value={toDate}
+      onChange={(e) => {
+        setPage(1);
+        setToDate(e.target.value);
+      }}
+    />
+  </div>
+</div>
+
+
+        {/* TABELA */}
         <div className="admin-table-wrap">
           <table className="admin-table">
             <thead>
@@ -668,157 +677,253 @@ export default function AdminSubmissions() {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Files</th>
-                <th>UploadedBy</th>
-                <th>Message</th>
-                <th style={{ width: 110 }}>Delete</th>
+                <th>Domain</th>
+                <th>Replies</th>
+                <th className="th-actions">Actions</th>
               </tr>
             </thead>
 
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: 18, color: "rgba(255,255,255,0.7)" }}>
-                    Loading...
+                  <td colSpan={9} className="admin-table-empty">
+                    Loading…
                   </td>
                 </tr>
               ) : null}
 
               {!loading && (visibleItems ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ padding: 18, color: "rgba(255,255,255,0.7)" }}>
-                    {filterBySite && site ? "There are no applications for the selected site." : "There are no applications."}
+                  <td colSpan={9} className="admin-table-empty">
+                    There are no applications.
                   </td>
                 </tr>
               ) : null}
 
               {(visibleItems ?? []).map((s) => (
-                <tr key={s.id} className="admin-row" onClick={() => openSubmission(s.id)}>
+                <tr
+                  key={s.id}
+                  className="admin-row"
+                  onClick={() => openSubmission(s.id)}
+                >
                   <td>{new Date(s.createdAt).toLocaleString()}</td>
                   <td>{typeLabel(s.type)}</td>
                   <td>
-                    <span className={`admin-badge ${statusBadgeClass(s.status)}`}>{statusLabel(s.status)}</span>
+                    <span className={`admin-badge ${statusBadgeClass(s.status)}`}>
+                      {statusLabel(s.status)}
+                    </span>
                   </td>
                   <td>{s.name}</td>
                   <td>{s.email}</td>
                   <td>{(s.files || []).length}</td>
-                  <td>{s.uploadedBy || ""}</td>
-                  <td style={{ maxWidth: 360, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {s.message || ""}
-                  </td>
+                  <td>{s.domain}</td>
+                  <td>{s.repliesCount}</td>
                   <td>
-                    <button
-                      className="admin-btn admin-btn-danger"
-                      disabled={busyRow === s.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteSubmissionById(s.id);
-                      }}
+                    <div
+                      className="admin-table-actions"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <i className="fa fa-trash" aria-hidden="true"></i>
-                    </button>
+                      <select
+                        className="admin-select admin-select--compact"
+                        value={String(s.status)}
+                        disabled={savingStatus && busyRow === s.id}
+                        onChange={(e) =>
+                          updateStatus(
+                            s.id,
+                            Number(e.target.value) as SubmissionStatusId
+                          )
+                        }
+                      >
+                        {STATUS_FILTER_VALUES.map((st) => (
+                          <option key={String(st)} value={String(st)}>
+                            {statusLabel(st)}
+                          </option>
+                        ))}
+                      </select>
+
+                      <button
+                        className="admin-btn admin-btn-danger admin-btn--xs"
+                        disabled={savingStatus && busyRow === s.id}
+                        onClick={() => deleteSubmissionById(s.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
 
-        <div className="admin-pagination">
-          <div className="meta">
-            Total (server): {data.total ?? 0} | Page: {page}
-          </div>
-
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="admin-btn" disabled={!canPrev} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-              Prev
-            </button>
-            <button className="admin-btn" disabled={!canNext} onClick={() => setPage((p) => p + 1)}>
-              Next
-            </button>
-            <button className="admin-btn admin-btn-primary" onClick={fetchList}>
-              Refresh
-            </button>
+          {/* PAGINACIJA */}
+          <div className="admin-footer">
+            <div className="admin-footer-left">
+              <span>
+                Page {page} of {totalPages} — {data.total} total
+              </span>
+            </div>
+            <div className="admin-footer-right">
+              <button
+                className="admin-btn admin-btn-secondary"
+                disabled={!canPrev}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Prev
+              </button>
+              <button
+                className="admin-btn admin-btn-secondary"
+                disabled={!canNext}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* MODAL ZA DETAIL */}
       {openId ? (
-        <div className="admin-modal-overlay" onMouseDown={(e) => (e.target === e.currentTarget ? closeModal() : null)}>
+        <div
+          className="admin-modal-overlay"
+          onMouseDown={(e) =>
+            e.target === e.currentTarget ? closeModal() : null
+          }
+        >
           <div className="admin-modal">
             <div className="admin-modal-header">
               <div className="admin-modal-title">
-                <h2>Submission</h2>
-                <p className="sub">{openId}</p>
+                <h2>Submission detail</h2>
+                <p className="sub sub-small">{openId}</p>
               </div>
-              <button className="admin-modal-close" onClick={closeModal} aria-label="Close">
+              <button
+                className="admin-modal-close"
+                onClick={closeModal}
+                aria-label="Close"
+              >
                 ✕
               </button>
             </div>
 
-            {!detail ? (
-              <div style={{ padding: 16, color: "rgba(255,255,255,0.75)" }}>Loading details...</div>
+            {!detail || detailLoading ? (
+              <div className="admin-modal-loading">Loading details…</div>
             ) : (
               <div className="admin-modal-body">
-                {/* LEFT */}
-                <div style={{ display: "grid", gap: 14 }}>
+                <div className="admin-modal-grid">
                   <div className="admin-card">
                     <div className="admin-card-header">
                       <h3>Overview</h3>
-
-                      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                        <span className={`admin-badge ${statusBadgeClass(detail.status)}`}>{statusLabel(detail.status)}</span>
-
-                        {/* CORE status only (dropdown) */}
-                        <select
-                          className="admin-select"
-                          style={{ width: 190 }}
-                          value={String(SUBMISSION_STATUS_CORE.includes(detail.status) ? detail.status : SubmissionStatus.Read)}
-                          onChange={(e) => updateStatus(Number(e.target.value) as SubmissionStatus)}
-                        >
-                          {SUBMISSION_STATUS_CORE.map((v) => (
-                            <option key={String(v)} value={String(v)}>
-                              {statusLabel(v)}
-                            </option>
-                          ))}
-                        </select>
-
-                        <button className="admin-btn admin-btn-danger" onClick={() => deleteSubmissionById(detail.id)}>
-                          Delete
-                        </button>
-                      </div>
                     </div>
-
                     <div className="admin-card-body">
-                      <div className="kv">
-                        <div className="k">Site</div>
-                        <div className="v">{detail.domain}</div>
+                      <div className="thread-item">
+                        <div className="tmeta">
+                          <div className="tlabel">Type</div>
+                        </div>
+                        <div className="tbody">{typeLabel(detail.type)}</div>
                       </div>
-                      <div className="kv">
-                        <div className="k">Type</div>
-                        <div className="v">{typeLabel(detail.type)}</div>
-                      </div>
-                      <div className="kv">
-                        <div className="k">Created</div>
-                        <div className="v">{new Date(detail.createdAt).toLocaleString()}</div>
-                      </div>
-                      <div className="kv">
-                        <div className="k">Name</div>
-                        <div className="v">{detail.name}</div>
-                      </div>
-                      <div className="kv">
-                        <div className="k">Email</div>
-                        <div className="v">{detail.email}</div>
-                      </div>
-                      <div className="kv">
-                        <div className="k">UploadedBy</div>
-                        <div className="v">{detail.uploadedBy || ""}</div>
-                      </div>
-                      <div className="kv">
-                        <div className="k">Message</div>
-                        <div className="v" style={{ whiteSpace: "pre-wrap" }}>
-                          {detail.message || ""}
+
+                      <div className="thread-item">
+                        <div className="tmeta">
+                          <div className="tlabel">Status</div>
+                        </div>
+                        <div className="tbody">
+                          <span
+                            className={`admin-badge ${statusBadgeClass(
+                              detail.status
+                            )}`}
+                          >
+                            {statusLabel(detail.status)}
+                          </span>
                         </div>
                       </div>
+
+                      <div className="thread-item">
+                        <div className="tmeta">
+                          <div className="tlabel">Created</div>
+                        </div>
+                        <div className="tbody">
+                          {new Date(detail.createdAt).toLocaleString()} (
+                          {detail.domain})
+                        </div>
+                      </div>
+
+                      <div className="thread-item">
+                        <div className="tmeta">
+                          <div className="tlabel">Name</div>
+                        </div>
+                        <div className="tbody">{detail.name}</div>
+                      </div>
+
+                      <div className="thread-item">
+                        <div className="tmeta">
+                          <div className="tlabel">Email</div>
+                        </div>
+                        <div className="tbody">{detail.email}</div>
+                      </div>
+
+                      {detail.uploadedBy ? (
+                        <div className="thread-item">
+                          <div className="tmeta">
+                            <div className="tlabel">Uploaded by</div>
+                          </div>
+                          <div className="tbody">{detail.uploadedBy}</div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="admin-card">
+                    <div className="admin-card-header">
+                      <h3>Message</h3>
+                    </div>
+                    <div className="admin-card-body">
+                      {detail.message ? (
+                        <pre className="admin-pre">{detail.message}</pre>
+                      ) : (
+                        <div className="admin-empty">
+                          No message provided.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="admin-card">
+                    <div className="admin-card-header">
+                      <h3>Files</h3>
+                    </div>
+                    <div className="admin-card-body">
+                      {(detail.files || []).length === 0 ? (
+                        <div className="admin-empty">No files uploaded.</div>
+                      ) : (
+                        (detail.files || []).map((f) => (
+                          <div
+                            key={f.id}
+                            className="thread-item thread-item--between"
+                          >
+                            <div className="tmeta">
+                              <div className="tlabel">{f.fileName}</div>
+                              <div className="tsub">
+                                {f.contentType || "file"} —{" "}
+                                {(f.size / 1024 / 1024).toFixed(2)} MB
+                              </div>
+                            </div>
+                            <div className="tbody tbody-actions">
+                              <button
+                                className="admin-btn admin-btn-secondary admin-btn--xs"
+                                onClick={() => previewFile(f)}
+                              >
+                                Preview
+                              </button>
+                              <button
+                                className="admin-btn admin-btn-secondary admin-btn--xs"
+                                onClick={() => downloadFile(f)}
+                              >
+                                Download
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
 
@@ -826,15 +931,20 @@ export default function AdminSubmissions() {
                     <div className="admin-card-header">
                       <h3>Fields</h3>
                     </div>
-                    <div className="admin-card-body" style={{ display: "grid", gap: 8 }}>
+                    <div className="admin-card-body admin-fields-grid">
                       {(detail.fields || []).length === 0 ? (
-                        <div style={{ color: "rgba(255,255,255,0.65)" }}>No extra fields.</div>
+                        <div className="admin-empty">No extra fields.</div>
                       ) : (
                         (detail.fields || []).map((f, idx) => (
-                          <div key={`${f.name}-${idx}`} className="thread-item" style={{ marginBottom: 0 }}>
+                          <div
+                            key={`${f.name}-${idx}`}
+                            className="thread-item"
+                          >
                             <div className="tmeta">
-                              <div style={{ fontWeight: 900, color: "rgba(255,255,255,0.9)" }}>{f.name}</div>
-                              <div style={{ color: "rgba(255,255,255,0.55)" }}>Field</div>
+                              <div className="tlabel tlabel-strong">
+                                {f.name}
+                              </div>
+                              <div className="tsub">Field</div>
                             </div>
                             <div className="tbody">{f.value}</div>
                           </div>
@@ -849,115 +959,81 @@ export default function AdminSubmissions() {
                     </div>
                     <div className="admin-card-body">
                       {(detail.replies || []).length === 0 ? (
-                        <div style={{ color: "rgba(255,255,255,0.65)" }}>No replies yet.</div>
+                        <div className="admin-empty">No replies yet.</div>
                       ) : (
                         (detail.replies || []).map((r) => (
                           <div key={r.id} className="thread-item">
                             <div className="tmeta">
-                              <div>To: {r.toEmail}</div>
-                              <div>{new Date(r.sentAt).toLocaleString()}</div>
+                              <div className="tlabel">
+                                To: {r.toEmail} —{" "}
+                                {new Date(r.sentAt).toLocaleString()}
+                              </div>
+                              <div className="tsub">{r.subject}</div>
                             </div>
-                            <div style={{ fontWeight: 900, marginBottom: 6 }}>{r.subject}</div>
-                            <div className="tbody">{r.body}</div>
+                            <div className="tbody">
+                              <pre className="admin-pre">{r.body}</pre>
+                            </div>
                           </div>
                         ))
                       )}
                     </div>
                   </div>
-                </div>
 
-                {/* RIGHT */}
-                <div style={{ display: "grid", gap: 14 }}>
-                  <div className="admin-card">
-                    <div className="admin-card-header">
-                      <h3>Files</h3>
-                    </div>
-
-                    <div className="admin-card-body" style={{ display: "grid", gap: 10 }}>
-                      {(detail.files || []).length === 0 ? (
-                        <div style={{ color: "rgba(255,255,255,0.65)" }}>No files.</div>
-                      ) : (
-                        detail.files.map((f) => {
-                          const url = previewUrls[f.id];
-                          const isImage = (f.contentType || "").startsWith("image/");
-                          const isAudio = (f.contentType || "").startsWith("audio/");
-                          const isPdf = (f.contentType || "").includes("pdf");
-
-                          return (
-                            <div key={f.id}>
-                              <div className="file-row">
-                                <div className="file-meta">
-                                  <div className="file-name">{f.fileName}</div>
-                                  <div className="file-sub">
-                                    {f.contentType} • {bytes(f.size)}
-                                  </div>
-                                </div>
-
-                                <div style={{ display: "flex", gap: 10 }}>
-                                  <button className="admin-btn" onClick={() => previewFile(f)}>
-                                    Preview
-                                  </button>
-                                  <button className="admin-btn admin-btn-primary" onClick={() => downloadFile(f)}>
-                                    Download
-                                  </button>
-                                </div>
-                              </div>
-
-                              {url ? (
-                                <div className="preview-box">
-                                  {isImage ? <img src={url} alt={f.fileName} /> : null}
-                                  {isAudio ? <audio controls src={url} style={{ width: "100%" }} /> : null}
-                                  {isPdf ? <iframe src={url} title={f.fileName} /> : null}
-                                  {!isImage && !isAudio && !isPdf ? (
-                                    <div style={{ color: "rgba(255,255,255,0.7)" }}>Preview not supported. Use Download.</div>
-                                  ) : null}
-                                </div>
-                              ) : null}
-                            </div>
-                          );
-                        })
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Accept/Reject SAMO za DemoUpload (type=1) */}
-                  {detail.type === SubmissionType.DemoUpload ? (
+                  {detail.type === SubmissionTypeId.DemoUpload ? (
                     <div className="admin-card">
-                      <div className="admin-card-header">
+                      <div className="admin-card-header admin-card-header--between">
                         <h3>Demo decision</h3>
-                        <div style={{ display: "flex", gap: 10 }}>
+                        <div className="admin-card-header-actions">
                           <button
-                            className="admin-btn admin-btn-primary"
+                            className="admin-btn admin-btn-primary admin-btn--sm"
                             onClick={acceptDemo}
-                            disabled={detail.status === SubmissionStatus.Accepted}
+                            disabled={
+                              detail.status === SubmissionStatusId.Accepted
+                            }
                           >
                             Accept
                           </button>
                           <button
-                            className="admin-btn admin-btn-danger"
+                            className="admin-btn admin-btn-danger admin-btn--sm"
                             onClick={rejectDemo}
-                            disabled={detail.status === SubmissionStatus.Rejected}
+                            disabled={
+                              detail.status === SubmissionStatusId.Rejected
+                            }
                           >
                             Reject
                           </button>
                         </div>
                       </div>
                       <div className="admin-card-body">
-                        <div style={{ color: "rgba(255,255,255,0.72)", fontSize: 13, marginBottom: 10 }}>
+                        <div className="admin-help-text">
                           Rejection email body (editable)
                         </div>
-                        <textarea className="admin-textarea" value={rejectionBody} onChange={(e) => setRejectionBody(e.target.value)} />
+                        <textarea
+                          className="admin-textarea"
+                          value={rejectionBody}
+                          onChange={(e) => setRejectionBody(e.target.value)}
+                          rows={10}
+                        />
                       </div>
                     </div>
                   ) : null}
 
-                  <div className="admin-card">
+                  <div className="admin-card admin-card--full">
                     <div className="admin-card-header">
                       <h3>Reply</h3>
                     </div>
-                    <div className="admin-card-body">
-                      <div className="admin-split" style={{ marginBottom: 10 }}>
-                        <input className="admin-input" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} placeholder="To email" />
+                    <div className="admin-card-body admin-reply-form">
+                      <div className="field-row">
+                        <label>To</label>
+                        <input
+                          className="admin-input"
+                          value={replyTo}
+                          onChange={(e) => setReplyTo(e.target.value)}
+                          placeholder="Recipient email"
+                        />
+                      </div>
+                      <div className="field-row">
+                        <label>Subject</label>
                         <input
                           className="admin-input"
                           value={replySubject}
@@ -965,14 +1041,21 @@ export default function AdminSubmissions() {
                           placeholder="Subject"
                         />
                       </div>
-                      <textarea
-                        className="admin-textarea"
-                        value={replyBody}
-                        onChange={(e) => setReplyBody(e.target.value)}
-                        placeholder="Write a reply..."
-                      />
-                      <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-                        <button className="admin-btn admin-btn-primary" onClick={sendReply} disabled={!replyTo || !replySubject || !replyBody}>
+                      <div className="field-row">
+                        <label>Body</label>
+                        <textarea
+                          className="admin-textarea"
+                          rows={8}
+                          value={replyBody}
+                          onChange={(e) => setReplyBody(e.target.value)}
+                          placeholder="Write your reply…"
+                        />
+                      </div>
+                      <div className="field-row field-row--end">
+                        <button
+                          className="admin-btn admin-btn-primary"
+                          onClick={sendReply}
+                        >
                           Send reply
                         </button>
                       </div>
@@ -987,3 +1070,5 @@ export default function AdminSubmissions() {
     </AdminShell>
   );
 }
+
+export default AdminSubmissions;

@@ -2,15 +2,14 @@ import { useEffect, useState } from "react";
 import Container from "react-bootstrap/Container";
 import Nav from "react-bootstrap/Nav";
 import Navbar from "react-bootstrap/Navbar";
-import NavDropdown from "react-bootstrap/NavDropdown";
+//import NavDropdown from "react-bootstrap/NavDropdown";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const BottomNav = () => {
-  const [open, setOpen] = useState<string | null>(null);
+  const [ ,setOpen] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
 
-  // toggle state (theme, sound, whatever)
-  const [isOn, setIsOn] = useState(false);
+  const [isOn, ] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,7 +29,7 @@ const BottomNav = () => {
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  // radi i kad nisi na "/" (ode na home pa scrolluje do sekcije)
+  
   const goHomeAndScroll = (id: string) => {
     closeAll();
 
@@ -53,13 +52,13 @@ const BottomNav = () => {
     }
   };
 
-  const goToPath = (path: string) => {
+  /*const goToPath = (path: string) => {
     closeAll();
     if (location.pathname !== path) navigate(path, { replace: false });
-  };
+  };*/
 
-  const handleEnter = (menu: string) => setOpen(menu);
-  const handleLeave = () => setOpen(null);
+  //const handleEnter = (menu: string) => setOpen(menu);
+  //const handleLeave = () => setOpen(null);
 
   return (
     <Navbar
@@ -148,11 +147,13 @@ const BottomNav = () => {
             </Nav.Link>
 
             {/* SYNC:  */}
+            
+
             <Nav.Link
-              href="#sync"
+              href="/sync-licensing"
               onClick={(e) => {
                 e.preventDefault();
-                goHomeAndScroll("sync");
+                goToPathTop("sync-licensing"); 
               }}
             >
               SYNC
@@ -171,22 +172,7 @@ const BottomNav = () => {
           </Nav>
         </Navbar.Collapse>
 
-        {/* SWITCH desno */}
-        <div className="nav-right">
-          <label className="cool-switch" title="Language toggle">
-            <input
-              type="checkbox"
-              checked={isOn}
-              onChange={(e) => setIsOn(e.target.checked)}
-            />
-            <span className="cool-track">
-              <span className="cool-glow" />
-              <span className="cool-thumb">
-                <span className="cool-dot" />
-              </span>
-            </span>
-          </label>
-        </div>
+        
       </Container>
     </Navbar>
   );

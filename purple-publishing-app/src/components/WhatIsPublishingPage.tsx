@@ -147,13 +147,13 @@ const SECTIONS: Section[] = [
   },
 ];
 
-function slugToTitle(s: string) {
+/*function slugToTitle(s: string) {
   return s.replace(/-/g, " ");
-}
+}*/
 
 export default function WhatIsPublishingPage() {
   const items = useMemo(() => SECTIONS, []);
-  const [active, setActive] = useState(items[0]?.id ?? "");
+  const [, setActive] = useState(items[0]?.id ?? "");
 
   useEffect(() => {
     const ids = items.map((x) => x.id);
@@ -175,11 +175,11 @@ export default function WhatIsPublishingPage() {
     return () => obs.disconnect();
   }, [items]);
 
-  const scrollTo = (id: string) => {
+  /*const scrollTo = (id: string) => {
     const el = document.getElementById(id);
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
+  };*/
 
   return (
     

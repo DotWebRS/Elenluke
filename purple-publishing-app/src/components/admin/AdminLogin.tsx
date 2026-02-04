@@ -1,5 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_BASE } from "../../config/apiBase";
+import BottomNav from "../BottomNav";
+
+function buildUrl(path: string) {
+  const base = String(API_BASE || "").replace(/\/+$/, "");
+  const p = String(path || "").replace(/^\/+/, "");
+  return base ? `${base}/${p}` : `/${p}`;
+}
 
 export const AdminLogin = () => {
   const navigate = useNavigate();
@@ -8,42 +16,44 @@ export const AdminLogin = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:5284/api/auth/login", {
+      const res = await fetch(buildUrl("/api/auth/login"), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username,
-          password,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
       });
 
       if (!res.ok) {
-        setError("Invalid username or password");
+        setError(res.status === 401 ? "Invalid username or password" : "Server error. Please try again.");
         return;
       }
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null as any);
 
-      // snimamo JWT
+      if (!data?.token) {
+        setError("Server error. Please try again.");
+        return;
+      }
+
       localStorage.setItem("token", data.token);
-
-      // redirect u admin inbox
       navigate("/admin/submissions");
-    } catch (err) {
+    } catch {
       setError("Server error. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <section className="admin-login-section">
+      <BottomNav />
       <div className="admin-login-card">
         <div className="admin-login-header">
           <p className="admin-login-eyebrow">ADMIN AREA</p>
@@ -54,7 +64,6 @@ export const AdminLogin = () => {
         </div>
 
         <form className="admin-login-form" onSubmit={handleSubmit}>
-          {/* USERNAME */}
           <label className="admin-login-label">
             Username
             <div className="admin-login-input-wrap">
@@ -63,12 +72,13 @@ export const AdminLogin = () => {
                 className="admin-login-input"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
                 required
+                disabled={loading}
               />
             </div>
           </label>
 
-          {/* PASSWORD */}
           <label className="admin-login-label">
             Password
             <div className="admin-login-input-wrap admin-login-input-wrap--password">
@@ -77,12 +87,16 @@ export const AdminLogin = () => {
                 className="admin-login-input"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
                 required
+                disabled={loading}
               />
               <button
                 type="button"
                 className="admin-login-toggle-password"
                 onClick={() => setShowPassword((p) => !p)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                disabled={loading}
               >
                 {showPassword ? (
                   <i className="fa-solid fa-eye-slash"></i>
@@ -99,16 +113,15 @@ export const AdminLogin = () => {
             <button
               type="button"
               className="admin-login-link"
-              onClick={() =>
-                alert("Please contact system administrator.")
-              }
+              onClick={() => alert("Please contact system administrator.")}
+              disabled={loading}
             >
               Forgot password?
             </button>
           </div>
 
-          <button type="submit" className="admin-login-submit">
-            Sign in
+          <button type="submit" className="admin-login-submit" disabled={loading}>
+            {loading ? "Signing in..." : "Sign in"}
           </button>
 
           <p className="admin-login-hint">

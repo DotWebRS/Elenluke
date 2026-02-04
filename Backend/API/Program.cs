@@ -1,16 +1,16 @@
-using System.IO;
+using System.Text;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using Persistence;
-using System.Text;
-using Microsoft.AspNetCore.Http.Features;
 using API.Security;
 using Domain.Entities;
 using API.Services;
-using Microsoft.OpenApi.Models;
-using Microsoft.OpenApi;
-using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,8 +21,11 @@ builder.Services.Configure<FormOptions>(o =>
     o.MultipartBodyLengthLimit = 20 * 1024 * 1024;
 });
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+var dbDir = Path.Combine(builder.Environment.ContentRootPath, "App_Data");
+Directory.CreateDirectory(dbDir);
+var dbPath = Path.Combine(dbDir, "PurpleMedia.db");
+
+builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlite($"Data Source={dbPath}"));
 
 builder.Services.AddEndpointsApiExplorer();
 
@@ -30,16 +33,33 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        policy
+          .WithOrigins(
+            "https://purplecrunchpublishing.com",
+            "https://www.purplecrunchpublishing.com",
+            "http://localhost:5173",
+            "http://localhost:5174"
+          )
+          .AllowAnyHeader()
+          .AllowAnyMethod();
     });
 });
+
+var jwtKey = builder.Configuration["Jwt:Key"];
+var jwtIssuer = builder.Configuration["Jwt:Issuer"];
+var jwtAudience = builder.Configuration["Jwt:Audience"];
+
+if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
+    throw new Exception("Missing/weak Jwt:Key (min 32 chars) in configuration.");
+if (string.IsNullOrWhiteSpace(jwtIssuer))
+    throw new Exception("Missing Jwt:Issuer in configuration.");
+if (string.IsNullOrWhiteSpace(jwtAudience))
+    throw new Exception("Missing Jwt:Audience in configuration.");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.RequireHttpsMetadata = false;
+        options.RequireHttpsMetadata = true;
         options.SaveToken = true;
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -47,13 +67,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
-            ),
-
-            // KLJUČNO: standardni claim-ovi koje JWT najčešće nosi
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
             RoleClaimType = ClaimTypes.Role,
             NameClaimType = ClaimTypes.Name
         };
@@ -92,13 +108,31 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
+
+app.UseForwardedHeaders();
+
+app.UseRouting();
+app.UseCors("AllowFrontend");
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+Directory.CreateDirectory(Path.Combine(app.Environment.WebRootPath ?? app.Environment.ContentRootPath, "uploads"));
+Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "uploads_private"));
 
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
-
+    //db.Database.EnsureCreated();
     var seedUser = builder.Configuration["Admin:Username"] ?? "admin";
     var seedPass = builder.Configuration["Admin:Password"] ?? "admin123";
 
@@ -118,22 +152,12 @@ using (var scope = app.Services.CreateScope())
         db.Users.Add(admin);
         db.SaveChanges();
     }
-    else
+    else if (!admin.IsActive)
     {
-        if (!admin.IsActive)
-        {
-            admin.IsActive = true;
-            db.SaveChanges();
-        }
+        admin.IsActive = true;
+        db.SaveChanges();
     }
 }
-
-Directory.CreateDirectory(Path.Combine(app.Environment.WebRootPath, "uploads"));
-Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "uploads_private"));
-
-app.UseCors("AllowFrontend");
-app.UseAuthentication();
-app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {
@@ -142,7 +166,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles();
-
 app.UseHttpsRedirection();
+
 app.MapControllers();
 app.Run();

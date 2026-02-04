@@ -3,7 +3,7 @@ import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 
-const API_BASE = "http://localhost:5284";
+import { API_BASE } from "../config/apiBase";
 
 const ShieldIcon = () => (
   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
@@ -29,12 +29,7 @@ const ChartIcon = () => (
 
 const FilmIcon = () => (
   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
-    <path
-      d="M4 7h16v10H4V7z"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinejoin="round"
-    />
+    <path d="M4 7h16v10H4V7z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
     <path d="M8 7v10" stroke="currentColor" strokeWidth="2" />
     <path d="M16 7v10" stroke="currentColor" strokeWidth="2" />
     <path d="M4 10h16" stroke="currentColor" strokeWidth="2" />
@@ -91,7 +86,8 @@ const DEFAULT: CmsServicesPayload = {
 function safeJsonParse<T>(raw: any, fallback: T): T {
   if (!raw) return fallback;
   try {
-    return JSON.parse(raw) as T;
+    if (typeof raw === "string") return JSON.parse(raw) as T;
+    return raw as T;
   } catch {
     return fallback;
   }
@@ -128,6 +124,12 @@ function useInViewClass<T extends HTMLElement>(threshold = 0.22) {
   return { ref, inView };
 }
 
+function buildUrl(path: string) {
+  const base = String(API_BASE || "").replace(/\/+$/, "");
+  const p = String(path || "").replace(/^\/+/, "");
+  return base ? `${base}/${p}` : `/${p}`;
+}
+
 const Services = () => {
   const { ref, inView } = useInViewClass<HTMLElement>(0.18);
   const [cms, setCms] = useState<CmsServicesPayload>(DEFAULT);
@@ -136,10 +138,19 @@ const Services = () => {
     const siteKey = "purple-crunch-publishing";
     const key = "home.services";
 
-    fetch(`${API_BASE}/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(key)}`)
-      .then((r) => {
+    const url = buildUrl(
+      `/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(key)}&ts=${Date.now()}`
+    );
+
+    fetch(url)
+      .then(async (r) => {
         if (r.status === 404) return null;
-        return r.ok ? r.json() : null;
+        if (!r.ok) return null;
+        try {
+          return await r.json();
+        } catch {
+          return null;
+        }
       })
       .then((wrapper) => {
         if (!wrapper?.json) return;
@@ -170,7 +181,7 @@ const Services = () => {
       <Container>
         <div className="services-head services-head--center">
           <h2 className="about-title about-title-centered">
-              OUR <span className="about-us-animated">SERVICES</span>
+            OUR <span className="about-us-animated">SERVICES</span>
           </h2>
         </div>
 

@@ -1,602 +1,1329 @@
-:root {
-  --admin-bg: #07070a;
-  --admin-surface: rgba(255, 255, 255, 0.04);
-  --admin-surface-2: rgba(255, 255, 255, 0.07);
-  --admin-border: rgba(255, 255, 255, 0.12);
-  --admin-text: rgba(255, 255, 255, 0.92);
-  --admin-muted: rgba(255, 255, 255, 0.62);
-  --admin-accent: #8a4fff;
-  --admin-accent-2: #a77bff;
-  --admin-danger: #ff4d6d;
-  --admin-ok: #2bd576;
-  --admin-warn: #ffc857;
-  --admin-info: #4ea1ff;
+/* ROOT LAYOUT */
 
-  --r: 16px;
-  --r2: 22px;
-  --shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
+.admin-root {
+  padding: 24px 24px 32px;
+  background: #f9fafb;
+  color: #111827;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-.admin {
-  min-height: 100vh;
-  background: radial-gradient(1200px 600px at 20% 0%, rgba(138, 79, 255, 0.16), transparent 60%),
-    radial-gradient(900px 500px at 100% 15%, rgba(138, 79, 255, 0.10), transparent 55%),
-    var(--admin-bg);
-  color: var(--admin-text);
-}
-.admin * { box-sizing: border-box; }
-
-.admin-shell { width: 100%; padding: 18px 18px 28px; }
-
-.admin-topbar {
-  width: 100%;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--r2);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
-  box-shadow: var(--shadow);
-  overflow: hidden;
+.admin-header {
+  margin-bottom: 16px;
 }
 
-.admin-topbar-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 14px 14px;
+.admin-header-main h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
 }
 
-.admin-topbar-left { display: flex; align-items: center; gap: 12px; min-width: 280px; }
-.admin-topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-
-.admin-brand {
-  font-weight: 900;
-  letter-spacing: 0.4px;
-  color: #fff;
-  white-space: nowrap;
-}
-
-.admin-topbar-nav {
-  display: flex;
-  gap: 10px;
-  padding: 10px 14px 14px;
-  border-top: 1px solid rgba(255,255,255,0.08);
-  background: rgba(0,0,0,0.18);
-}
-
-.admin-tab {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.04);
-  color: rgba(255,255,255,0.86);
-  text-decoration: none;
-  font-weight: 800;
-}
-.admin-tab:hover { border-color: rgba(138,79,255,0.45); background: rgba(255,255,255,0.06); }
-.admin-tab.active { border-color: rgba(138,79,255,0.70); background: rgba(138,79,255,0.16); color: #fff; }
-
-.admin-page-title { padding: 14px 2px 0; }
-.admin-page-title h1 { margin: 0; font-size: 18px; color: rgba(255,255,255,0.9); }
-
-.admin-select,
-.admin-input,
-.admin-textarea {
-  width: 100%;
-  border-radius: 12px;
-  border: 1px solid var(--admin-border);
-  background: rgba(0, 0, 0, 0.35);
-  color: var(--admin-text);
-  outline: none;
-  padding: 10px 12px;
-  font-size: 14px;
-}
-.admin-select { appearance: none; }
-.admin-site-select { min-width: 220px; }
-
-.admin-input::placeholder,
-.admin-textarea::placeholder { color: rgba(255, 255, 255, 0.45); }
-
-.admin-textarea { min-height: 120px; resize: vertical; }
-
-.admin-btn {
-  border: 1px solid var(--admin-border);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--admin-text);
-  padding: 10px 14px;
-  border-radius: 12px;
-  cursor: pointer;
-  font-weight: 800;
-  transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
-  user-select: none;
-}
-.admin-btn:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(138, 79, 255, 0.45); }
-.admin-btn:active { transform: translateY(1px); }
-.admin-btn-primary {
-  border-color: rgba(138, 79, 255, 0.55);
-  background: linear-gradient(180deg, rgba(138, 79, 255, 0.22), rgba(138, 79, 255, 0.10));
-}
-.admin-btn-danger {
-  border-color: rgba(255, 77, 109, 0.6);
-  background: linear-gradient(180deg, rgba(255, 77, 109, 0.22), rgba(255, 77, 109, 0.08));
-}
-.admin-btn-ghost { background: transparent; }
-
-.admin-btn-xs { padding: 8px 10px; border-radius: 10px; font-weight: 900; }
-
-.admin-main {
-  margin-top: 16px;
-  width: 100%;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--r2);
-  background: rgba(255, 255, 255, 0.03);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-
-.admin-toolbar {
-  display: grid;
-  grid-template-columns: 1.35fr 0.7fr 0.7fr 0.7fr 0.7fr 0.8fr 0.8fr;
-  gap: 10px;
-  padding: 14px;
-  border-bottom: 1px solid var(--admin-border);
-  background: rgba(0, 0, 0, 0.25);
-}
-@media (max-width: 1100px) { .admin-toolbar { grid-template-columns: 1fr 1fr; } }
-
-.admin-table-wrap { width: 100%; overflow: auto; }
-.admin-table { width: 100%; border-collapse: collapse; min-width: 1020px; }
-.admin-table th, .admin-table td {
-  text-align: left; padding: 12px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  vertical-align: top;
-}
-.admin-table th {
-  position: sticky; top: 0;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(8px);
-  font-size: 12px; letter-spacing: 0.6px;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.75);
-  z-index: 1;
-}
-.admin-row { cursor: pointer; }
-.admin-row:hover { background: rgba(138, 79, 255, 0.08); }
-
-.admin-badge {
-  display: inline-flex; align-items: center; gap: 8px;
-  border: 1px solid var(--admin-border);
-  border-radius: 999px; padding: 6px 10px;
-  font-weight: 900; font-size: 12px;
-  letter-spacing: 0.2px;
-  background: rgba(255, 255, 255, 0.04);
-  white-space: nowrap;
-}
-.admin-badge.unread { border-color: rgba(255, 200, 87, 0.55); color: var(--admin-warn); }
-.admin-badge.read { border-color: rgba(78, 161, 255, 0.55); color: var(--admin-info); }
-.admin-badge.inprogress { border-color: rgba(167, 123, 255, 0.55); color: var(--admin-accent-2); }
-.admin-badge.done { border-color: rgba(43, 213, 118, 0.55); color: var(--admin-ok); }
-.admin-badge.accepted { border-color: rgba(43, 213, 118, 0.65); color: var(--admin-ok); }
-.admin-badge.rejected { border-color: rgba(255, 77, 109, 0.65); color: var(--admin-danger); }
-
-.admin-pagination {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  border-top: 1px solid var(--admin-border);
-  background: rgba(0, 0, 0, 0.25);
-}
-.admin-pagination .meta { color: var(--admin-muted); font-size: 13px; }
-
-.admin-modal-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0, 0, 0, 0.74);
-  backdrop-filter: blur(6px);
-  display: flex; align-items: center; justify-content: center;
-  padding: 18px;
-  z-index: 9999;
-}
-.admin-modal {
-  width: min(1180px, 100%);
-  max-height: 92vh;
-  overflow: auto;
-  border-radius: var(--r2);
-  border: 1px solid rgba(138, 79, 255, 0.32);
-  background: radial-gradient(900px 500px at 10% 0%, rgba(138, 79, 255, 0.18), transparent 55%),
-    rgba(0, 0, 0, 0.86);
-  box-shadow: var(--shadow);
-}
-.admin-modal-header {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 12px;
-  padding: 16px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
-}
-.admin-modal-title { display: flex; flex-direction: column; gap: 6px; }
-.admin-modal-title h2 { margin: 0; font-size: 18px; line-height: 1.2; }
-.admin-modal-title .sub { margin: 0; color: var(--admin-muted); font-size: 13px; }
-
-.admin-modal-close {
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
-  width: 38px; height: 38px;
-  border-radius: 12px;
-  cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
-}
-
-.admin-modal-body {
-  padding: 16px;
-  display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 14px;
-}
-@media (max-width: 980px) { .admin-modal-body { grid-template-columns: 1fr; } }
-.admin-modal-body-clean { gap: 16px; }
-
-.admin-card {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: var(--r);
-  background: rgba(255, 255, 255, 0.04);
-  overflow: hidden;
-}
-.admin-card-tight .admin-card-body { padding: 12px; }
-
-.admin-card-header {
-  padding: 12px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 10px;
-  background: rgba(0, 0, 0, 0.25);
-}
-.admin-card-header h3 { margin: 0; font-size: 14px; letter-spacing: 0.3px; }
-.admin-card-body { padding: 12px; }
-
-.kv {
-  display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.10);
-}
-.kv:last-child { border-bottom: none; }
-.kv .k { color: rgba(255, 255, 255, 0.62); font-weight: 800; font-size: 13px; }
-.kv .v { color: rgba(255, 255, 255, 0.92); font-size: 14px; word-break: break-word; }
-
-.admin-longtext {
-  white-space: pre-wrap;
-  color: rgba(255,255,255,0.92);
-  line-height: 1.55;
-}
-
-.file-row {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 10px;
-  padding: 10px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 14px;
-  background: rgba(0, 0, 0, 0.28);
-}
-.file-meta { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.file-name {
-  font-weight: 900;
+.admin-header-main .sub {
+  margin: 4px 0 0;
   font-size: 13px;
-  color: #fff;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: #6b7280;
 }
-.file-sub { font-size: 12px; color: var(--admin-muted); }
 
-.preview-box {
-  margin-top: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.28);
-  padding: 10px;
-}
-.preview-box img { width: 100%; height: auto; border-radius: 14px; display: block; }
-.preview-box iframe { width: 100%; height: 420px; border: none; border-radius: 14px; background: #000; }
-
-.thread-item {
-  padding: 10px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 14px;
-  background: rgba(0, 0, 0, 0.28);
-}
-.thread-item .tmeta {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  color: var(--admin-muted);
+.sub.sub-small {
   font-size: 12px;
-  margin-bottom: 6px;
-}
-.thread-item .tbody { white-space: pre-wrap; font-size: 13px; color: rgba(255, 255, 255, 0.90); }
-
-.admin-split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-@media (max-width: 700px) { .admin-split { grid-template-columns: 1fr; } }
-
-.admin-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-
-.admin-form-row {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr 0.8fr 0.6fr;
-  gap: 10px;
-}
-@media (max-width: 980px) { .admin-form-row { grid-template-columns: 1fr; } }
-
-.admin-error {
-  padding: 12px 14px;
-  border: 1px solid rgba(255,77,109,0.28);
-  background: rgba(255,77,109,0.10);
-  border-radius: 14px;
-  color: rgba(255,255,255,0.88);
-}
-.admin-error span { color: #ff4d6d; font-weight: 900; margin-right: 6px; }
-
-.field-pill {
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(0,0,0,0.28);
-  border-radius: 14px;
-  padding: 10px 10px;
-  display: grid;
-  grid-template-columns: 180px 1fr;
-  gap: 10px;
-}
-@media (max-width: 700px) { .field-pill { grid-template-columns: 1fr; } }
-.field-k { color: rgba(255,255,255,0.70); font-weight: 900; font-size: 12px; }
-.field-v { color: rgba(255,255,255,0.92); font-weight: 700; font-size: 13px; word-break: break-word; }
-
-
-.admin-toolbar-users{
-  grid-template-columns: 1.2fr 1fr 0.8fr 0.9fr;
+  color: #9ca3af;
 }
 
-@media (max-width: 1100px){
-  .admin-toolbar-users{
-    grid-template-columns: 1fr;
-  }
+/* ALERT */
+
+.admin-alert {
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin-bottom: 16px;
 }
 
-
-.admin-site-pill{
-  gap: 10px;
+.admin-alert-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
 }
 
-.admin-pill-label{
-  color: rgba(255,255,255,0.65);
-  font-weight: 800;
-  font-size: 12px;
-  letter-spacing: .4px;
-}
+/* FILTERS */
 
-.admin-site-select{
-  min-width: 240px;
-}
-
-/* da se dropdown vidi čak i kad je “disabled” ili dark */
-.admin-select:disabled,
-.admin-site-select:disabled{
-  opacity: 1;
-  color: rgba(255,255,255,0.92);
-  background: rgba(0, 0, 0, 0.35);
-}
-
-/* drugi red tabova */
-.admin-navtabs{
-  margin-top: 10px;
+.admin-filters-row {
   display: flex;
-  gap: 10px;
   flex-wrap: wrap;
-}
-
-.admin-toolbar-users{
-  grid-template-columns: 1.2fr 1fr 0.8fr 0.9fr;
-}
-
-@media (max-width: 1100px){
-  .admin-toolbar-users{
-    grid-template-columns: 1fr;
-  }
-}
-
-
-/* =========================
-   AdminShell - NEW TOPBAR
-   ========================= */
-
-.admin-shell {
-  width: 100%;
-  padding: 22px 22px 28px; /* više vazduha da ne lepi za ivice */
-}
-
-@media (max-width: 700px) {
-  .admin-shell {
-    padding: 14px 14px 20px;
-  }
-}
-
-.admin-topbar2 {
-  width: 100%;
-  border: 1px solid var(--admin-border);
-  border-radius: var(--r2);
-  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-
-/* redovi */
-.admin-topbar2-row {
-  display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 12px;
-  padding: 14px 14px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
 }
 
-.admin-topbar2-row--primary {
-  justify-content: space-between;
-  border-bottom: 1px solid rgba(255,255,255,0.10);
-}
-
-.admin-topbar2-row--secondary {
-  justify-content: flex-start;
-  background: rgba(0,0,0,0.18);
-}
-
-/* levo / desno */
-.admin-topbar2-left {
+.admin-filters-main {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1 1 auto;
+}
+
+.admin-filters-actions {
+  display: flex;
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.admin-input,
+.admin-select {
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  padding: 7px 9px;
+  font-size: 13px;
+  color: #111827;
   min-width: 0;
 }
 
-.admin-topbar2-right {
+.admin-input:focus,
+.admin-select:focus,
+.admin-textarea:focus {
+  outline: none;
+  border-color: #4b5563;
+  box-shadow: 0 0 0 1px rgba(31, 41, 55, 0.35);
+}
+
+.admin-input--search {
+  flex: 1 1 220px;
+}
+
+.admin-input--date {
+  width: 140px;
+}
+
+.admin-select {
+  min-width: 150px;
+}
+
+.admin-select--compact {
+  min-width: 120px;
+}
+
+/* BUTTONS */
+
+.admin-btn {
+  border-radius: 6px;
+  padding: 6px 11px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  line-height: 1.25;
+  cursor: pointer;
+  background: #e5e7eb;
+  color: #111827;
+  white-space: nowrap;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.05s ease;
+}
+
+.admin-btn:hover:not(:disabled) {
+  background: #d1d5db;
+}
+
+.admin-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.admin-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.admin-btn-primary {
+  background: #111827;
+  color: #f9fafb;
+}
+
+.admin-btn-primary:hover:not(:disabled) {
+  background: #0f172a;
+}
+
+.admin-btn-secondary {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+.admin-btn-secondary:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.admin-btn-danger {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.admin-btn-danger:hover:not(:disabled) {
+  background: #fecaca;
+}
+
+.admin-btn--xs {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.admin-btn--sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+/* TABLE */
+
+.admin-table-wrap {
+  margin-top: 8px;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.admin-table thead {
+  background: #f9fafb;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.admin-table th {
+  font-weight: 500;
+  color: #4b5563;
+  font-size: 12px;
+}
+
+.admin-table td {
+  color: #111827;
+}
+
+.admin-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.admin-table-empty {
+  padding: 16px 12px;
+  text-align: center;
+  color: #6b7280;
+}
+
+/* ACTIONS CELL */
+
+.th-actions {
+  width: 180px;
+}
+
+.admin-table-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* BADGE-OVI STATUSA */
+
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  box-sizing: border-box;
+}
+
+.badge-unread {
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-color: #bfdbfe;
+}
+
+.badge-read {
+  background: #f3f4f6;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.badge-inprogress {
+  background: #fffbeb;
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
+.badge-done {
+  background: #ecfdf3;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+.badge-accepted {
+  background: #e0f2fe;
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+
+.badge-rejected {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+/* FOOTER / PAGINATION */
+
+.admin-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #f9fafb;
+}
+
+.admin-footer-left span {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.admin-footer-right {
+  display: flex;
+  gap: 6px;
+}
+
+/* MODAL */
+
+
+
+
+/* CARDS */
+
+.admin-card {
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-card--full {
+  grid-column: 1 / -1;
+}
+
+.admin-card-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-card-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.admin-card-header--between {
+  align-items: center;
+}
+
+.admin-card-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-card-body {
+  padding: 10px 12px 12px;
+  font-size: 13px;
+}
+
+/* THREAD ITEMS */
+
+.thread-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.thread-item--between {
+  justify-content: space-between;
+}
+
+.tmeta {
+  min-width: 0;
+}
+
+.tlabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: #111827;
+}
+
+.tlabel-strong {
+  font-weight: 600;
+}
+
+.tsub {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.tbody {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tbody pre {
+  margin: 0;
+}
+
+/* PRE/EMPTY */
+
+.admin-pre {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background: #f9fafb;
+  border-radius: 6px;
+  padding: 8px 9px;
+  border: 1px solid #e5e7eb;
+}
+
+.admin-empty {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* TEXTAREA */
+
+.admin-textarea {
+  width: 100%;
+  min-height: 80px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  padding: 7px 9px;
+  font-size: 13px;
+  resize: vertical;
+  font-family: inherit;
+  color: #111827;
+  background: #ffffff;
+}
+
+/* FIELDS GRID */
+
+.admin-fields-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+/* REPLY FORM */
+
+.admin-reply-form .field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.admin-reply-form .field-row label {
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.field-row--end {
+  align-items: flex-end;
+}
+
+.admin-help-text {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 6px;
+}
+
+/* GENERIC */
+
+.admin-modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.admin-modal-body::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+}
+
+
+.admin-layout {
+  min-height: 100vh;
+  background: #f9fafb;
+}
+
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.admin-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-topbar-select {
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  padding: 6px 9px;
+  font-size: 13px;
+  background: #ffffff;
+}
+
+.topbar-btn {
+  border-radius: 6px;
+  border: 1px solid transparent;
+  padding: 6px 12px;
+  font-size: 13px;
+  background: #f3f4f6;
+  color: #111827;
+  cursor: pointer;
+}
+
+.topbar-btn--active {
+  background: #111827;
+  color: #f9fafb;
+}
+
+.admin-topbar-right .topbar-link {
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: #ef4444;
+  cursor: pointer;
+}
+
+.admin-subnav {
+  display: flex;
+  gap: 8px;
+  padding: 8px 24px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.subnav-tab {
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 5px 14px;
+  font-size: 13px;
+  background: #e5e7eb;
+  color: #374151;
+  cursor: pointer;
+}
+
+.subnav-tab--active {
+  background: #111827;
+  color: #f9fafb;
+}
+
+/* Glavni layout admina */
+.admin-layout {
+  min-height: 100vh;
+  background: #f9fafb;
+  color: #111827;
+}
+
+/* Gornji bar */
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.admin-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-topbar-right {
+  display: flex;
+  align-items: center;
+}
+
+.admin-topbar-select {
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  padding: 6px 10px;
+  font-size: 13px;
+  background: #ffffff;
+  min-width: 180px;
+}
+
+.admin-topbar-label {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* CMS dugme */
+.topbar-btn {
+  border-radius: 6px;
+  border: 1px solid transparent;
+  padding: 6px 12px;
+  font-size: 13px;
+  background: #f3f4f6;
+  color: #111827;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.topbar-btn--active {
+  background: #111827;
+  color: #f9fafb;
+}
+
+/* Logout link */
+.topbar-link {
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+/* Subnav tabs (Submissions / Users) */
+.admin-subnav {
+  display: flex;
+  gap: 8px;
+  padding: 8px 24px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.subnav-tab {
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 5px 14px;
+  font-size: 13px;
+  background: #e5e7eb;
+  color: #374151;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.subnav-tab--active {
+  background: #111827;
+  color: #f9fafb;
+}
+
+/* Glavni sadržaj (u tvom kodu već imaš admin-root / admin-header) */
+.admin-main {
+  padding: 16px 24px 32px;
+}
+
+
+/* zajednički container da topbar, tabovi i sadržaj počinju isto levo */
+.admin-shell {
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 24px 32px 32px;
+  background: #f3f4f6;
+}
+
+/* TOPBAR */
+
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.admin-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-site {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+
+.topbar-site-label {
+  margin-bottom: 2px;
+}
+
+.topbar-select {
+  min-width: 220px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  font-size: 13px;
+}
+
+.topbar-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.topbar-btn--active {
+  background: #111827;
+  border-color: #111827;
+  color: #ffffff;
+}
+
+.admin-topbar-right .topbar-link {
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+/* TABOVI */
+
+.admin-subnav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.subnav-tab {
+  padding: 6px 14px;
+  font-size: 13px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.subnav-tab--active {
+  background: #ffffff;
+  border-color: #e5e7eb;
+  color: #111827;
+}
+
+/* malo responsiva */
+
+@media (max-width: 768px) {
+  .admin-shell {
+    padding: 16px;
+  }
+
+  .admin-topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .admin-topbar-right {
+    display: flex;
+    justify-content: flex-end;
+  }
+}
+
+
+.admin-filters-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.admin-filters-main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap; /* na manjim ekranima sme da prelomi u drugi red */
+}
+
+.admin-input--search {
+  flex: 2 1 260px; /* širi od ostalih, ali i dalje responsivno */
+}
+
+.admin-select,
+.admin-input--date {
+  flex: 0 0 auto;
+  min-width: 140px;
+}
+
+@media (max-width: 768px) {
+  .admin-filters-main {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-input--search {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+}
+
+/* neka /admin bude svetla stranica preko cele visine */
+.admin-shell {
+  min-height: 100vh;
+  background: #f3f4f6;  /* svetlo siva umesto crne */
+}
+
+/* sadržaj (Inbox + tabela) centriran i kao kartica */
+.admin-root {
+ 
+  margin: 24px auto 40px;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 24px 24px 32px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.admin-table-wrap {
+  margin-top: 16px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  overflow-x: auto;   /* omogućava horizontalni scroll */
+}
+
+/* sama tabela */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 960px;   /* da kolone imaju prostora, a na manjim ekranima ide scroll */
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 8px 10px;
+  font-size: 13px;
+  white-space: nowrap; /* da se ne lome po dve linije kad nema mesta */
+}
+
+.admin-table-empty {
+  text-align: center;
+  padding: 18px;
+  color: #6b7280;
+}
+
+.admin-site-select select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 40px 6px 12px; /* VEĆI desni padding zbog strelice */
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  font-size: 13px;
+  color: #111827;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.admin-site-select::after {
+  content: "▾";
+  position: absolute;
+  right: 18px; /* udaljeno od bordera */
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: #6b7280;
+  pointer-events: none;
+}
+
+
+
+/**************************************************************************************DETAILS****/
+/* WRAP OKO CELOG DETAIL VIEW-A */
+.admin-wrap {
+  max-width: 1200px;
+  margin: 24px auto 40px;
+  padding: 0 24px;
+}
+
+/* PANEL OKO SADRŽAJA */
+.admin-panel {
+  margin-top: 16px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  padding: 20px 24px 28px;
+  border: 1px solid #e5e7eb;
+}
+
+/* TOPBAR (dropdown + back levo, dugmad desno) */
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.admin-topbar-left,
+.admin-topbar-right {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-/* site picker */
-.admin-sitepicker {
-  display: grid;
-  grid-template-columns: auto 260px;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--admin-border);
-  background: rgba(255,255,255,0.04);
+/* DETALJI GORE: IME + META PILLOVI */
+.admin-details-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
-.admin-sitepicker-label {
-  font-size: 12px;
-  color: rgba(255,255,255,0.62);
-  font-weight: 900;
-  letter-spacing: 0.2px;
+.admin-details-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.admin-muted {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.admin-details-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* GRID ZA BOXOVE */
+.admin-details-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 2fr);
+  gap: 16px 20px;
+}
+
+/* jedan box preko cele širine ako treba */
+.admin-box.admin-box--full {
+  grid-column: 1 / -1;
+}
+
+/* BOX KARTICE */
+.admin-box {
+  background: #f9fafb;
+  border-radius: 10px;
+  padding: 14px 16px 16px;
+  border: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-box-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+}
+
+.admin-box-body {
+  font-size: 14px;
+  color: #111827;
+  white-space: pre-wrap;
+}
+
+/* KEY–VALUE POLJA */
+.admin-kv {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-kv-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.admin-kv-k {
+  font-size: 13px;
+  font-weight: 500;
+  color: #4b5563;
+}
+
+.admin-kv-v {
+  font-size: 13px;
+  color: #111827;
+}
+
+.admin-kv-row:last-child {
+  border-bottom: none;
+}
+
+/* FAJLOVI */
+.admin-files {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.admin-file-info {
+  min-width: 0;
+}
+
+.admin-file-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #111827;
+  word-break: break-all;
+}
+
+.admin-file-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* WORKFLOW SEKCJA */
+.admin-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* AUTO-REJECTION BODY */
+.admin-box-sub {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-textarea-readonly {
+  font-size: 13px;
+  color: #111827;
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  white-space: pre-wrap;
+}
+
+/* INPUTI, SELECTI, BUTTONI – REUSE SA INBOXA */
+.admin-input,
+.admin-select,
+.admin-textarea {
+  font-size: 13px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  color: #111827;
+}
+
+.admin-input:focus,
+.admin-select:focus,
+.admin-textarea:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.2);
+}
+
+.admin-textarea {
+  resize: vertical;
+}
+
+/* malo prostora za select strelicu */
+.admin-select {
+  padding-right: 28px;
+}
+
+/* PILLOVI (status, tip, domen, datumi) */
+.admin-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+/* DUGMAD */
+.admin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  padding: 6px 12px;
+  cursor: pointer;
+  background: #4f46e5;
+  color: #ffffff;
   white-space: nowrap;
 }
 
-.admin-sitepicker .admin-select {
+.admin-btn:hover {
+  background: #4338ca;
+}
+
+.admin-btn-ghost {
+  background: #ffffff;
+  color: #374151;
+  border-color: #d1d5db;
+}
+
+.admin-btn-ghost:hover {
+  background: #f3f4f6;
+}
+
+.admin-btn-danger {
+  background: #dc2626;
+  border-color: #b91c1c;
+}
+
+.admin-btn-danger:hover {
+  background: #b91c1c;
+}
+
+/* REPLIES LISTA */
+.admin-replies {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-reply {
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  padding: 8px 10px;
+  background: #ffffff;
+}
+
+.admin-reply-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.admin-reply-body {
+  font-size: 13px;
+  white-space: pre-wrap;
+  color: #111827;
+}
+
+/* ERROR / MUTED */
+.admin-error {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+/* PREVIEW MODAL – DA NE IDE NA NOVU STRANU */
+.admin-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.admin-modal-card {
   width: 100%;
-  padding: 10px 12px;
-  border-radius: 999px;
-  background: rgba(0,0,0,0.35);
+  max-width: 900px;
+  max-height: 90vh;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.35);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-/* spacer da Logout ode desno */
-.admin-topbar2-spacer {
-  flex: 1;
+.admin-modal-head {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-/* responsive */
-@media (max-width: 900px) {
-  .admin-topbar2-row--primary {
+.admin-modal-body {
+  padding: 12px 16px 16px;
+  overflow: auto;
+}
+
+.admin-preview-img {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  margin: 0 auto;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.admin-preview-audio {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.admin-preview-pdf {
+  width: 100%;
+  height: 70vh;
+  border: none;
+  border-radius: 8px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 960px) {
+  .admin-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-details-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .admin-topbar {
     flex-direction: column;
     align-items: stretch;
-    gap: 10px;
   }
 
-  .admin-topbar2-left {
-    width: 100%;
-    justify-content: space-between;
-    flex-wrap: wrap;
-  }
-
-  .admin-sitepicker {
-    width: 100%;
-    grid-template-columns: auto 1fr;
-  }
-
-  .admin-topbar2-right {
-    width: 100%;
+  .admin-topbar-right {
     justify-content: flex-end;
   }
 
-  .admin-topbar2-row--secondary {
-    flex-wrap: wrap;
+  .admin-panel {
+    padding: 16px 14px 20px;
+  }
+
+  .admin-wrap {
+    padding: 0 12px;
   }
 }
 
-/* =========================
-   FORM CONTROLS - DARK UI
-   ========================= */
 
-/* SELECT: crn, bela slova */
-.admin-select {
-  background: rgba(0, 0, 0, 0.78) !important;
-  color: rgba(255, 255, 255, 0.92) !important;
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+/* === FORCE CENTER SUBMISSION DETAIL MODAL === */
+
+.admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+  background: rgba(5, 5, 9, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
 }
 
-/* OPTION unutar dropdown-a (Chrome/Edge/Firefox) */
-.admin-select option {
-  background: #000 !important;
-  color: #fff !important;
+.admin-modal {
+  margin: 0;
+  width: min(1200px, 100%);
+  max-height: calc(100vh - 48px);
+
+  background: #050509;
+  border-radius: 16px;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.7);
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-/* bolji fokus */
-.admin-select:focus,
-.admin-input:focus,
-.admin-textarea:focus {
-  border-color: rgba(138, 79, 255, 0.55) !important;
-  box-shadow: 0 0 0 3px rgba(138, 79, 255, 0.18);
+/* header sa X desno, da se ništa ne preklapa */
+
+.admin-modal-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(148, 163, 255, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-/* =========================
-   DATE INPUT (kalendar)
-   ========================= */
+.admin-modal-title h2 {
+  margin: 0;
+  font-size: 16px;
+}
 
-/* da izgleda kao "picker", a ne obično polje */
-.admin-input[type="date"] {
-  background: rgba(0, 0, 0, 0.78) !important;
-  color: rgba(255, 255, 255, 0.92) !important;
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+.admin-modal-close {
+  border: none;
+  background: transparent;
+  color: #e5e7eb;
+  font-size: 18px;
   cursor: pointer;
-  padding-right: 42px; /* prostor za ikonicu */
+  padding: 2px 4px;
+  line-height: 1;
 }
 
-/* placeholder-like */
-.admin-input[type="date"]::-webkit-datetime-edit {
-  color: rgba(255, 255, 255, 0.90);
-}
 
-.admin-input[type="date"]::-webkit-datetime-edit-text,
-.admin-input[type="date"]::-webkit-datetime-edit-month-field,
-.admin-input[type="date"]::-webkit-datetime-edit-day-field,
-.admin-input[type="date"]::-webkit-datetime-edit-year-field {
-  color: rgba(255, 255, 255, 0.92);
-}
-
-/* WebKit calendar icon - učini je belom i vidljivom */
-.admin-input[type="date"]::-webkit-calendar-picker-indicator {
-  opacity: 1;
-  filter: invert(1);
-  cursor: pointer;
-}
-
-/* Hover da jasno pokaže da je klikabilno */
-.admin-input[type="date"]:hover,
-.admin-select:hover {
-  border-color: rgba(138, 79, 255, 0.45) !important;
-}
-
-/* =========================
-   (Opcionalno) strelica na select-u
-   - da ne izgleda "plavo"
-   ========================= */
-.admin-select {
-  background-image:
-    linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.75) 50%),
-    linear-gradient(135deg, rgba(255,255,255,0.75) 50%, transparent 50%);
-  background-position:
-    calc(100% - 18px) calc(50% - 3px),
-    calc(100% - 12px) calc(50% - 3px);
-  background-size: 6px 6px, 6px 6px;
-  background-repeat: no-repeat;
-  padding-right: 36px; /* prostor za strelicu */
-}
+/*********************************mng*/

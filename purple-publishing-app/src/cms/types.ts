@@ -17,8 +17,8 @@ export type CmsSocialLink = {
 };
 
 export type CmsContactType = {
-  key: string; // e.g. "LICENSING" | "GENERAL"
-  label: string; // shown in dropdown
+  key: string; // "LICENSING" | "GENERAL"
+  label: string; 
   topics: string[];
 };
 
@@ -45,9 +45,9 @@ export type CmsFooter = {
     };
 
     privacy: {
-      text: string; // e.g. "Your data will be processed in accordance with our"
-      linkLabel: string; // "Privacy Policy"
-      href: string; // link
+      text: string; 
+      linkLabel: string; 
+      href: string; 
     };
 
     submitLabel: string;

@@ -4,8 +4,7 @@ import BottomNav from "./BottomNav";
 import Footer from "./Footer";
 import type { AdminSiteKey } from "../components/admin/adminSites";
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || "http://localhost:5284";
-
+import { API_BASE } from "../config/apiBase";
 
 type CmsSyncPayload = {
   h1: string;
@@ -22,16 +21,15 @@ const DEFAULT_SYNC: CmsSyncPayload = {
   h2: "Where Music meets Global impact.",
   t2: "Worldwide rights administration and strategic placements that grow your catalog and revenue.",
   h3: "Where premium sound meets viral energy.",
-  t3: "From trending digital sounds to bespoke compositions—built for your audience and your brief."
+  t3: "From trending digital sounds to bespoke compositions—built for your audience and your brief.",
 };
 
 const CMS_KEY = "home.syncText";
 
-
 const DEALS = [
   { name: "Roblox", src: "./branding/PNG/roblox.png", alt: "Roblox" },
-  { name: "Fortnite", src: "./branding/PNG/fortnite.webp", alt: "Fortnite" },
-  { name: "Amanotes", src: "../branding/PNG/amanotes.avif", alt: "Amanotes" }
+  { name: "Fortnite", src: "./branding/PNG/fortnite.png", alt: "Fortnite" },
+  { name: "Amanotes", src: "../branding/PNG/amanotes.avif", alt: "Amanotes" },
 ];
 
 function safeParseJson<T>(raw: any, fallback: T): T {
@@ -54,17 +52,25 @@ function hostnameToSiteKey(hostname: string): AdminSiteKey {
   return "purple-crunch-publishing";
 }
 
+function buildUrl(path: string) {
+  const base = String(API_BASE || "").replace(/\/+$/, "");
+  const p = String(path || "").replace(/^\/+/, "");
+  return base ? `${base}/${p}` : `/${p}`;
+}
+
 async function cmsGet(siteKey: string, key: string, signal: AbortSignal) {
-  const ts = Date.now(); // cache-bust
-  const url = `${API_BASE}/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(key)}&ts=${ts}`;
+  const ts = Date.now();
+  const url = buildUrl(
+    `/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(key)}&ts=${ts}`
+  );
 
   const res = await fetch(url, {
     signal,
     cache: "no-store",
     headers: {
       "Cache-Control": "no-cache, no-store, must-revalidate",
-      Pragma: "no-cache"
-    }
+      Pragma: "no-cache",
+    },
   });
 
   return res;
@@ -84,8 +90,8 @@ const SyncLicensingPage = () => {
       try {
         const res = await cmsGet(siteKey, CMS_KEY, controller.signal);
 
-        if (res.status === 404) return; // nema entry -> default
-        if (!res.ok) return; // server error -> default
+        if (res.status === 404) return;
+        if (!res.ok) return;
 
         const payload = await res.json().catch(() => null as any);
         const parsed = safeParseJson<CmsSyncPayload>(payload?.json, DEFAULT_SYNC);
@@ -96,14 +102,12 @@ const SyncLicensingPage = () => {
           h2: parsed?.h2 ?? DEFAULT_SYNC.h2,
           t2: parsed?.t2 ?? DEFAULT_SYNC.t2,
           h3: parsed?.h3 ?? DEFAULT_SYNC.h3,
-          t3: parsed?.t3 ?? DEFAULT_SYNC.t3
+          t3: parsed?.t3 ?? DEFAULT_SYNC.t3,
         };
 
         if (!alive) return;
         setSyncText(next);
-      } catch {
-        // ignore -> default
-      }
+      } catch {}
     })();
 
     return () => {
@@ -160,11 +164,14 @@ const SyncLicensingPage = () => {
 
           <div className="sync-deals-grid">
             {DEALS.map((d) => (
-              <div key={d.name} className="sync-deal">
-                <img className="sync-deal-img" src={d.src} alt={d.alt || d.name} />
+              <div key={d.name} className="sync-deal partner-logo" title={d.name} aria-label={d.name}>
+                <img src={d.src} alt={d.alt || d.name} loading="lazy" decoding="async" draggable={false} />
               </div>
             ))}
           </div>
+
+
+
         </div>
       </Container>
       <Footer />

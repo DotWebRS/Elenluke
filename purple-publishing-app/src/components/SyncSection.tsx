@@ -3,7 +3,7 @@ import Container from "react-bootstrap/Container";
 import { useNavigate } from "react-router-dom";
 import type { AdminSiteKey } from "../components/admin/adminSites";
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || "http://localhost:5284";
+import { API_BASE } from "../config/apiBase";
 
 type CmsSyncPayload = {
   h1: string;
@@ -68,11 +68,17 @@ function hostnameToSiteKey(hostname: string): AdminSiteKey {
   return "purple-crunch-publishing";
 }
 
+function buildUrl(path: string) {
+  const base = String(API_BASE || "").replace(/\/+$/, "");
+  const p = String(path || "").replace(/^\/+/, "");
+  return base ? `${base}/${p}` : `/${p}`;
+}
+
 async function cmsGet(siteKey: string, key: string, signal: AbortSignal) {
   const ts = Date.now();
-  const url = `${API_BASE}/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(
-    key
-  )}&ts=${ts}`;
+  const url = buildUrl(
+    `/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(key)}&ts=${ts}`
+  );
 
   const res = await fetch(url, {
     signal,
@@ -122,9 +128,7 @@ const SyncSection = () => {
 
         if (!alive) return;
         setSyncText(next);
-      } catch {
-        //
-      }
+      } catch {}
     })();
 
     return () => {
@@ -136,7 +140,6 @@ const SyncSection = () => {
   const goSyncLicensingTop = (e: React.MouseEvent) => {
     e.preventDefault();
     navigate("/sync-licensing");
-    // mali timeout da router stigne da renderuje stranicu pre scroll-a
     window.setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }), 0);
   };
 
@@ -149,12 +152,11 @@ const SyncSection = () => {
           </h2>
 
           <a className="artists-link" href="/sync-licensing" onClick={goSyncLicensingTop}>
-            Learn more <span className="artists-arrow">→</span>
+            Learn more
           </a>
         </div>
 
         <div className={`sync-layout reveal delay-1 ${inView ? "is-in" : ""}`}>
-          {/* MAIN */}
           <article className="sync-card sync-main">
             <h3 className="sync-subtitle sync-purple">{syncText.h1}</h3>
 
@@ -166,7 +168,6 @@ const SyncSection = () => {
             <div className="sync-main-spacer" aria-hidden="true" />
           </article>
 
-          {/* SIDE */}
           <aside className="sync-side">
             <section className="sync-card sync-side-card">
               <h3 className="sync-subtitle sync-purple">{syncText.h2}</h3>

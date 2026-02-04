@@ -4,6 +4,9 @@ import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import Modal from "react-bootstrap/Modal";
 
+import { API_BASE } from "../config/apiBase";
+import { Link } from "react-router-dom";
+
 type CmsTrack = { title: string; url: string; length?: string };
 type CmsArtist = {
   id?: string;
@@ -24,7 +27,6 @@ type Artist = {
   tracks: CmsTrack[];
 };
 
-const API_BASE = (import.meta as any).env?.VITE_API_BASE ?? "http://localhost:5284";
 const SITE_KEY = "purple-crunch-publishing";
 const DEFAULT_IMG = "/branding/artist.jpg";
 
@@ -38,13 +40,32 @@ function safeJsonParse<T>(raw: any, fallback: T): T {
   }
 }
 
+function buildUrl(path: string) {
+  const base = String(API_BASE || "").replace(/\/+$/, "");
+  const p = String(path || "").replace(/^\/+/, "");
+  return base ? `${base}/${p}` : `/${p}`;
+}
+
 async function fetchCms(siteKey: string, key: string) {
-  const res = await fetch(
-    `${API_BASE}/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(key)}`
+  const url = buildUrl(
+    `/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(key)}&ts=${Date.now()}`
   );
+
+  const res = await fetch(url);
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  if (!res.ok) {
+    let txt = "";
+    try {
+      txt = await res.text();
+    } catch {}
+    throw new Error(txt || `Request failed (${res.status})`);
+  }
+
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 function normalizeArtist(a: CmsArtist, idx: number): Artist {
@@ -134,10 +155,15 @@ const ArtistPage = () => {
     <section className="artists-section" id="roster">
       <Container fluid className="artists-roster-fluid">
         <div className="artists-head artists-head--center">
+          
           <h2 className="about-title about-title-centered">
             FULL <span className="about-us-animated">ROSTER</span>
           </h2>
+           <Link className="artists-link" to="/home">
+               BACK
+            </Link>
         </div>
+         
 
         {shown.length === 0 ? (
           <div className="artists-empty">
@@ -275,7 +301,7 @@ const ArtistPage = () => {
                       title={`Spotify Track ${i + 1}`}
                       src={toEmbedTrack(t.url)}
                       width="100%"
-                      height="80"
+                      height="152"          // umesto 80
                       scrolling="no"
                       style={{ display: "block", border: 0 }}
                       allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"

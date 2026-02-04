@@ -36,44 +36,149 @@ public class SubmissionsController : ControllerBase
         if (string.IsNullOrWhiteSpace(form.Name) || string.IsNullOrWhiteSpace(form.Email))
             return BadRequest("Name and Email are required.");
 
-        var type = form.Type ?? SubmissionType.GeneralContactInquiry;
+        if (!form.Type.HasValue)
+            return BadRequest("Submission Type is required.");
 
-        // DemoUpload rules
-        if (type == SubmissionType.DemoUpload)
+        if (!form.PrivacyAccepted)
+            return BadRequest("Privacy policy must be accepted.");
+
+        var type = form.Type.Value;
+
+        if ((type == SubmissionType.GeneralContactInquiry
+             || type == SubmissionType.SupportForm
+             || type == SubmissionType.LegalRequest)
+            && string.IsNullOrWhiteSpace(form.Message))
         {
-            if (string.IsNullOrWhiteSpace(form.UploadedBy))
-                return BadRequest("UploadedBy is required for DemoUpload.");
-
-            var ub = form.UploadedBy.Trim();
-            if (!string.Equals(ub, "Artist", StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(ub, "Manager", StringComparison.OrdinalIgnoreCase))
-                return BadRequest("UploadedBy must be Artist or Manager.");
-
-            if (form.Files == null || form.Files.Count == 0)
-                return BadRequest("At least one file is required for DemoUpload.");
+            return BadRequest("Message is required.");
         }
 
-        // SongwriterInformation rules (photo required)
+        Dictionary<string, string> dict = new(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(form.FieldsJson))
+        {
+            try
+            {
+                dict = JsonSerializer.Deserialize<Dictionary<string, string>>(
+                    form.FieldsJson,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                ) ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return BadRequest("fieldsJson must be a JSON object.");
+            }
+        }
+
+        static string Get(Dictionary<string, string> d, string key) =>
+            d.TryGetValue(key, out var v) ? (v ?? "").Trim() : "";
+
+        static bool LooksLikeFullName(string s)
+        {
+            s = (s ?? "").Trim();
+            var parts = s.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length >= 2;
+        }
+
+        static int? ComputeAgeFromIso(string iso)
+        {
+            if (string.IsNullOrWhiteSpace(iso)) return null;
+            if (!DateTime.TryParse(iso, out var dob)) return null;
+            var now = DateTime.UtcNow.Date;
+            var age = now.Year - dob.Year;
+            if (dob.Date > now.AddYears(-age)) age--;
+            return age;
+        }
+
         if (type == SubmissionType.SongwriterInformation)
         {
+            var fullLegalName = Get(dict, "fullLegalName");
+            var dob = Get(dict, "dateOfBirth");
+
+            if (string.IsNullOrWhiteSpace(fullLegalName) || !LooksLikeFullName(fullLegalName))
+                return BadRequest("Full legal name is required and must look like a full name.");
+
+            if (string.IsNullOrWhiteSpace(dob))
+                return BadRequest("Date of birth is required for SongwriterInformation.");
+
+            var age = ComputeAgeFromIso(dob);
+            if (age is null)
+                return BadRequest("Date of birth is invalid.");
+
+            if (age < 18)
+            {
+                var guardianName = Get(dict, "guardianName");
+                var guardianEmail = Get(dict, "guardianEmail");
+
+                if (!LooksLikeFullName(guardianName) || guardianEmail.Length == 0)
+                    return BadRequest("For minors, guardianName and guardianEmail are required for SongwriterInformation.");
+            }
+        }
+
+        if (type == SubmissionType.ArtistInformation)
+        {
+            var fullLegalName = Get(dict, "fullLegalNameArtist");
+            var dob = Get(dict, "dateOfBirthArtist");
+
+            if (string.IsNullOrWhiteSpace(fullLegalName) || !LooksLikeFullName(fullLegalName))
+                return BadRequest("Full legal name is required and must look like a full name for ArtistInformation.");
+
+            if (string.IsNullOrWhiteSpace(dob))
+                return BadRequest("Date of birth is required for ArtistInformation.");
+
+            var age = ComputeAgeFromIso(dob);
+            if (age is null)
+                return BadRequest("Date of birth is invalid.");
+
+            if (age < 18)
+            {
+                var guardianName = Get(dict, "guardianNameArtist");
+                var guardianEmail = Get(dict, "guardianEmailArtist");
+
+                if (!LooksLikeFullName(guardianName) || guardianEmail.Length == 0)
+                    return BadRequest("For minors, guardianNameArtist and guardianEmailArtist are required for ArtistInformation.");
+            }
+        }
+
+        if (type == SubmissionType.DemoUpload)
+        {
             if (form.Files == null || form.Files.Count == 0)
-                return BadRequest("Photo is required for SongwriterInformation.");
+                return BadRequest("At least one demo file must be uploaded.");
 
-            if (form.Files.Count > 1)
-                return BadRequest("Only one photo is allowed for SongwriterInformation.");
+            static bool IsWav(IFormFile f)
+            {
+                var ext = Path.GetExtension(f.FileName ?? "").ToLowerInvariant();
+                var nameOk = ext is ".wav";
+                var ct = (f.ContentType ?? "").ToLowerInvariant();
+                var typeOk = ct == "audio/wav" || ct == "audio/x-wav" || ct == "audio/wave";
+                return nameOk || typeOk;
+            }
 
-            var ct = (form.Files[0]?.ContentType ?? "").ToLowerInvariant();
-            if (!ct.StartsWith("image/"))
-                return BadRequest("Photo must be an image file.");
+            static bool IsAllowedImage(IFormFile f)
+            {
+                var ext = Path.GetExtension(f.FileName ?? "").ToLowerInvariant();
+                var nameOk = ext is ".png" or ".jpg" or ".jpeg";
+                var ct = (f.ContentType ?? "").ToLowerInvariant();
+                var typeOk = ct == "image/png" || ct == "image/jpeg";
+                return nameOk || typeOk;
+            }
+
+            static bool IsAllowedUpload(IFormFile f) => IsWav(f) || IsAllowedImage(f);
+
+            if (form.Files != null && form.Files.Count > 0)
+            {
+                foreach (var f in form.Files)
+                {
+                    if (!IsAllowedUpload(f))
+                        return BadRequest("Only .wav and image files (png/jpg/jpeg) are allowed.");
+                }
+            }
         }
 
         var submission = new Submission
         {
             Id = Guid.NewGuid(),
-            CreatedAt = DateTime.UtcNow,
-            Status = SubmissionStatus.Unread,
             Type = type,
-            Domain = (form.Domain ?? "").Trim(),
+            Status = SubmissionStatus.Unread,
+            Domain = string.IsNullOrWhiteSpace(form.Domain) ? "unknown" : form.Domain.Trim(),
             Name = form.Name.Trim(),
             Email = form.Email.Trim(),
             Message = string.IsNullOrWhiteSpace(form.Message) ? null : form.Message.Trim(),
@@ -83,22 +188,6 @@ public class SubmissionsController : ControllerBase
         _db.Submissions.Add(submission);
 
         var fieldsToInsert = new List<SubmissionField>();
-        Dictionary<string, string> dict = new();
-
-        if (!string.IsNullOrWhiteSpace(form.FieldsJson))
-        {
-            try
-            {
-                dict = JsonSerializer.Deserialize<Dictionary<string, string>>(
-                    form.FieldsJson,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-                ) ?? new Dictionary<string, string>();
-            }
-            catch
-            {
-                return BadRequest("fieldsJson must be a JSON object.");
-            }
-        }
 
         foreach (var kv in dict)
         {
@@ -110,87 +199,85 @@ public class SubmissionsController : ControllerBase
                 Id = Guid.NewGuid(),
                 SubmissionId = submission.Id,
                 Name = key,
-                Value = (kv.Value ?? "").Trim()
-            });
-        }
-
-        // keep uploadedBy duplicated into fields (legacy compatibility)
-        if (!string.IsNullOrWhiteSpace(submission.UploadedBy))
-        {
-            fieldsToInsert.Add(new SubmissionField
-            {
-                Id = Guid.NewGuid(),
-                SubmissionId = submission.Id,
-                Name = "uploadedBy",
-                Value = submission.UploadedBy
+                Value = kv.Value ?? ""
             });
         }
 
         if (fieldsToInsert.Count > 0)
+        {
             _db.SubmissionFields.AddRange(fieldsToInsert);
-
-        var savedFiles = new List<SubmissionFile>();
+        }
 
         if (form.Files != null && form.Files.Count > 0)
         {
-            var privateRoot = Path.Combine(_env.ContentRootPath, "uploads_private");
-            var dir = Path.Combine(privateRoot, "submissions", submission.Id.ToString("N"));
-            Directory.CreateDirectory(dir);
+            var uploadsRoot = Path.Combine(_env.ContentRootPath, "Uploads");
+            Directory.CreateDirectory(uploadsRoot);
 
             foreach (var file in form.Files)
             {
-                if (file == null || file.Length <= 0) continue;
+                if (file.Length <= 0) continue;
 
-                var ext = Path.GetExtension(file.FileName);
-                var storedName = $"{Guid.NewGuid():N}{ext}";
-                var fullPath = Path.Combine(dir, storedName);
+                var ext = Path.GetExtension(file.FileName ?? "").ToLowerInvariant();
+                var safeName = Path.GetFileNameWithoutExtension(file.FileName ?? "");
+                if (string.IsNullOrWhiteSpace(safeName))
+                    safeName = "upload";
 
-                await using (var stream = System.IO.File.Create(fullPath))
+                var newName = $"{safeName}_{Guid.NewGuid():N}{ext}";
+                var filePath = Path.Combine(uploadsRoot, newName);
+
+                using (var stream = System.IO.File.Create(filePath))
                 {
                     await file.CopyToAsync(stream);
                 }
 
-                var relPath = Path.Combine("submissions", submission.Id.ToString("N"), storedName).Replace("\\", "/");
-
-                var sf = new SubmissionFile
+                _db.SubmissionFiles.Add(new SubmissionFile
                 {
                     Id = Guid.NewGuid(),
                     SubmissionId = submission.Id,
-                    FileName = file.FileName,
-                    FilePath = relPath,
+                    FileName = file.FileName ?? newName,
+                    FilePath = filePath,
                     ContentType = file.ContentType ?? "application/octet-stream",
                     Size = file.Length
-                };
-
-                savedFiles.Add(sf);
-                _db.SubmissionFiles.Add(sf);
+                });
             }
         }
+
+        // AUDIT: kreiranje prijave (public user)
+        _db.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            CreatedAtUtc = DateTime.UtcNow,
+            UserEmail = "public-form",
+            Action = "SUBMISSION_CREATE",
+            EntityType = "Submission",
+            EntityId = submission.Id.ToString(),
+            Details = $"Type={submission.Type}; Domain={submission.Domain}; Email={submission.Email}"
+        });
 
         await _db.SaveChangesAsync();
 
         try
         {
             var recipients = ResolveNotificationRecipients(submission.Type);
-            var subject = BuildInternalSubject(submission);
-            var body = BuildInternalBody(submission, dict, savedFiles);
 
-            foreach (var r in recipients)
+            if (recipients.Count > 0)
             {
-                await _email.SendAsync(r, subject, body);
+                var subject = BuildInternalSubject(submission);
+                var body = BuildInternalBody(submission, dict);
+
+                foreach (var r in recipients)
+                {
+                    await _email.SendAsync(r, subject, body);
+                }
             }
         }
         catch
         {
-            // ignore mail errors
         }
 
-        return Ok(new { id = submission.Id });
+        return Ok(new { submission.Id, submission.Type, submission.Status });
     }
 
-    // =========================
-    // Inbox read: Admin + Inbox
-    // =========================
     [HttpGet]
     [Authorize(Roles = "Admin,Inbox")]
     public async Task<IActionResult> GetAll(
@@ -208,53 +295,76 @@ public class SubmissionsController : ControllerBase
         if (pageSize < 1) pageSize = 50;
         if (pageSize > 200) pageSize = 200;
 
-        IQueryable<Submission> query = _db.Submissions.AsNoTracking();
-
-        if (status.HasValue)
-            query = query.Where(x => x.Status == status.Value);
-
-        if (type.HasValue)
-            query = query.Where(x => x.Type == type.Value);
-
-        if (from.HasValue)
-            query = query.Where(x => x.CreatedAt >= from.Value);
-
-        if (to.HasValue)
-            query = query.Where(x => x.CreatedAt <= to.Value);
+        var q = _db.Submissions.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var s = search.Trim().ToLowerInvariant();
+            var s = search.Trim();
+            q = q.Where(x =>
+                x.Name.Contains(s) ||
+                x.Email.Contains(s) ||
+                (x.Message != null && x.Message.Contains(s)));
+        }
 
-            var fieldMatchIds = _db.SubmissionFields.AsNoTracking()
-                .Where(f => f.Name.ToLower().Contains(s) || f.Value.ToLower().Contains(s))
-                .Select(f => f.SubmissionId);
+        if (!string.IsNullOrWhiteSpace(domain))
+        {
+            var d = domain.Trim();
+            q = q.Where(x => x.Domain == d);
+        }
 
-            query = query.Where(x =>
-                x.Name.ToLower().Contains(s) ||
-                x.Email.ToLower().Contains(s) ||
-                x.Domain.ToLower().Contains(s) ||
-                (x.Message != null && x.Message.ToLower().Contains(s)) ||
-                x.Id.ToString().ToLower().Contains(s) ||
-                fieldMatchIds.Contains(x.Id)
-            );
+        if (status.HasValue)
+        {
+            q = q.Where(x => x.Status == status.Value);
+        }
+
+        if (type.HasValue)
+        {
+            q = q.Where(x => x.Type == type.Value);
+        }
+
+        if (from.HasValue)
+        {
+            var fromDate = from.Value.Date;
+            q = q.Where(x => x.CreatedAt >= fromDate);
+        }
+
+        if (to.HasValue)
+        {
+            var toDate = to.Value.Date.AddDays(1);
+            q = q.Where(x => x.CreatedAt < toDate);
         }
 
         if (hasFile.HasValue)
         {
-            var fileIds = _db.SubmissionFiles.AsNoTracking().Select(f => f.SubmissionId).Distinct();
-            query = hasFile.Value ? query.Where(x => fileIds.Contains(x.Id)) : query.Where(x => !fileIds.Contains(x.Id));
+            var submitIdsWithFiles = _db.SubmissionFiles.AsNoTracking()
+                .GroupBy(f => f.SubmissionId)
+                .Select(g => new { g.Key, Count = g.Count() });
+
+            if (hasFile.Value)
+            {
+                q = q.Join(submitIdsWithFiles.Where(x => x.Count > 0),
+                        s => s.Id, f => f.Key, (s, _) => s);
+            }
+            else
+            {
+                q = q.GroupJoin(submitIdsWithFiles,
+                        s => s.Id, f => f.Key,
+                        (s, gj) => new { s, gj })
+                    .SelectMany(x => x.gj.DefaultIfEmpty(), (x, f) => new { x.s, f })
+                    .Where(x => x.f == null || x.f.Count == 0)
+                    .Select(x => x.s);
+            }
         }
 
-        var total = await query.CountAsync();
+        var total = await q.CountAsync();
 
-        var list = await query
+        var submissions = await q
             .OrderByDescending(x => x.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
 
-        var ids = list.Select(x => x.Id).ToList();
+        var ids = submissions.Select(x => x.Id).ToList();
 
         var fields = await _db.SubmissionFields.AsNoTracking()
             .Where(f => ids.Contains(f.SubmissionId))
@@ -264,15 +374,15 @@ public class SubmissionsController : ControllerBase
             .Where(f => ids.Contains(f.SubmissionId))
             .ToListAsync();
 
-        var replyCounts = await _db.SubmissionReplies.AsNoTracking()
+        var repliesCount = await _db.SubmissionReplies.AsNoTracking()
             .Where(r => ids.Contains(r.SubmissionId))
             .GroupBy(r => r.SubmissionId)
             .Select(g => new { SubmissionId = g.Key, Count = g.Count() })
             .ToListAsync();
 
-        var replyMap = replyCounts.ToDictionary(x => x.SubmissionId, x => x.Count);
+        var replyMap = repliesCount.ToDictionary(x => x.SubmissionId, x => x.Count);
 
-        var items = list.Select(s => new
+        var items = submissions.Select(s => new
         {
             s.Id,
             s.Type,
@@ -288,7 +398,7 @@ public class SubmissionsController : ControllerBase
             files = files.Where(f => f.SubmissionId == s.Id).Select(f => new { f.Id, f.FileName, f.ContentType, f.Size })
         });
 
-        return Ok(new { total, page, pageSize, items });
+        return Ok(new { totalCount = total, page, pageSize, items });
     }
 
     [HttpGet("{id:guid}")]
@@ -331,9 +441,90 @@ public class SubmissionsController : ControllerBase
         });
     }
 
-    // =========================================
-    // Inbox actions: Admin + Inbox (status/reply)
-    // =========================================
+    [HttpGet("{id:guid}/export")]
+    [Authorize(Roles = "Admin,Inbox")]
+    public async Task<IActionResult> ExportOne([FromRoute] Guid id)
+    {
+        var s = await _db.Submissions.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (s == null) return NotFound();
+
+        var fields = await _db.SubmissionFields.AsNoTracking()
+            .Where(f => f.SubmissionId == id)
+            .ToListAsync();
+
+        var files = await _db.SubmissionFiles.AsNoTracking()
+            .Where(f => f.SubmissionId == id)
+            .ToListAsync();
+
+        var replies = await _db.SubmissionReplies.AsNoTracking()
+            .Where(r => r.SubmissionId == id)
+            .OrderByDescending(r => r.SentAt)
+            .ToListAsync();
+
+        static string Csv(string? v)
+        {
+            v ??= "";
+            v = v.Replace("\"", "\"\"");
+            return $"\"{v}\"";
+        }
+
+        var sb = new StringBuilder();
+
+        // Sekcija 1: osnovni podaci
+        sb.AppendLine("Section,Key,Value");
+        sb.AppendLine($"Submission,Id,{Csv(s.Id.ToString())}");
+        sb.AppendLine($"Submission,CreatedAt,{Csv(s.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"))}");
+        sb.AppendLine($"Submission,Type,{Csv(s.Type.ToString())}");
+        sb.AppendLine($"Submission,Status,{Csv(s.Status.ToString())}");
+        sb.AppendLine($"Submission,Domain,{Csv(s.Domain)}");
+        sb.AppendLine($"Submission,Name,{Csv(s.Name)}");
+        sb.AppendLine($"Submission,Email,{Csv(s.Email)}");
+        sb.AppendLine($"Submission,UploadedBy,{Csv(s.UploadedBy)}");
+        sb.AppendLine($"Submission,Message,{Csv(s.Message)}");
+        sb.AppendLine();
+
+        // Sekcija 2: custom polja
+        sb.AppendLine("Section,FieldName,FieldValue");
+        foreach (var f in fields)
+        {
+            sb.AppendLine($"Field,{Csv(f.Name)},{Csv(f.Value)}");
+        }
+        sb.AppendLine();
+
+        // Sekcija 3: fajlovi
+        sb.AppendLine("Section,FileName,ContentType,SizeBytes");
+        foreach (var f in files)
+        {
+            sb.AppendLine($"File,{Csv(f.FileName)},{Csv(f.ContentType)},{Csv(f.Size.ToString())}");
+        }
+        sb.AppendLine();
+
+        // Sekcija 4: replies
+        sb.AppendLine("Section,ToEmail,Subject,Body,SentAt,SentBy");
+        foreach (var r in replies)
+        {
+            sb.Append("Reply,");
+            sb.Append(Csv(r.ToEmail));
+            sb.Append(',');
+            sb.Append(Csv(r.Subject));
+            sb.Append(',');
+            sb.Append(Csv(r.Body));
+            sb.Append(',');
+            sb.Append(Csv(r.SentAt.ToString("yyyy-MM-dd HH:mm:ss")));
+            sb.Append(',');
+            sb.Append(Csv(r.SentBy));
+            sb.AppendLine();
+        }
+
+        var utf8WithBom = new UTF8Encoding(true);
+        var bytes = utf8WithBom.GetBytes(sb.ToString());
+
+        return File(bytes, "text/csv", $"submission_{id:yyyyMMddHHmmss}.csv");
+    }
+
+
     [HttpPut("{id:guid}/status")]
     [Authorize(Roles = "Admin,Inbox")]
     public async Task<IActionResult> UpdateStatus([FromRoute] Guid id, [FromBody] UpdateStatusRequest req)
@@ -351,6 +542,20 @@ public class SubmissionsController : ControllerBase
             return BadRequest("Cannot change status after Accept/Reject.");
 
         s.Status = req.Status;
+
+        var email = User?.Identity?.Name ?? User?.FindFirst("email")?.Value ?? "";
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            CreatedAtUtc = DateTime.UtcNow,
+            UserEmail = email ?? "",
+            Action = "SUBMISSION_STATUS_CHANGE",
+            EntityType = "Submission",
+            EntityId = id.ToString(),
+            Details = $"Status set to {req.Status}"
+        });
+
         await _db.SaveChangesAsync();
         return Ok();
     }
@@ -371,9 +576,7 @@ public class SubmissionsController : ControllerBase
 
         await _email.SendAsync(toEmail, subject, body);
 
-        var sentBy = User?.Identity?.Name ?? "";
-        if (string.IsNullOrWhiteSpace(sentBy))
-            sentBy = User?.Claims?.FirstOrDefault(c => c.Type.EndsWith("/name", StringComparison.OrdinalIgnoreCase))?.Value ?? "";
+        var sentBy = User?.Identity?.Name ?? User?.FindFirst("email")?.Value ?? "unknown";
 
         var reply = new SubmissionReply
         {
@@ -387,6 +590,18 @@ public class SubmissionsController : ControllerBase
         };
 
         _db.SubmissionReplies.Add(reply);
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            CreatedAtUtc = DateTime.UtcNow,
+            UserEmail = sentBy,
+            Action = "SUBMISSION_REPLY",
+            EntityType = "Submission",
+            EntityId = id.ToString(),
+            Details = $"Reply to {toEmail} with subject '{subject}'"
+        });
+
         await _db.SaveChangesAsync();
 
         var replies = await _db.SubmissionReplies.AsNoTracking()
@@ -400,58 +615,81 @@ public class SubmissionsController : ControllerBase
 
     [HttpGet("{id:guid}/files/{fileId:guid}/download")]
     [Authorize(Roles = "Admin,Inbox")]
-    public async Task<IActionResult> Download([FromRoute] Guid id, [FromRoute] Guid fileId)
+    public async Task<IActionResult> DownloadFile([FromRoute] Guid id, [FromRoute] Guid fileId)
     {
         var file = await _db.SubmissionFiles.AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == fileId && x.SubmissionId == id);
+            .FirstOrDefaultAsync(f => f.Id == fileId && f.SubmissionId == id);
 
         if (file == null) return NotFound();
 
-        var privateRoot = Path.Combine(_env.ContentRootPath, "uploads_private");
-        var fullPath = Path.Combine(privateRoot, file.FilePath.Replace("/", Path.DirectorySeparatorChar.ToString()));
+        if (!System.IO.File.Exists(file.FilePath))
+            return NotFound("File not found.");
 
-        if (!System.IO.File.Exists(fullPath))
-            return NotFound();
+        // AUDIT DOWNLOAD
+        var email = User?.Identity?.Name ?? User?.FindFirst("email")?.Value ?? "";
 
-        var bytes = await System.IO.File.ReadAllBytesAsync(fullPath);
-        return File(bytes, file.ContentType ?? "application/octet-stream", file.FileName);
+        _db.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            CreatedAtUtc = DateTime.UtcNow,
+            UserEmail = email ?? "",
+            Action = "SUBMISSION_FILE_DOWNLOAD",
+            EntityType = "SubmissionFile",
+            EntityId = file.Id.ToString(),
+            Details = $"Downloaded file '{file.FileName}' for submission {id}"
+        });
+
+        await _db.SaveChangesAsync();
+
+        var bytes = await System.IO.File.ReadAllBytesAsync(file.FilePath);
+        return File(bytes, file.ContentType, file.FileName);
     }
 
-    // =========================
-    // Admin-only destructive ops
-    // =========================
+
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete([FromRoute] Guid id)
     {
-        var submission = await _db.Submissions.FirstOrDefaultAsync(x => x.Id == id);
-        if (submission == null) return NotFound();
+        var s = await _db.Submissions.FirstOrDefaultAsync(x => x.Id == id);
+        if (s == null) return NotFound();
 
         var files = await _db.SubmissionFiles.Where(f => f.SubmissionId == id).ToListAsync();
         var fields = await _db.SubmissionFields.Where(f => f.SubmissionId == id).ToListAsync();
         var replies = await _db.SubmissionReplies.Where(r => r.SubmissionId == id).ToListAsync();
 
-        if (replies.Count > 0) _db.SubmissionReplies.RemoveRange(replies);
-        if (fields.Count > 0) _db.SubmissionFields.RemoveRange(fields);
-        if (files.Count > 0) _db.SubmissionFiles.RemoveRange(files);
+        _db.SubmissionFiles.RemoveRange(files);
+        _db.SubmissionFields.RemoveRange(fields);
+        _db.SubmissionReplies.RemoveRange(replies);
+        _db.Submissions.Remove(s);
 
-        _db.Submissions.Remove(submission);
+        var email = User?.Identity?.Name ?? User?.FindFirst("email")?.Value ?? "";
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            CreatedAtUtc = DateTime.UtcNow,
+            UserEmail = email ?? "",
+            Action = "SUBMISSION_DELETE",
+            EntityType = "Submission",
+            EntityId = id.ToString(),
+            Details = $"Submission deleted with {files.Count} files, {fields.Count} fields, {replies.Count} replies"
+        });
+
         await _db.SaveChangesAsync();
 
-        try
+        foreach (var f in files)
         {
-            var privateRoot = Path.Combine(_env.ContentRootPath, "uploads_private");
-            var dir = Path.Combine(privateRoot, "submissions", id.ToString("N"));
-            if (Directory.Exists(dir))
+            try
             {
-                Directory.Delete(dir, true);
+                if (System.IO.File.Exists(f.FilePath))
+                    System.IO.File.Delete(f.FilePath);
+            }
+            catch
+            {
             }
         }
-        catch
-        {
-        }
 
-        return NoContent();
+        return Ok();
     }
 
     [HttpPut("{id:guid}/accept")]
@@ -465,6 +703,20 @@ public class SubmissionsController : ControllerBase
             return BadRequest("Accept/Reject is only for DemoUpload.");
 
         s.Status = SubmissionStatus.Accepted;
+
+        var email = User?.Identity?.Name ?? User?.FindFirst("email")?.Value ?? "";
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            CreatedAtUtc = DateTime.UtcNow,
+            UserEmail = email ?? "",
+            Action = "SUBMISSION_ACCEPT",
+            EntityType = "Submission",
+            EntityId = id.ToString(),
+            Details = "Demo accepted"
+        });
+
         await _db.SaveChangesAsync();
         return Ok();
     }
@@ -479,16 +731,37 @@ public class SubmissionsController : ControllerBase
         if (s.Type != SubmissionType.DemoUpload)
             return BadRequest("Accept/Reject is only for DemoUpload.");
 
-        var fields = await _db.SubmissionFields.AsNoTracking()
+        var fields = await _db.SubmissionFields
             .Where(f => f.SubmissionId == id)
             .ToListAsync();
 
-        var artistName = ExtractArtistName(s, fields);
-        var trackTitle = ExtractTrackTitle(fields);
+        string GetField(string name)
+        {
+            var f = fields.FirstOrDefault(x => x.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+            return f?.Value ?? "";
+        }
 
-        var body = BuildDemoRejectionBody(artistName, trackTitle);
+        var artistName = GetField("artistName");
+        var trackTitle = GetField("trackTitle");
 
-        var existing = await _db.SubmissionFields.FirstOrDefaultAsync(x => x.SubmissionId == id && x.Name == "autoRejectionBody");
+        if (string.IsNullOrWhiteSpace(artistName))
+        {
+            artistName = s.Name;
+        }
+
+        if (string.IsNullOrWhiteSpace(trackTitle))
+        {
+            trackTitle = "your track";
+        }
+
+        var body =
+$@"Hi {artistName},
+Thank you for sending {trackTitle}. After careful consideration, we have decided not to move forward with a release for this track.
+Due to the volume of submissions we receive, we can’t always provide detailed feedback, but we truly appreciate you sharing your work with us. Please don’t hesitate to send future demos, We are always keen to hear what you are working on next.
+Wishing you the best,
+Your Purple Crunch Records Team";
+
+        var existing = fields.FirstOrDefault(x => x.Name == "autoRejectionBody");
         if (existing == null)
         {
             _db.SubmissionFields.Add(new SubmissionField
@@ -505,36 +778,99 @@ public class SubmissionsController : ControllerBase
         }
 
         s.Status = SubmissionStatus.Rejected;
+
+        var email = User?.Identity?.Name ?? User?.FindFirst("email")?.Value ?? "";
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            Id = Guid.NewGuid(),
+            CreatedAtUtc = DateTime.UtcNow,
+            UserEmail = email ?? "",
+            Action = "SUBMISSION_REJECT",
+            EntityType = "Submission",
+            EntityId = id.ToString(),
+            Details = "Demo rejected with auto body"
+        });
+
         await _db.SaveChangesAsync();
 
         return Ok(new { body });
     }
 
     [HttpGet("export")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Inbox")]
     public async Task<IActionResult> Export(
+        [FromQuery] string? search,
+        [FromQuery] string? domain,
         [FromQuery] SubmissionStatus? status,
         [FromQuery] SubmissionType? type,
         [FromQuery] DateTime? from,
-        [FromQuery] DateTime? to)
+        [FromQuery] DateTime? to,
+        [FromQuery] bool? hasFile)
     {
-        IQueryable<Submission> query = _db.Submissions.AsNoTracking();
+        var q = _db.Submissions.AsNoTracking().AsQueryable();
 
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.Trim();
+            q = q.Where(x =>
+                x.Name.Contains(s) ||
+                x.Email.Contains(s) ||
+                (x.Message != null && x.Message.Contains(s)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(domain))
+        {
+            var d = domain.Trim();
+            q = q.Where(x => x.Domain == d);
+        }
 
         if (status.HasValue)
-            query = query.Where(s => s.Status == status.Value);
+        {
+            q = q.Where(x => x.Status == status.Value);
+        }
 
         if (type.HasValue)
-            query = query.Where(s => s.Type == type.Value);
+        {
+            q = q.Where(x => x.Type == type.Value);
+        }
 
         if (from.HasValue)
-            query = query.Where(s => s.CreatedAt >= from.Value);
+        {
+            var fromDate = from.Value.Date;
+            q = q.Where(x => x.CreatedAt >= fromDate);
+        }
 
         if (to.HasValue)
-            query = query.Where(s => s.CreatedAt <= to.Value);
+        {
+            var toDate = to.Value.Date.AddDays(1);
+            q = q.Where(x => x.CreatedAt < toDate);
+        }
 
-        var rows = await query.OrderByDescending(x => x.CreatedAt).Take(5000).ToListAsync();
-        var ids = rows.Select(r => r.Id).ToList();
+        if (hasFile.HasValue)
+        {
+            var submitIdsWithFiles = _db.SubmissionFiles.AsNoTracking()
+                .GroupBy(f => f.SubmissionId)
+                .Select(g => new { g.Key, Count = g.Count() });
+
+            if (hasFile.Value)
+            {
+                q = q.Join(submitIdsWithFiles.Where(x => x.Count > 0),
+                        s => s.Id, f => f.Key, (s, _) => s);
+            }
+            else
+            {
+                q = q.GroupJoin(submitIdsWithFiles,
+                        s => s.Id, f => f.Key,
+                        (s, gj) => new { s, gj })
+                    .SelectMany(x => x.gj.DefaultIfEmpty(), (x, f) => new { x.s, f })
+                    .Where(x => x.f == null || x.f.Count == 0)
+                    .Select(x => x.s);
+            }
+        }
+
+        var list = await q.OrderByDescending(x => x.CreatedAt).ToListAsync();
+        var ids = list.Select(x => x.Id).ToList();
 
         var filesCount = await _db.SubmissionFiles.AsNoTracking()
             .Where(f => ids.Contains(f.SubmissionId))
@@ -552,24 +888,33 @@ public class SubmissionsController : ControllerBase
         }
 
         var sb = new StringBuilder();
-        sb.AppendLine("Id,Name,Email,Type,Status,Domain,UploadedBy,HasFiles,Message,CreatedAt");
 
-        foreach (var s in rows)
+        sb.AppendLine("Id,CreatedAt,Type,Status,Domain,Name,Email,UploadedBy,Message,FilesCount");
+
+        foreach (var s in list)
         {
-            var has = map.TryGetValue(s.Id, out var c) ? c : 0;
-            sb.AppendLine(string.Join(",", new[]
-            {
-                Csv(s.Id.ToString()),
-                Csv(s.Name),
-                Csv(s.Email),
-                Csv(s.Type.ToString()),
-                Csv(s.Status.ToString()),
-                Csv(s.Domain),
-                Csv(s.UploadedBy),
-                Csv(has > 0 ? "yes" : "no"),
-                Csv(s.Message),
-                Csv(s.CreatedAt.ToString("o"))
-            }));
+            map.TryGetValue(s.Id, out var count);
+
+            sb.Append(Csv(s.Id.ToString()));
+            sb.Append(',');
+            sb.Append(Csv(s.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")));
+            sb.Append(',');
+            sb.Append(Csv(s.Type.ToString()));
+            sb.Append(',');
+            sb.Append(Csv(s.Status.ToString()));
+            sb.Append(',');
+            sb.Append(Csv(s.Domain));
+            sb.Append(',');
+            sb.Append(Csv(s.Name));
+            sb.Append(',');
+            sb.Append(Csv(s.Email));
+            sb.Append(',');
+            sb.Append(Csv(s.UploadedBy));
+            sb.Append(',');
+            sb.Append(Csv(s.Message));
+            sb.Append(',');
+            sb.Append(Csv((count).ToString()));
+            sb.AppendLine();
         }
 
         var utf8WithBom = new UTF8Encoding(true);
@@ -597,6 +942,7 @@ public class SubmissionsController : ControllerBase
             SubmissionType.SyncRequest => publishing,
             SubmissionType.GeneralContactInquiry => info,
             SubmissionType.SupportForm => support,
+            SubmissionType.LegalRequest => legal,
             _ => ""
         };
 
@@ -616,21 +962,19 @@ public class SubmissionsController : ControllerBase
     private static string BuildInternalSubject(Submission s)
     {
         var domain = string.IsNullOrWhiteSpace(s.Domain) ? "unknown-domain" : s.Domain;
-        return $"New {s.Type} submission [{domain}] ({s.Id})";
+        return $"New submission [{s.Type}] from {s.Name} ({domain})";
     }
 
-    private static string BuildInternalBody(Submission s, Dictionary<string, string> fields, List<SubmissionFile> files)
+    private static string BuildInternalBody(Submission s, IReadOnlyDictionary<string, string> dict)
     {
         var sb = new StringBuilder();
 
-        sb.AppendLine($"Reference ID: {s.Id}");
         sb.AppendLine($"Type: {s.Type}");
-        sb.AppendLine($"Status: {s.Status}");
-        sb.AppendLine($"Domain: {s.Domain}");
         sb.AppendLine($"Name: {s.Name}");
         sb.AppendLine($"Email: {s.Email}");
-        sb.AppendLine($"UploadedBy: {s.UploadedBy ?? ""}");
-        sb.AppendLine($"CreatedAt (UTC): {s.CreatedAt:O}");
+        sb.AppendLine($"Domain: {s.Domain}");
+        sb.AppendLine($"UploadedBy: {s.UploadedBy}");
+        sb.AppendLine($"CreatedAt: {s.CreatedAt:yyyy-MM-dd HH:mm:ss} UTC");
         sb.AppendLine();
 
         if (!string.IsNullOrWhiteSpace(s.Message))
@@ -640,67 +984,17 @@ public class SubmissionsController : ControllerBase
             sb.AppendLine();
         }
 
-        if (fields.Count > 0)
+        if (dict.Count > 0)
         {
             sb.AppendLine("Fields:");
-            foreach (var kv in fields)
+            foreach (var kv in dict)
             {
-                var k = (kv.Key ?? "").Trim();
-                if (k.Length == 0) continue;
-                sb.AppendLine($"{k}: {(kv.Value ?? "").Trim()}");
+                sb.AppendLine($"- {kv.Key}: {kv.Value}");
             }
             sb.AppendLine();
         }
 
-        if (files.Count > 0)
-        {
-            sb.AppendLine("Files:");
-            foreach (var f in files)
-                sb.AppendLine($"{f.FileName} ({f.ContentType}, {f.Size} bytes)");
-            sb.AppendLine();
-        }
-
-        sb.AppendLine("This is an automated notification.");
-        return sb.ToString();
-    }
-
-    private static string ExtractArtistName(Submission s, List<SubmissionField> fields)
-    {
-        var name = (s.Name ?? "").Trim();
-        if (name.Length > 0) return name;
-
-        var candidate = FindField(fields, "artistName", "artist", "name");
-        return string.IsNullOrWhiteSpace(candidate) ? "there" : candidate.Trim();
-    }
-
-    private static string ExtractTrackTitle(List<SubmissionField> fields)
-    {
-        var candidate = FindField(fields, "trackTitle", "track", "title", "songTitle", "song");
-        return string.IsNullOrWhiteSpace(candidate) ? "your track" : candidate.Trim();
-    }
-
-    private static string? FindField(List<SubmissionField> fields, params string[] keys)
-    {
-        foreach (var key in keys)
-        {
-            var f = fields.FirstOrDefault(x => string.Equals(x.Name, key, StringComparison.OrdinalIgnoreCase));
-            if (f != null && !string.IsNullOrWhiteSpace(f.Value))
-                return f.Value;
-        }
-        return null;
-    }
-
-    private static string BuildDemoRejectionBody(string artistName, string trackTitle)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine($"Hi {artistName},");
-        sb.AppendLine();
-        sb.AppendLine($"Thank you for sending {trackTitle}. After careful consideration, we have decided not to move forward with a release for this track.");
-        sb.AppendLine();
-        sb.AppendLine("Due to the volume of submissions we receive, we can’t always provide detailed feedback, but we truly appreciate you sharing your work with us. Please don’t hesitate to send future demos, We are always keen to hear what you are working on next.");
-        sb.AppendLine();
-        sb.AppendLine("Wishing you the best,");
-        sb.AppendLine("Your Purple Crunch Records Team");
+        sb.AppendLine("This email was generated automatically by the Purple backend.");
         return sb.ToString();
     }
 }
@@ -715,6 +1009,7 @@ public class SubmissionCreateForm
     public string? UploadedBy { get; set; }
     public string? FieldsJson { get; set; }
     public List<IFormFile>? Files { get; set; }
+    public bool PrivacyAccepted { get; set; }
 }
 
 public class UpdateStatusRequest

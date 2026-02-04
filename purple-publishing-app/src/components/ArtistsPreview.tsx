@@ -5,6 +5,8 @@ import Col from "react-bootstrap/Col";
 import Modal from "react-bootstrap/Modal";
 import { Link } from "react-router-dom";
 
+import { API_BASE } from "../config/apiBase";
+
 type CmsTrack = { title: string; url: string };
 
 type CmsArtist = {
@@ -28,8 +30,6 @@ type Artist = {
   tracks: CmsTrack[];
 };
 
-const API_BASE = (import.meta as any).env?.VITE_API_BASE ?? "http://localhost:5284";
-
 const DEFAULT_IMG = "/branding/artist.jpg";
 const DEFAULT_TRACK_URL = "https://open.spotify.com/";
 
@@ -43,13 +43,55 @@ function safeJsonParse<T>(raw: any, fallback: T): T {
   }
 }
 
+function buildUrl(path: string) {
+  const base = String(API_BASE || "").replace(/\/+$/, "");
+  const p = String(path || "").replace(/^\/+/, "");
+  return base ? `${base}/${p}` : `/${p}`;
+}
+
+function resolveImg(src: string) {
+  if (!src) return DEFAULT_IMG;
+
+  const s0 = String(src).trim();
+  if (!s0) return DEFAULT_IMG;
+
+  // dataURL (base64)
+  if (s0.startsWith("data:")) return s0;
+
+  // absolute
+  if (/^https?:\/\//i.test(s0)) return s0;
+
+  // normalize windows backslashes
+  const s = s0.replace(/\\/g, "/");
+
+  // relative -> API_BASE
+  const withSlash = s.startsWith("/") ? s : `/${s}`;
+  return buildUrl(withSlash);
+}
+
 async function fetchCms(siteKey: string, key: string) {
-  const res = await fetch(
-    `${API_BASE}/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(key)}`
+  const url = buildUrl(
+    `/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(
+      key
+    )}&ts=${Date.now()}`
   );
+
+  const res = await fetch(url);
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`);
-  return res.json(); // { siteKey, key, json, updatedAtUtc }
+
+  if (!res.ok) {
+    let txt = "";
+    try {
+      txt = await res.text();
+    } catch {}
+    throw new Error(txt || `HTTP ${res.status}`);
+  }
+
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
 function mapArtist(a: any): Artist {
@@ -65,13 +107,12 @@ function mapArtist(a: any): Artist {
 
 function getTrackId(url: string) {
   if (!url) return "";
-  const u = url.trim();
+  const u = url.trim().split("?")[0];
   const m = u.match(/track\/([a-zA-Z0-9]+)/);
   if (m?.[1]) return m[1];
-  const parts = u.split("?");
-  const p = parts[0].split("/");
+  const p = u.split("/").filter(Boolean);
   const idx = p.findIndex((x) => x === "track");
-  return idx >= 0 ? p[idx + 1] : "";
+  return idx >= 0 ? p[idx + 1] || "" : "";
 }
 
 function toEmbedTrack(url: string) {
@@ -129,10 +170,12 @@ const ArtistsPreview = ({ siteKey = "purple-crunch-publishing" }: { siteKey?: st
         if (top3ids.length) {
           const byId = new Map(all.map((a) => [a.id, a] as const));
           const top = top3ids.map((id) => byId.get(id)).filter(Boolean) as Artist[];
+
           for (const a of all) {
             if (top.length >= 3) break;
             if (!top.find((x) => x.id === a.id)) top.push(a);
           }
+
           preview = top.slice(0, 3);
         } else {
           preview = all.slice(0, 3);
@@ -157,15 +200,18 @@ const ArtistsPreview = ({ siteKey = "purple-crunch-publishing" }: { siteKey?: st
     const base =
       active?.tracks?.length
         ? active.tracks
-        : Array.from({ length: 5 }).map((_, i) => ({ title: `Track ${i + 1}`, url: DEFAULT_TRACK_URL }));
+        : Array.from({ length: 5 }).map((_, i) => ({
+            title: `Track ${i + 1}`,
+            url: DEFAULT_TRACK_URL,
+          }));
     return base.slice(0, 5);
   }, [active]);
 
-  const delayIndex = (idx: number) => (artists.length - 1 - idx);
+  const delayIndex = (idx: number) => artists.length - 1 - idx;
 
   return (
     <section className="artists-section" id="top-tracks">
-      <Container >
+      <Container>
         <div ref={animRef} className={`artists-animwrap ${inView ? "is-inview" : ""}`}>
           <div className="artists-head">
             <h2 className="about-title about-title-centered">
@@ -173,7 +219,7 @@ const ArtistsPreview = ({ siteKey = "purple-crunch-publishing" }: { siteKey?: st
             </h2>
 
             <Link className="artists-link" to="/artists">
-              EXPLORE FULL ROSTER <span className="artists-arrow">→</span>
+              EXPLORE FULL ROSTER
             </Link>
           </div>
 
@@ -203,7 +249,7 @@ const ArtistsPreview = ({ siteKey = "purple-crunch-publishing" }: { siteKey?: st
                     <div className="artist-media">
                       <img
                         className="artist-photo"
-                        src={a.image || DEFAULT_IMG}
+                        src={resolveImg(a.image)}
                         alt={a.name}
                         loading="lazy"
                         onError={(e) => {
@@ -233,7 +279,7 @@ const ArtistsPreview = ({ siteKey = "purple-crunch-publishing" }: { siteKey?: st
         <div className="artist-modal-hero">
           <div
             className="artist-modal-hero-bg"
-            style={{ backgroundImage: `url(${active?.image || DEFAULT_IMG})` }}
+            style={{ backgroundImage: `url(${resolveImg(active?.image || "")})` }}
             aria-hidden="true"
           />
           <div className="artist-modal-hero-overlay" aria-hidden="true" />
@@ -285,8 +331,6 @@ const ArtistsPreview = ({ siteKey = "purple-crunch-publishing" }: { siteKey?: st
             </div>
           </div>
         </div>
-
-
 
         <Modal.Body>
           <div className="artist-playlist-head">

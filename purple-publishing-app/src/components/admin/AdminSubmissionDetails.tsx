@@ -3,8 +3,10 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ADMIN_SITES } from "./adminSites";
 import type { AdminSiteKey } from "./adminSites";
 
+import { API_BASE } from "../../config/apiBase";
+import "../../styles/AdminSubmissionDetails.css";
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL ?? "http://localhost:5284";
+// ------------------ KONFIG ------------------
 
 const SUBMISSION_TYPES: Record<number, string> = {
   1: "Demo Upload",
@@ -12,7 +14,7 @@ const SUBMISSION_TYPES: Record<number, string> = {
   3: "Legal",
   4: "Support",
   5: "Info",
-  6: "General Contact"
+  6: "General Contact",
 };
 
 const DEMO_TYPE = 1;
@@ -23,7 +25,29 @@ const STATUSES: Record<number, string> = {
   3: "In progress",
   4: "Done",
   5: "Accepted",
-  6: "Rejected"
+  6: "Rejected",
+};
+
+// ------------------ TIPOVI ------------------
+
+type SubmissionField = {
+  name: string;
+  value: string;
+};
+
+type SubmissionFile = {
+  id: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+};
+
+type SubmissionReply = {
+  id: string;
+  createdAtUtc: string;
+  toEmail: string;
+  subject: string;
+  body: string;
 };
 
 type SubmissionDetails = {
@@ -36,14 +60,18 @@ type SubmissionDetails = {
   message: string | null;
   uploadedBy: string | null;
   createdAt: string;
-  fields: { name: string; value: string }[];
-  files: { id: string; fileName: string; contentType: string; size: number }[];
-  replies: { id: string; createdAtUtc: string; toEmail: string; subject: string; body: string }[];
+  fields: SubmissionField[];
+  files: SubmissionFile[];
+  replies: SubmissionReply[];
 };
 
+// ------------------ POMOĆNE ------------------
+
 function formatDate(iso: string) {
+  if (!iso) return "";
   const d = new Date(iso);
-  return d.toLocaleString();
+  // fallback ako nešto pošalje loš datum
+  return isNaN(d.getTime()) ? iso : d.toLocaleString();
 }
 
 function bytes(n: number) {
@@ -53,20 +81,30 @@ function bytes(n: number) {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function buildUrl(path: string) {
+  const base = String(API_BASE || "").replace(/\/+$/, "");
+  const p = String(path || "").replace(/^\/+/, "");
+  return base ? `${base}/${p}` : `/${p}`;
+}
+
+// ------------------ KOMPONENTA ------------------
+
 export default function AdminSubmissionDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [sp] = useSearchParams();
 
-  const token = localStorage.getItem("token") ?? "";
+  const qsSite = (sp.get("site") as AdminSiteKey) ?? "purple-crunch-publishing";
+  const [site, setSite] = useState<AdminSiteKey>(qsSite);
+
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") ?? "" : "";
+
   const authHeaders = useMemo(() => {
     const h: Record<string, string> = {};
     if (token) h.Authorization = `Bearer ${token}`;
     return h;
   }, [token]);
-
-  const qsSite = (sp.get("site") as AdminSiteKey) ?? "purple-crunch-publishing";
-  const [site, setSite] = useState<AdminSiteKey>(qsSite);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -76,9 +114,14 @@ export default function AdminSubmissionDetails() {
   const [replyBody, setReplyBody] = useState("");
   const [cc, setCc] = useState("");
 
+  // preview state
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewKind, setPreviewKind] = useState<"image" | "audio" | "pdf" | "other">("other");
+  const [previewKind, setPreviewKind] = useState<
+    "image" | "audio" | "pdf" | "other"
+  >("other");
   const [previewName, setPreviewName] = useState("");
+
+  // ------------------ UCITAVANJE ------------------
 
   async function load() {
     if (!id) return;
@@ -91,8 +134,8 @@ export default function AdminSubmissionDetails() {
     setError("");
 
     try {
-      const res = await fetch(`${API_BASE}/api/submissions/${id}`, {
-        headers: { ...authHeaders }
+      const res = await fetch(buildUrl(`/api/submissions/${id}`), {
+        headers: { ...authHeaders },
       });
 
       if (res.status === 401) {
@@ -109,7 +152,12 @@ export default function AdminSubmissionDetails() {
 
       const json = (await res.json()) as SubmissionDetails;
       setData(json);
-      if (!replySubject) setReplySubject(`Re: ${SUBMISSION_TYPES[json.type] ?? "Submission"}`);
+
+      if (!replySubject) {
+        setReplySubject(
+          `Re: ${SUBMISSION_TYPES[json.type] ?? "Submission"}`
+        );
+      }
     } catch (e: any) {
       setError(e?.message ?? "Network error");
       setData(null);
@@ -120,49 +168,53 @@ export default function AdminSubmissionDetails() {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   function fieldValue(name: string) {
-    const v = data?.fields?.find((f) => (f.name ?? "").toLowerCase() === name.toLowerCase());
+    const v = data?.fields?.find(
+      (f) => (f.name ?? "").toLowerCase() === name.toLowerCase()
+    );
     return v?.value ?? "";
   }
 
+  // ------------------ STATUS / DEMO ------------------
+
   async function setStatus(nextStatus: number) {
-  if (!id) return;
-  setError("");
+    if (!id) return;
+    setError("");
 
-  const res = await fetch(`${API_BASE}/api/submissions/${id}/status`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json", ...authHeaders },
-    body: JSON.stringify({ status: nextStatus })
-  });
+    const res = await fetch(buildUrl(`/api/submissions/${id}/status`), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeaders },
+      body: JSON.stringify({ status: nextStatus }),
+    });
 
-  if (res.status === 401) {
-    localStorage.removeItem("token");
-    navigate("/admin/login");
-    return;
+    if (res.status === 401) {
+      localStorage.removeItem("token");
+      navigate("/admin/login");
+      return;
+    }
+
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      setError(`Status error ${res.status}${t ? ` — ${t}` : ""}`);
+      return;
+    }
+
+    await load();
   }
-
-  if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    setError(`Status error ${res.status}${t ? ` — ${t}` : ""}`);
-    return;
-  }
-
-  await load();
-}
-
 
   async function acceptDemo() {
     if (data?.type !== DEMO_TYPE) {
-      setError("Accept/Reject radi samo za Demo Upload (type=1).");
+      setError("Accept/Reject is only available for Demo Upload.");
       return;
     }
     setError("");
 
-    const res = await fetch(`${API_BASE}/api/submissions/${id}/accept`, {
+    const res = await fetch(buildUrl(`/api/submissions/${id}/accept`), {
       method: "PUT",
-      headers: { ...authHeaders }
+      headers: { ...authHeaders },
     });
 
     if (res.status === 401) {
@@ -181,19 +233,19 @@ export default function AdminSubmissionDetails() {
 
   async function rejectDemo() {
     if (data?.type !== DEMO_TYPE) {
-      setError("Accept/Reject radi samo za Demo Upload (type=1).");
+      setError("Accept/Reject is only available for Demo Upload.");
       return;
     }
     setError("");
 
-    const res = await fetch(`${API_BASE}/api/submissions/${id}/reject`, {
+    const rejectionBody =
+      fieldValue("autoRejectionBody") ||
+      `Hi ${data?.name || ""},\n\nThank you for your demo.\n\nBest,\nPurple Team\n`;
+
+    const res = await fetch(buildUrl(`/api/submissions/${id}/reject`), {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...authHeaders },
-      body: JSON.stringify({
-        body:
-          rejectionBody ||
-          `Hi ${data?.name || ""},\n\nThank you for your demo... \n\nBest,\nPurple Team\n`
-      })
+      body: JSON.stringify({ body: rejectionBody }),
     });
 
     if (res.status === 401) {
@@ -208,30 +260,31 @@ export default function AdminSubmissionDetails() {
       return;
     }
 
-    await load(); // backend treba da vrati status = 6
+    await load();
   }
 
+  // ------------------ REPLY ------------------
 
   async function sendReply() {
     if (!id) return;
     setError("");
 
     if (!replySubject.trim() || !replyBody.trim()) {
-      setError("Subject and body are required");
+      setError("Subject and body are required.");
       return;
     }
 
-    const res = await fetch(`${API_BASE}/api/submissions/${id}/reply`, {
+    const res = await fetch(buildUrl(`/api/submissions/${id}/reply`), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...authHeaders
+        ...authHeaders,
       },
       body: JSON.stringify({
         subject: replySubject.trim(),
         body: replyBody,
-        cc: cc.trim() || null
-      })
+        cc: cc.trim() || null,
+      }),
     });
 
     if (res.status === 401) {
@@ -249,12 +302,17 @@ export default function AdminSubmissionDetails() {
     await load();
   }
 
+  // ------------------ FAJLOVI ------------------
+
   async function fetchFileBlob(fileId: string) {
     if (!id) return null;
 
-    const res = await fetch(`${API_BASE}/api/submissions/${id}/files/${fileId}/download`, {
-      headers: { ...authHeaders }
-    });
+    const res = await fetch(
+      buildUrl(`/api/submissions/${id}/files/${fileId}/download`),
+      {
+        headers: { ...authHeaders },
+      }
+    );
 
     if (res.status === 401) {
       localStorage.removeItem("token");
@@ -285,7 +343,11 @@ export default function AdminSubmissionDetails() {
     URL.revokeObjectURL(url);
   }
 
-  async function previewFile(fileId: string, fileName: string, contentType: string) {
+  async function previewFile(
+    fileId: string,
+    fileName: string,
+    contentType: string
+  ) {
     const blob = await fetchFileBlob(fileId);
     if (!blob) return;
 
@@ -301,24 +363,33 @@ export default function AdminSubmissionDetails() {
   }
 
   function closePreview() {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
     setPreviewUrl(null);
     setPreviewName("");
     setPreviewKind("other");
   }
 
+  // ------------------ DERIVED ------------------
+
   const isDemo = data?.type === DEMO_TYPE;
   const lockedByDecision = data?.status === 5 || data?.status === 6;
   const rejectionBody = fieldValue("autoRejectionBody");
 
+  // ------------------ RENDER ------------------
+
   return (
-    <div className="admin-wrap">
+    <div className="admin-wrap admin-debug-test">
+      {/* TOPBAR */}
       <div className="admin-topbar">
         <div className="admin-topbar-left">
           <select
             value={site}
-            onChange={(e) => setSite(e.target.value as AdminSiteKey)}
-            className="admin-select"
+            onChange={(e) =>
+              setSite(e.target.value as AdminSiteKey)
+            }
+            className="admin-select admin-select--site"
           >
             {ADMIN_SITES.map((s) => (
               <option key={s.key} value={s.key}>
@@ -327,84 +398,155 @@ export default function AdminSubmissionDetails() {
             ))}
           </select>
 
-          <button className="admin-btn admin-btn-ghost" onClick={() => navigate(`/admin/submissions?site=${site}`)}>
+          <button
+            className="admin-btn admin-btn-ghost"
+            onClick={() =>
+              navigate(`/admin/submissions?site=${site}`)
+            }
+          >
             Back
           </button>
         </div>
 
         <div className="admin-topbar-right">
-          <button className="admin-btn admin-btn-ghost" onClick={() => navigate("/admin/users")}>
+          <button
+            className="admin-btn admin-btn-ghost"
+            onClick={() => navigate("/admin/users")}
+          >
             Users
           </button>
-          <button className="admin-btn" onClick={() => navigate(`/admin/cms?site=${site}`)}>
+          <button
+            className="admin-btn"
+            onClick={() => navigate(`/admin/cms?site=${site}`)}
+          >
             CMS
           </button>
         </div>
       </div>
 
+      {/* GLAVNI PANEL */}
       <div className="admin-panel">
-        {error ? <div className="admin-error">{error}</div> : null}
-        {loading ? <div className="admin-muted">Loading...</div> : null}
+        {error ? (
+          <div className="admin-error">
+            <strong>Error:</strong> {error}
+          </div>
+        ) : null}
+
+        {loading && !data ? (
+          <div className="admin-muted">Loading…</div>
+        ) : null}
 
         {data ? (
           <>
+            {/* Header detalja */}
             <div className="admin-details-head">
               <div className="admin-details-title">
-                <div className="admin-title">{data.name || "Unknown"}</div>
+                <div className="admin-title">
+                  {data.name || "Unknown"}
+                </div>
                 <div className="admin-muted">{data.email}</div>
               </div>
 
               <div className="admin-details-meta">
-                <span className="admin-pill">{SUBMISSION_TYPES[data.type] ?? `Type ${data.type}`}</span>
-                <span className="admin-pill">{STATUSES[data.status] ?? `Status ${data.status}`}</span>
+                <span className="admin-pill">
+                  {SUBMISSION_TYPES[data.type] ??
+                    `Type ${data.type}`}
+                </span>
+                <span className="admin-pill">
+                  {STATUSES[data.status] ??
+                    `Status ${data.status}`}
+                </span>
                 <span className="admin-pill">{data.domain}</span>
-                <span className="admin-pill">{formatDate(data.createdAt)}</span>
-                <span className="admin-pill">UploadedBy {data.uploadedBy ?? "-"}</span>
+                <span className="admin-pill">
+                  {formatDate(data.createdAt)}
+                </span>
+                <span className="admin-pill">
+                  Uploaded by {data.uploadedBy ?? "-"}
+                </span>
               </div>
             </div>
 
+            {/* GRID */}
             <div className="admin-details-grid">
+              {/* Message */}
               <div className="admin-box">
                 <div className="admin-box-title">Message</div>
-                <div className="admin-box-body">{data.message || "-"}</div>
+                <div className="admin-box-body">
+                  {data.message || "-"}
+                </div>
               </div>
 
+              {/* Fields */}
               <div className="admin-box">
                 <div className="admin-box-title">Fields</div>
                 <div className="admin-kv">
                   {(data.fields ?? []).map((f, idx) => (
-                    <div key={`${f.name}-${idx}`} className="admin-kv-row">
+                    <div
+                      key={`${f.name}-${idx}`}
+                      className="admin-kv-row"
+                    >
                       <div className="admin-kv-k">{f.name}</div>
                       <div className="admin-kv-v">{f.value}</div>
                     </div>
                   ))}
-                  {(!data.fields || data.fields.length === 0) ? <div className="admin-muted">No extra fields</div> : null}
+                  {!data.fields ||
+                  data.fields.length === 0 ? (
+                    <div className="admin-muted">
+                      No extra fields
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
+              {/* Attachments */}
               <div className="admin-box">
                 <div className="admin-box-title">Attachments</div>
                 <div className="admin-files">
                   {(data.files ?? []).map((f) => (
-                    <div key={f.id} className="admin-file-row">
+                    <div
+                      key={f.id}
+                      className="admin-file-row"
+                    >
                       <div className="admin-file-info">
-                        <div className="admin-file-name">{f.fileName}</div>
-                        <div className="admin-muted">{f.contentType} {bytes(f.size)}</div>
+                        <div className="admin-file-name">
+                          {f.fileName}
+                        </div>
+                        <div className="admin-muted">
+                          {f.contentType} {bytes(f.size)}
+                        </div>
                       </div>
                       <div className="admin-file-actions">
-                        <button className="admin-btn admin-btn-ghost" onClick={() => previewFile(f.id, f.fileName, f.contentType)}>
+                        <button
+                          className="admin-btn admin-btn-ghost"
+                          onClick={() =>
+                            previewFile(
+                              f.id,
+                              f.fileName,
+                              f.contentType
+                            )
+                          }
+                        >
                           Preview
                         </button>
-                        <button className="admin-btn" onClick={() => downloadFile(f.id, f.fileName)}>
+                        <button
+                          className="admin-btn"
+                          onClick={() =>
+                            downloadFile(f.id, f.fileName)
+                          }
+                        >
                           Download
                         </button>
                       </div>
                     </div>
                   ))}
-                  {(!data.files || data.files.length === 0) ? <div className="admin-muted">No files</div> : null}
+                  {!data.files ||
+                  data.files.length === 0 ? (
+                    <div className="admin-muted">No files</div>
+                  ) : null}
                 </div>
               </div>
 
+              {/* Workflow */}
               <div className="admin-box">
                 <div className="admin-box-title">Workflow</div>
 
@@ -414,23 +556,35 @@ export default function AdminSubmissionDetails() {
                     <select
                       className="admin-select"
                       value={String(data.status)}
-                      onChange={(e) => setStatus(Number(e.target.value))}
+                      onChange={(e) =>
+                        setStatus(Number(e.target.value))
+                      }
                       disabled={lockedByDecision && isDemo}
                     >
-                      {Object.entries(STATUSES).map(([k, v]) => (
-                        <option key={k} value={k}>
-                          {v}
-                        </option>
-                      ))}
+                      {Object.entries(STATUSES).map(
+                        ([k, v]) => (
+                          <option key={k} value={k}>
+                            {v}
+                          </option>
+                        )
+                      )}
                     </select>
                   </div>
 
                   {isDemo ? (
                     <div className="admin-actions-row">
-                      <button className="admin-btn" onClick={acceptDemo} disabled={data.status === 5}>
+                      <button
+                        className="admin-btn"
+                        onClick={acceptDemo}
+                        disabled={data.status === 5}
+                      >
                         Accept
                       </button>
-                      <button className="admin-btn admin-btn-danger" onClick={rejectDemo} disabled={data.status === 6}>
+                      <button
+                        className="admin-btn admin-btn-danger"
+                        onClick={rejectDemo}
+                        disabled={data.status === 6}
+                      >
                         Reject
                       </button>
                     </div>
@@ -438,20 +592,27 @@ export default function AdminSubmissionDetails() {
 
                   {rejectionBody ? (
                     <div className="admin-box-sub">
-                      <div className="admin-muted">Auto rejection body</div>
-                      <div className="admin-textarea-readonly">{rejectionBody}</div>
+                      <div className="admin-muted">
+                        Auto rejection body
+                      </div>
+                      <div className="admin-textarea-readonly">
+                        {rejectionBody}
+                      </div>
                     </div>
                   ) : null}
                 </div>
               </div>
 
-              <div className="admin-box">
+              {/* Reply + history */}
+              <div className="admin-box admin-box--wide">
                 <div className="admin-box-title">Reply</div>
 
                 <input
                   className="admin-input"
                   value={replySubject}
-                  onChange={(e) => setReplySubject(e.target.value)}
+                  onChange={(e) =>
+                    setReplySubject(e.target.value)
+                  }
                   placeholder="Subject"
                 />
 
@@ -465,47 +626,106 @@ export default function AdminSubmissionDetails() {
                 <textarea
                   className="admin-textarea"
                   value={replyBody}
-                  onChange={(e) => setReplyBody(e.target.value)}
+                  onChange={(e) =>
+                    setReplyBody(e.target.value)
+                  }
                   placeholder="Write reply..."
                   rows={10}
                 />
 
-                <button className="admin-btn" onClick={sendReply}>
+                <button
+                  className="admin-btn"
+                  onClick={sendReply}
+                >
                   Send reply
                 </button>
 
                 <div className="admin-replies">
-                  <div className="admin-box-title">Reply history</div>
+                  <div className="admin-box-title">
+                    Reply history
+                  </div>
                   {(data.replies ?? []).map((r) => (
-                    <div key={r.id} className="admin-reply">
+                    <div
+                      key={r.id}
+                      className="admin-reply"
+                    >
                       <div className="admin-reply-top">
-                        <span className="admin-pill">{formatDate(r.createdAtUtc)}</span>
-                        <span className="admin-pill">{r.toEmail}</span>
-                        <span className="admin-pill">{r.subject}</span>
+                        <span className="admin-pill">
+                          {formatDate(r.createdAtUtc)}
+                        </span>
+                        <span className="admin-pill">
+                          {r.toEmail}
+                        </span>
+                        <span className="admin-pill">
+                          {r.subject}
+                        </span>
                       </div>
-                      <div className="admin-reply-body">{r.body}</div>
+                      <div className="admin-reply-body">
+                        {r.body}
+                      </div>
                     </div>
                   ))}
-                  {(!data.replies || data.replies.length === 0) ? <div className="admin-muted">No replies yet</div> : null}
+                  {!data.replies ||
+                  data.replies.length === 0 ? (
+                    <div className="admin-muted">
+                      No replies yet
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
 
+            {/* PREVIEW MODAL */}
             {previewUrl ? (
-              <div className="admin-modal" onClick={closePreview}>
-                <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
-                  <div className="admin-modal-head">
-                    <div className="admin-title">{previewName}</div>
-                    <button className="admin-btn admin-btn-ghost" onClick={closePreview}>
-                      Close
+              <div
+                className="admin-modal-overlay admin-modal-overlay--file"
+                onMouseDown={(e) =>
+                  e.target === e.currentTarget
+                    ? closePreview()
+                    : null
+                }
+              >
+                <div
+                  className="admin-modal admin-modal-card"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <div className="admin-modal-header">
+                    <div className="admin-modal-title">
+                      <h2>{previewName}</h2>
+                    </div>
+                    <button
+                      className="admin-modal-close"
+                      onClick={closePreview}
+                      aria-label="Close preview"
+                    >
+                      ✕
                     </button>
                   </div>
 
-                  <div className="admin-modal-body">
-                    {previewKind === "image" ? <img src={previewUrl} className="admin-preview-img" /> : null}
-                    {previewKind === "audio" ? <audio src={previewUrl} controls className="admin-preview-audio" /> : null}
-                    {previewKind === "pdf" ? <iframe src={previewUrl} className="admin-preview-pdf" /> : null}
-                    {previewKind === "other" ? <div className="admin-muted">Preview not available, use Download</div> : null}
+                  <div className="admin-modal-body admin-modal-body--preview">
+                    {previewKind === "image" ? (
+                      <img
+                        src={previewUrl}
+                        className="admin-preview-img"
+                        alt={previewName}
+                      />
+                    ) : previewKind === "audio" ? (
+                      <audio
+                        src={previewUrl}
+                        controls
+                        className="admin-preview-audio"
+                      />
+                    ) : previewKind === "pdf" ? (
+                      <iframe
+                        src={previewUrl}
+                        className="admin-preview-pdf"
+                        title={previewName}
+                      />
+                    ) : (
+                      <div className="admin-empty admin-empty--center">
+                        Preview not available, use Download.
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

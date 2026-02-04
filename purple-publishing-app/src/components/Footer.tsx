@@ -1,21 +1,22 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 
 type ContactType = "LICENSING" | "GENERAL";
 
 const Footer = () => {
-  const [contactType, setContactType] = useState<ContactType>("LICENSING");
-  const [topic, setTopic] = useState<string>("Sync request");
+  const [, ] = useState<ContactType>("LICENSING");
+  const [, ] = useState<string>("Sync request");
 
-  const topicOptions = useMemo(() => {
+  /*const topicOptions = useMemo(() => {
     return contactType === "LICENSING"
       ? ["Sync request"]
       : ["General question", "Follow-up", "Report a right issue"];
-  }, [contactType]);
+  }, [contactType]);*/
 
-  const onTypeChange = (val: ContactType) => {
+  /*const onTypeChange = (val: ContactType) => {
     setContactType(val);
     setTopic(val === "LICENSING" ? "Sync request" : "General question");
-  };
+  };*/
 
   const brands = [
     {
@@ -42,9 +43,12 @@ const Footer = () => {
     <footer className="pcp-footer" id="contact">
       <section className="pcp-footer__brands" aria-label="Brands">
         <div className="pcp-footer__brandsInner">
-          <h2 className="about-title about-title-centered">
-            OUR <span className="about-us-animated">BRANDS</span>
-          </h2>
+          <div className="services-head services-head--center">
+            <h2 className="about-title about-title-centered">
+              OUR <span className="about-us-animated">PARTNERS</span>
+            </h2>
+          </div>
+
 
           <div className="pcp-footer__brandsGrid">
             {brands.map((b) => (
@@ -73,10 +77,10 @@ const Footer = () => {
       <div className="pcp-footer__inner">
         <div className="pcp-footer__bottom">
           <div className="pcp-footer__social">
-            <a href="#" aria-label="Instagram" title="Instagram">
+            <a href="https://www.instagram.com/purplecrunchrecords?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" aria-label="Instagram" title="Instagram">
               <i className="fa-brands fa-instagram" />
             </a>
-            <a href="#" aria-label="TikTok" title="TikTok">
+            <a href="https://www.tiktok.com/@purplecrunchrecords?is_from_webapp=1&sender_device=pc" aria-label="TikTok" title="TikTok">
               <i className="fa-brands fa-tiktok" />
             </a>
             <a href="#" aria-label="Spotify" title="Spotify">
@@ -88,9 +92,9 @@ const Footer = () => {
           </div>
 
           <div className="pcp-footer__legal">
-            <a href="#">Cookie Policy</a>
-            <a href="#">Privacy Policy</a>
-            <a href="#">Terms &amp; Conditions</a>
+            <Link to="/cookie-policy">Cookie Policy</Link>
+            <Link to="/privacy-policy">Privacy Policy</Link>
+            <Link to="/terms">Terms &amp; Conditions</Link>
           </div>
         </div>
       </div>

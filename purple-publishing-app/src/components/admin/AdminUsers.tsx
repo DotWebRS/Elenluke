@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AdminShell } from "./AdminShell";
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || "http://localhost:5284";
+import { API_BASE } from "../../config/apiBase";
 
 type UserRow = {
   id: string;
@@ -11,14 +11,17 @@ type UserRow = {
   createdAt: string;
 };
 
+function buildUrl(path: string) {
+  const base = String(API_BASE || "").replace(/\/+$/, "");
+  const p = String(path || "").replace(/^\/+/, "");
+  return base ? `${base}/${p}` : `/${p}`;
+}
+
 export default function AdminUsers() {
   const token = localStorage.getItem("token");
 
   const authHeaders = useMemo<Record<string, string>>(
-    () =>
-      token
-        ? ({ Authorization: `Bearer ${token}` } as Record<string, string>)
-        : ({} as Record<string, string>),
+    () => (token ? ({ Authorization: `Bearer ${token}` } as Record<string, string>) : ({} as Record<string, string>)),
     [token]
   );
 
@@ -28,7 +31,6 @@ export default function AdminUsers() {
 
   const [users, setUsers] = useState<UserRow[]>([]);
 
-  // create form
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"Admin" | "Editor" | "Inbox">("Inbox");
@@ -37,13 +39,13 @@ export default function AdminUsers() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/users`, { headers: { ...authHeaders } });
+      const res = await fetch(buildUrl(`/api/users`), { headers: { ...authHeaders } });
       if (!res.ok) {
         const t = await res.text().catch(() => "");
         setError(`Users error: ${res.status}${t ? ` — ${t}` : ""}`);
         return;
       }
-      const json = await res.json();
+      const json = await res.json().catch(() => null as any);
       setUsers(Array.isArray(json) ? json : []);
     } catch (e: any) {
       setError(e?.message || "Users error");
@@ -54,21 +56,20 @@ export default function AdminUsers() {
 
   useEffect(() => {
     fetchUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const createUser = async () => {
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/users`, {
+      const res = await fetch(buildUrl(`/api/users`), {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
           password,
           role,
-          isActive: true // auto enabled
-        })
+          isActive: true,
+        }),
       });
 
       if (!res.ok) {
@@ -77,8 +78,8 @@ export default function AdminUsers() {
         return;
       }
 
-      const created: UserRow = await res.json();
-      setUsers((prev) => [created, ...prev]);
+      const created: UserRow = await res.json().catch(() => null as any);
+      if (created) setUsers((prev) => [created, ...prev]);
 
       setEmail("");
       setPassword("");
@@ -88,18 +89,14 @@ export default function AdminUsers() {
     }
   };
 
-  // koristi PUT /api/users/{id} za role i active
-  const updateUser = async (
-    id: string,
-    patch: Partial<{ role: string; isActive: boolean }>
-  ) => {
+  const updateUser = async (id: string, patch: Partial<{ role: string; isActive: boolean }>) => {
     setError(null);
     setBusyId(id);
     try {
-      const res = await fetch(`${API_BASE}/api/users/${id}`, {
+      const res = await fetch(buildUrl(`/api/users/${id}`), {
         method: "PUT",
         headers: { ...authHeaders, "Content-Type": "application/json" },
-        body: JSON.stringify(patch)
+        body: JSON.stringify(patch),
       });
 
       if (!res.ok) {
@@ -108,8 +105,8 @@ export default function AdminUsers() {
         return;
       }
 
-      const updated: UserRow = await res.json();
-      setUsers((prev) => prev.map((u) => (u.id === id ? updated : u)));
+      const updated: UserRow = await res.json().catch(() => null as any);
+      if (updated) setUsers((prev) => prev.map((u) => (u.id === id ? updated : u)));
     } catch (e: any) {
       setError(e?.message || "Update error");
     } finally {
@@ -124,9 +121,9 @@ export default function AdminUsers() {
     setError(null);
     setBusyId(id);
     try {
-      const res = await fetch(`${API_BASE}/api/users/${id}`, {
+      const res = await fetch(buildUrl(`/api/users/${id}`), {
         method: "DELETE",
-        headers: { ...authHeaders }
+        headers: { ...authHeaders },
       });
 
       if (!res.ok) {
@@ -146,7 +143,6 @@ export default function AdminUsers() {
   return (
     <AdminShell title="Admin Users">
       <div className="admin-main">
-        {/* samo create bar gore */}
         <div className="admin-toolbar admin-toolbar-users">
           <input
             className="admin-input"
@@ -163,21 +159,13 @@ export default function AdminUsers() {
             onChange={(e) => setPassword(e.target.value)}
           />
 
-          <select
-            className="admin-select"
-            value={role}
-            onChange={(e) => setRole(e.target.value as any)}
-          >
+          <select className="admin-select" value={role} onChange={(e) => setRole(e.target.value as any)}>
             <option value="Admin">Admin</option>
             <option value="Editor">Editor</option>
             <option value="Inbox">Inbox</option>
           </select>
 
-          <button
-            className="admin-btn admin-btn-primary"
-            onClick={createUser}
-            disabled={!email || !password}
-          >
+          <button className="admin-btn admin-btn-primary" onClick={createUser} disabled={!email || !password}>
             Create (auto enable)
           </button>
         </div>
@@ -278,7 +266,7 @@ export default function AdminUsers() {
                             hardDeleteUser(u.id);
                           }}
                         >
-                         <i className="fa fa-trash" aria-hidden="true"></i>
+                          <i className="fa fa-trash" aria-hidden="true"></i>
                         </button>
                       </div>
                     </td>
