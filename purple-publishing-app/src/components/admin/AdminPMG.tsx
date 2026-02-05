@@ -374,6 +374,14 @@ export default function AdminPMG() {
           </div>
 
           <div className="cms-actions">
+            <button
+              className="cms-btn cms-btn--primary"
+              onClick={() => navigate(`/admin/submissions?site=${encodeURIComponent(site)}`)}
+              type="button"
+            >
+              Back
+            </button>
+
             <select
               className="cms-select"
               value={site}
@@ -404,6 +412,7 @@ export default function AdminPMG() {
               {saving ? "Saving…" : "Save all"}
             </button>
           </div>
+
 
           {msg && (
             <div className={`cms-headerToast ${msg.kind === "ok" ? "is-ok" : "is-err"}`}>

@@ -7,5 +7,6 @@ public enum SubmissionStatus
     InProgress = 3,
     Done = 4,
     Accepted = 5,
-    Rejected = 6
+    Rejected = 6,
+    UnderReview = 7
 }

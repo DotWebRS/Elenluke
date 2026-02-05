@@ -1338,3 +1338,150 @@
 
 /**********************************details*/
 
+.subm-tag {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+  border: 1px solid rgba(0,0,0,.12);
+  background: rgba(255,255,255,.75);
+}
+
+.subm-tag--review {
+  border-color: rgba(138,79,255,.35);
+  background: rgba(138,79,255,.10);
+  color: #4b0082;
+}
+
+.subm-type { display: inline-flex; align-items: center; gap: 8px; }
+
+.subm-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+  border: 1px solid rgba(0,0,0,.12);
+  background: rgba(255,255,255,.75);
+}
+
+.subm-tag--review {
+  border-color: rgba(138,79,255,.35);
+  background: rgba(138,79,255,.10);
+  color: #4b0082;
+}
+
+/* Tabs (Active / Archived) — drop into your Admin css */
+
+/* wrapper (optional) */
+.admin-tabs {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* base button */
+.admin-tab-btn {
+  height: 36px;              /* same height */
+  min-width: 110px;          /* same width */
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(17, 24, 39, 0.14);
+  background: #ffffff;
+  color: #111827;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+
+.admin-tab-btn:hover {
+  border-color: rgba(17, 24, 39, 0.22);
+  box-shadow: 0 1px 0 rgba(17, 24, 39, 0.04);
+}
+
+.admin-tab-btn:active {
+  transform: translateY(1px);
+}
+
+.admin-tab-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* active state */
+.admin-tab-btn.is-active {
+  background: #111827;
+  border-color: #111827;
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.18);
+}
+
+/* focus for keyboard */
+.admin-tab-btn:focus-visible {
+  outline: 3px solid rgba(59, 130, 246, 0.35);
+  outline-offset: 2px;
+}
+
+/* optional: small pill count */
+.admin-tab-count {
+  font-weight: 700;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.08);
+  color: rgba(17, 24, 39, 0.8);
+}
+
+.admin-tab-btn.is-active .admin-tab-count {
+  background: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+/* Under review badge/tag */
+.subm-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 18px;
+  padding: 0 8px;
+  margin-left: 8px;
+
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.2px;
+
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.subm-tag--review {
+  background: rgba(245, 158, 11, 0.14);   /* amber-ish */
+  border-color: rgba(245, 158, 11, 0.30);
+  color: rgba(146, 64, 14, 0.95);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.12);
+}
+
+/* opcioni mali "dot" levo */
+.subm-tag--review::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  margin-right: 6px;
+  background: rgba(245, 158, 11, 0.95);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+}

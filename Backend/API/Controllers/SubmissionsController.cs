@@ -88,6 +88,7 @@ public class SubmissionsController : ControllerBase
             return age;
         }
 
+        // minors checks
         if (type == SubmissionType.SongwriterInformation)
         {
             var fullLegalName = Get(dict, "fullLegalName");
@@ -138,6 +139,7 @@ public class SubmissionsController : ControllerBase
             }
         }
 
+        // Demo upload checks
         if (type == SubmissionType.DemoUpload)
         {
             if (form.Files == null || form.Files.Count == 0)
@@ -163,13 +165,10 @@ public class SubmissionsController : ControllerBase
 
             static bool IsAllowedUpload(IFormFile f) => IsWav(f) || IsAllowedImage(f);
 
-            if (form.Files != null && form.Files.Count > 0)
+            foreach (var f in form.Files)
             {
-                foreach (var f in form.Files)
-                {
-                    if (!IsAllowedUpload(f))
-                        return BadRequest("Only .wav and image files (png/jpg/jpeg) are allowed.");
-                }
+                if (!IsAllowedUpload(f))
+                    return BadRequest("Only .wav and image files (png/jpg/jpeg) are allowed.");
             }
         }
 
@@ -188,7 +187,6 @@ public class SubmissionsController : ControllerBase
         _db.Submissions.Add(submission);
 
         var fieldsToInsert = new List<SubmissionField>();
-
         foreach (var kv in dict)
         {
             var key = (kv.Key ?? "").Trim();
@@ -204,8 +202,14 @@ public class SubmissionsController : ControllerBase
         }
 
         if (fieldsToInsert.Count > 0)
-        {
             _db.SubmissionFields.AddRange(fieldsToInsert);
+
+        // sanitize file names for Windows
+        static string SanitizeFileName(string name)
+        {
+            name ??= "";
+            var invalid = Path.GetInvalidFileNameChars();
+            return new string(name.Where(ch => !invalid.Contains(ch)).ToArray());
         }
 
         if (form.Files != null && form.Files.Count > 0)
@@ -218,11 +222,14 @@ public class SubmissionsController : ControllerBase
                 if (file.Length <= 0) continue;
 
                 var ext = Path.GetExtension(file.FileName ?? "").ToLowerInvariant();
-                var safeName = Path.GetFileNameWithoutExtension(file.FileName ?? "");
-                if (string.IsNullOrWhiteSpace(safeName))
-                    safeName = "upload";
 
-                var newName = $"{safeName}_{Guid.NewGuid():N}{ext}";
+                var baseName = Path.GetFileNameWithoutExtension(file.FileName ?? "");
+                baseName = SanitizeFileName(baseName);
+
+                if (string.IsNullOrWhiteSpace(baseName))
+                    baseName = "upload";
+
+                var newName = $"{baseName}_{Guid.NewGuid():N}{ext}";
                 var filePath = Path.Combine(uploadsRoot, newName);
 
                 using (var stream = System.IO.File.Create(filePath))
@@ -242,7 +249,6 @@ public class SubmissionsController : ControllerBase
             }
         }
 
-        // AUDIT: kreiranje prijave (public user)
         _db.AuditLogs.Add(new AuditLog
         {
             Id = Guid.NewGuid(),
@@ -266,13 +272,12 @@ public class SubmissionsController : ControllerBase
                 var body = BuildInternalBody(submission, dict);
 
                 foreach (var r in recipients)
-                {
                     await _email.SendAsync(r, subject, body);
-                }
             }
         }
         catch
         {
+            // ignore notification failures
         }
 
         return Ok(new { submission.Id, submission.Type, submission.Status });
@@ -289,7 +294,8 @@ public class SubmissionsController : ControllerBase
         [FromQuery] DateTime? to,
         [FromQuery] bool? hasFile,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50)
+        [FromQuery] int pageSize = 50,
+        [FromQuery] bool? archived = null)
     {
         if (page < 1) page = 1;
         if (pageSize < 1) pageSize = 50;
@@ -313,14 +319,10 @@ public class SubmissionsController : ControllerBase
         }
 
         if (status.HasValue)
-        {
             q = q.Where(x => x.Status == status.Value);
-        }
 
         if (type.HasValue)
-        {
             q = q.Where(x => x.Type == type.Value);
-        }
 
         if (from.HasValue)
         {
@@ -343,7 +345,7 @@ public class SubmissionsController : ControllerBase
             if (hasFile.Value)
             {
                 q = q.Join(submitIdsWithFiles.Where(x => x.Count > 0),
-                        s => s.Id, f => f.Key, (s, _) => s);
+                    s => s.Id, f => f.Key, (s, _) => s);
             }
             else
             {
@@ -354,6 +356,12 @@ public class SubmissionsController : ControllerBase
                     .Where(x => x.f == null || x.f.Count == 0)
                     .Select(x => x.s);
             }
+        }
+
+        // archived filter:
+        if (archived.HasValue)
+        {
+            q = q.Where(x => x.IsArchived == archived.Value);
         }
 
         var total = await q.CountAsync();
@@ -393,6 +401,8 @@ public class SubmissionsController : ControllerBase
             s.Message,
             s.UploadedBy,
             s.CreatedAt,
+            isArchived = s.IsArchived,
+            archivedAtUtc = s.ArchivedAtUtc,
             repliesCount = replyMap.TryGetValue(s.Id, out var c) ? c : 0,
             fields = fields.Where(f => f.SubmissionId == s.Id).Select(f => new { f.Name, f.Value }),
             files = files.Where(f => f.SubmissionId == s.Id).Select(f => new { f.Id, f.FileName, f.ContentType, f.Size })
@@ -401,11 +411,75 @@ public class SubmissionsController : ControllerBase
         return Ok(new { totalCount = total, page, pageSize, items });
     }
 
+    [HttpPut("{id:guid}/archive")]
+    [Authorize(Roles = "Admin,Inbox")]
+    public async Task<IActionResult> Archive([FromRoute] Guid id)
+    {
+        var s = await _db.Submissions.FirstOrDefaultAsync(x => x.Id == id);
+        if (s == null) return NotFound();
+
+        if (!s.IsArchived)
+        {
+            s.IsArchived = true;
+            s.ArchivedAtUtc = DateTime.UtcNow;
+
+            var email = User?.Identity?.Name ?? User?.FindFirst("email")?.Value ?? "";
+
+            _db.AuditLogs.Add(new AuditLog
+            {
+                Id = Guid.NewGuid(),
+                CreatedAtUtc = DateTime.UtcNow,
+                UserEmail = email,
+                Action = "SUBMISSION_ARCHIVE",
+                EntityType = "Submission",
+                EntityId = id.ToString(),
+                Details = "Archived"
+            });
+
+            await _db.SaveChangesAsync();
+        }
+
+        return Ok(new { s.Id, s.IsArchived, s.ArchivedAtUtc });
+    }
+
+    [HttpPut("{id:guid}/unarchive")]
+    [Authorize(Roles = "Admin,Inbox")]
+    public async Task<IActionResult> Unarchive([FromRoute] Guid id)
+    {
+        var s = await _db.Submissions.FirstOrDefaultAsync(x => x.Id == id);
+        if (s == null) return NotFound();
+
+        if (s.IsArchived)
+        {
+            s.IsArchived = false;
+            s.ArchivedAtUtc = null;
+
+            var email = User?.Identity?.Name ?? User?.FindFirst("email")?.Value ?? "";
+
+            _db.AuditLogs.Add(new AuditLog
+            {
+                Id = Guid.NewGuid(),
+                CreatedAtUtc = DateTime.UtcNow,
+                UserEmail = email,
+                Action = "SUBMISSION_UNARCHIVE",
+                EntityType = "Submission",
+                EntityId = id.ToString(),
+                Details = "Unarchived"
+            });
+
+            await _db.SaveChangesAsync();
+        }
+
+        return Ok(new { s.Id, s.IsArchived, s.ArchivedAtUtc });
+    }
+
     [HttpGet("{id:guid}")]
     [Authorize(Roles = "Admin,Inbox")]
     public async Task<IActionResult> GetOne([FromRoute] Guid id)
     {
-        var s = await _db.Submissions.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+        var s = await _db.Submissions.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id);
+
         if (s == null) return NotFound();
 
         var fields = await _db.SubmissionFields.AsNoTracking()
@@ -435,6 +509,8 @@ public class SubmissionsController : ControllerBase
             s.Message,
             s.UploadedBy,
             s.CreatedAt,
+            isArchived = s.IsArchived,
+            archivedAtUtc = s.ArchivedAtUtc,
             fields,
             files,
             replies
@@ -472,7 +548,6 @@ public class SubmissionsController : ControllerBase
 
         var sb = new StringBuilder();
 
-        // Sekcija 1: osnovni podaci
         sb.AppendLine("Section,Key,Value");
         sb.AppendLine($"Submission,Id,{Csv(s.Id.ToString())}");
         sb.AppendLine($"Submission,CreatedAt,{Csv(s.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss"))}");
@@ -485,23 +560,16 @@ public class SubmissionsController : ControllerBase
         sb.AppendLine($"Submission,Message,{Csv(s.Message)}");
         sb.AppendLine();
 
-     
         sb.AppendLine("Section,FieldName,FieldValue");
         foreach (var f in fields)
-        {
             sb.AppendLine($"Field,{Csv(f.Name)},{Csv(f.Value)}");
-        }
         sb.AppendLine();
 
-       
         sb.AppendLine("Section,FileName,ContentType,SizeBytes");
         foreach (var f in files)
-        {
             sb.AppendLine($"File,{Csv(f.FileName)},{Csv(f.ContentType)},{Csv(f.Size.ToString())}");
-        }
         sb.AppendLine();
 
-      
         sb.AppendLine("Section,ToEmail,Subject,Body,SentAt,SentBy");
         foreach (var r in replies)
         {
@@ -521,9 +589,9 @@ public class SubmissionsController : ControllerBase
         var utf8WithBom = new UTF8Encoding(true);
         var bytes = utf8WithBom.GetBytes(sb.ToString());
 
-        return File(bytes, "text/csv", $"submission_{id:yyyyMMddHHmmss}.csv");
+        // FIX: filename (guid is guid, not date)
+        return File(bytes, "text/csv", $"submission_{id}_{DateTime.UtcNow:yyyyMMddHHmmss}.csv");
     }
-
 
     [HttpPut("{id:guid}/status")]
     [Authorize(Roles = "Admin,Inbox")]
@@ -532,14 +600,24 @@ public class SubmissionsController : ControllerBase
         var s = await _db.Submissions.FirstOrDefaultAsync(x => x.Id == id);
         if (s == null) return NotFound();
 
+        if (s.Status == SubmissionStatus.Accepted || s.Status == SubmissionStatus.Rejected)
+            return BadRequest("Cannot change status after Accept/Reject.");
+
         if (req.Status != SubmissionStatus.Unread &&
             req.Status != SubmissionStatus.Read &&
             req.Status != SubmissionStatus.InProgress &&
-            req.Status != SubmissionStatus.Done)
-            return BadRequest("Status must be Unread, Read, InProgress, or Done.");
+            req.Status != SubmissionStatus.Done &&
+            req.Status != SubmissionStatus.UnderReview)
+        {
+            return BadRequest("Status must be Unread, Read, InProgress, Done, or UnderReview.");
+        }
 
-        if (s.Status == SubmissionStatus.Accepted || s.Status == SubmissionStatus.Rejected)
-            return BadRequest("Cannot change status after Accept/Reject.");
+        if (req.Status == SubmissionStatus.UnderReview &&
+            s.Type != SubmissionType.DemoUpload &&
+            s.Type != SubmissionType.SyncRequest)
+        {
+            return BadRequest("UnderReview is allowed only for Demo and Sync requests.");
+        }
 
         s.Status = req.Status;
 
@@ -625,7 +703,6 @@ public class SubmissionsController : ControllerBase
         if (!System.IO.File.Exists(file.FilePath))
             return NotFound("File not found.");
 
-        // AUDIT DOWNLOAD
         var email = User?.Identity?.Name ?? User?.FindFirst("email")?.Value ?? "";
 
         _db.AuditLogs.Add(new AuditLog
@@ -644,7 +721,6 @@ public class SubmissionsController : ControllerBase
         var bytes = await System.IO.File.ReadAllBytesAsync(file.FilePath);
         return File(bytes, file.ContentType, file.FileName);
     }
-
 
     [HttpDelete("{id:guid}")]
     [Authorize(Roles = "Admin")]
@@ -684,9 +760,7 @@ public class SubmissionsController : ControllerBase
                 if (System.IO.File.Exists(f.FilePath))
                     System.IO.File.Delete(f.FilePath);
             }
-            catch
-            {
-            }
+            catch { }
         }
 
         return Ok();
@@ -745,14 +819,10 @@ public class SubmissionsController : ControllerBase
         var trackTitle = GetField("trackTitle");
 
         if (string.IsNullOrWhiteSpace(artistName))
-        {
             artistName = s.Name;
-        }
 
         if (string.IsNullOrWhiteSpace(trackTitle))
-        {
             trackTitle = "your track";
-        }
 
         var body =
 $@"Hi {artistName},
@@ -797,6 +867,7 @@ Your Purple Crunch Records Team";
         return Ok(new { body });
     }
 
+    // keeping this endpoint even if you said "skip exporting"
     [HttpGet("export")]
     [Authorize(Roles = "Admin,Inbox")]
     public async Task<IActionResult> Export(
@@ -826,14 +897,10 @@ Your Purple Crunch Records Team";
         }
 
         if (status.HasValue)
-        {
             q = q.Where(x => x.Status == status.Value);
-        }
 
         if (type.HasValue)
-        {
             q = q.Where(x => x.Type == type.Value);
-        }
 
         if (from.HasValue)
         {
@@ -856,7 +923,7 @@ Your Purple Crunch Records Team";
             if (hasFile.Value)
             {
                 q = q.Join(submitIdsWithFiles.Where(x => x.Count > 0),
-                        s => s.Id, f => f.Key, (s, _) => s);
+                    s => s.Id, f => f.Key, (s, _) => s);
             }
             else
             {
@@ -888,7 +955,6 @@ Your Purple Crunch Records Team";
         }
 
         var sb = new StringBuilder();
-
         sb.AppendLine("Id,CreatedAt,Type,Status,Domain,Name,Email,UploadedBy,Message,FilesCount");
 
         foreach (var s in list)
@@ -913,7 +979,7 @@ Your Purple Crunch Records Team";
             sb.Append(',');
             sb.Append(Csv(s.Message));
             sb.Append(',');
-            sb.Append(Csv((count).ToString()));
+            sb.Append(Csv(count.ToString()));
             sb.AppendLine();
         }
 
@@ -988,9 +1054,7 @@ Your Purple Crunch Records Team";
         {
             sb.AppendLine("Fields:");
             foreach (var kv in dict)
-            {
                 sb.AppendLine($"- {kv.Key}: {kv.Value}");
-            }
             sb.AppendLine();
         }
 

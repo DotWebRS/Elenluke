@@ -4,6 +4,7 @@ import { useAdminSite } from "./useAdminSite";
 import { API_BASE } from "../../config/apiBase";
 import "../../styles/AdminSubmissionsModal.css";
 import * as XLSX from "xlsx";
+
 // -------------------- ENUM-LIKE KONSTANTE --------------------
 
 const SubmissionTypeId = {
@@ -21,6 +22,7 @@ const SubmissionStatusId = {
   Read: 2,
   InProgress: 3,
   Done: 4,
+  UnderReview: 7, 
   Accepted: 5,
   Rejected: 6,
 } as const;
@@ -42,10 +44,12 @@ const STATUS_FILTER_VALUES: SubmissionStatusId[] = [
   SubmissionStatusId.Unread,
   SubmissionStatusId.Read,
   SubmissionStatusId.InProgress,
+  SubmissionStatusId.UnderReview, // <-- dodaj
   SubmissionStatusId.Done,
   SubmissionStatusId.Accepted,
   SubmissionStatusId.Rejected,
 ];
+
 
 // -------------------- TIPOVI PODATAKA --------------------
 
@@ -74,6 +78,10 @@ type SubmissionListItem = {
   repliesCount: number;
   fields: SubmissionField[];
   files: SubmissionFile[];
+
+  // dodato (backend vec vraca)
+  isArchived?: boolean;
+  archivedAtUtc?: string | null;
 };
 
 type SubmissionReply = {
@@ -97,6 +105,10 @@ type SubmissionDetail = {
   fields: SubmissionField[];
   files: SubmissionFile[];
   replies: SubmissionReply[];
+
+  // dodato (backend vec vraca)
+  isArchived?: boolean;
+  archivedAtUtc?: string | null;
 };
 
 type ListResponse = {
@@ -105,6 +117,7 @@ type ListResponse = {
 };
 
 type FilterHasFile = "all" | "yes" | "no";
+type ArchiveTab = "active" | "archived";
 
 // -------------------- POMOĆNE FUNKCIJE --------------------
 
@@ -143,6 +156,8 @@ function statusLabel(s: SubmissionStatusId) {
       return "Accepted";
     case SubmissionStatusId.Rejected:
       return "Rejected";
+    case SubmissionStatusId.UnderReview:
+      return "Under review";
     default:
       return String(s);
   }
@@ -162,9 +177,20 @@ function statusBadgeClass(s: SubmissionStatusId) {
       return "badge-accepted";
     case SubmissionStatusId.Rejected:
       return "badge-rejected";
+    case SubmissionStatusId.UnderReview:
+      return "badge-review";
     default:
       return "";
   }
+}
+
+function isDemoOrSync(t: SubmissionTypeId) {
+  return t === SubmissionTypeId.DemoUpload || t === SubmissionTypeId.SyncRequest;
+}
+
+function showUnderReview(t: SubmissionTypeId, s: SubmissionStatusId) {
+  if (!isDemoOrSync(t)) return false;
+  return s === SubmissionStatusId.Unread || s === SubmissionStatusId.Read || s === SubmissionStatusId.InProgress;
 }
 
 function buildUrl(path: string) {
@@ -229,15 +255,14 @@ function buildDemoRejectionTemplate(detail: SubmissionDetail) {
   );
 }
 
-function isImageContentType(contentType: string) {
-  return (contentType || "").toLowerCase().startsWith("image/");
-}
-
 // --------------------------- KOMPONENTA ---------------------------
 
 export function AdminSubmissions() {
   const authHeaders = useAuthHeaders();
   const { site } = useAdminSite();
+
+  // TAB: po difoltu Archived
+  const [archiveTab, setArchiveTab] = useState<ArchiveTab>("archived");
 
   const [page, setPage] = useState(1);
   const pageSize = 50;
@@ -294,6 +319,9 @@ export function AdminSubmissions() {
     qs.set("pageSize", String(pageSize));
     if (site) qs.set("site", site);
 
+    // ključ: backend param "archived"
+    qs.set("archived", archiveTab === "archived" ? "true" : "false");
+
     if (search.trim()) qs.set("search", search.trim());
     if (typeFilter !== "all") qs.set("type", String(typeFilter));
     if (statusFilter !== "all") qs.set("status", String(statusFilter));
@@ -328,7 +356,7 @@ export function AdminSubmissions() {
 
       const json = await res.json().catch(() => null);
       setData({
-        total: Number(json?.total ?? 0),
+        total: Number(json?.totalCount ?? json?.total ?? 0),
         items: Array.isArray(json?.items) ? json.items : [],
       });
     } catch (e: any) {
@@ -344,7 +372,7 @@ export function AdminSubmissions() {
     fetchList();
     return () => listAbortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, typeFilter, statusFilter, hasFile, fromDate, toDate, search, site]);
+  }, [page, typeFilter, statusFilter, hasFile, fromDate, toDate, search, site, archiveTab]);
 
   const openSubmission = async (id: string) => {
     setOpenId(id);
@@ -444,6 +472,91 @@ export function AdminSubmissions() {
     }
   };
 
+  // ---------- ARCHIVE / UNARCHIVE (novo) ----------
+
+  const patchArchiveLocal = (id: string, isArchived: boolean, archivedAtUtc?: string | null) => {
+    setData((prev) => ({
+      ...prev,
+      items: (prev.items || []).map((s) => (s.id === id ? { ...s, isArchived, archivedAtUtc: archivedAtUtc ?? s.archivedAtUtc } : s)),
+    }));
+    setDetail((prev) => (prev && prev.id === id ? { ...prev, isArchived, archivedAtUtc: archivedAtUtc ?? prev.archivedAtUtc } : prev));
+  };
+
+  const archiveSubmission = async (id: string) => {
+    setError(null);
+    setBusyRow(id);
+    try {
+      const res = await fetch(buildUrl(`/api/submissions/${id}/archive`), {
+        method: "PUT",
+        headers: { ...authHeaders },
+      });
+
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        setError(`Archive error: ${res.status}${t ? ` — ${t}` : ""}`);
+        return;
+      }
+
+      const json = await res.json().catch(() => null);
+      const archivedAt = json?.archivedAtUtc ?? null;
+
+      // Ako si u Active tabu, ukloni iz liste (jer je sad arhivirano)
+      if (archiveTab === "active") {
+        setData((prev) => ({
+          ...prev,
+          items: (prev.items || []).filter((s) => s.id !== id),
+          total: Math.max(0, (prev.total || 0) - 1),
+        }));
+      } else {
+        patchArchiveLocal(id, true, archivedAt);
+      }
+
+      if (detail?.id === id) {
+        patchArchiveLocal(id, true, archivedAt);
+      }
+    } catch (e: any) {
+      setError(e?.message || "Archive error");
+    } finally {
+      setBusyRow(null);
+    }
+  };
+
+  const unarchiveSubmission = async (id: string) => {
+    setError(null);
+    setBusyRow(id);
+    try {
+      const res = await fetch(buildUrl(`/api/submissions/${id}/unarchive`), {
+        method: "PUT",
+        headers: { ...authHeaders },
+      });
+
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        setError(`Unarchive error: ${res.status}${t ? ` — ${t}` : ""}`);
+        return;
+      }
+
+      // Ako si u Archived tabu, ukloni iz liste (jer je sad aktivno)
+      if (archiveTab === "archived") {
+        setData((prev) => ({
+          ...prev,
+          items: (prev.items || []).filter((s) => s.id !== id),
+          total: Math.max(0, (prev.total || 0) - 1),
+        }));
+      } else {
+        patchArchiveLocal(id, false, null);
+      }
+
+      if (detail?.id === id) {
+        patchArchiveLocal(id, false, null);
+      }
+    } catch (e: any) {
+      setError(e?.message || "Unarchive error");
+    } finally {
+      setBusyRow(null);
+    }
+  };
+
   const fetchFileBlob = async (submissionId: string, fileId: string) => {
     return await fetchBlob(buildUrl(`/api/submissions/${submissionId}/files/${fileId}/download`), {
       headers: { ...authHeaders },
@@ -489,69 +602,74 @@ export function AdminSubmissions() {
     }
   };
 
-const exportOneExcel = () => {
-  if (!detail) return;
+  const exportOneExcel = () => {
+    if (!detail) return;
 
-  const safeId = (detail.id || "submission").replace(/[^\w\-]+/g, "_");
+    const safeId = (detail.id || "submission").replace(/[^\w\-]+/g, "_");
 
-  // 1) Overview sheet (jedan red)
-  const overviewRow = {
-    Id: detail.id,
-    Type: typeLabel(detail.type),
-    Status: statusLabel(detail.status),
-    Domain: detail.domain,
-    Name: detail.name,
-    Email: detail.email,
-    UploadedBy: detail.uploadedBy || "",
-    CreatedAt: detail.createdAt,
-    Message: detail.message || "",
-    FilesCount: (detail.files || []).length,
-    FieldsCount: (detail.fields || []).length,
-    RepliesCount: (detail.replies || []).length,
+    // 1) Overview sheet (jedan red)
+    const overviewRow = {
+      Id: detail.id,
+      Type: typeLabel(detail.type),
+      Status: statusLabel(detail.status),
+      Domain: detail.domain,
+      Name: detail.name,
+      Email: detail.email,
+      UploadedBy: detail.uploadedBy || "",
+      CreatedAt: detail.createdAt,
+      Message: detail.message || "",
+      IsArchived: detail.isArchived ? "Yes" : "No",
+      ArchivedAtUtc: detail.archivedAtUtc || "",
+      FilesCount: (detail.files || []).length,
+      FieldsCount: (detail.fields || []).length,
+      RepliesCount: (detail.replies || []).length,
+    };
+
+    const wsOverview = XLSX.utils.json_to_sheet([overviewRow]);
+
+    const fieldsRows = (detail.fields || []).map((f) => ({
+      SubmissionId: detail.id,
+      FieldName: f.name,
+      FieldValue: f.value,
+    }));
+    const wsFields = XLSX.utils.json_to_sheet(
+      fieldsRows.length ? fieldsRows : [{ SubmissionId: detail.id, FieldName: "", FieldValue: "" }]
+    );
+
+    const filesRows = (detail.files || []).map((f) => ({
+      SubmissionId: detail.id,
+      FileId: f.id,
+      FileName: f.fileName,
+      ContentType: f.contentType,
+      SizeBytes: f.size,
+      SizeMB: Number((f.size / 1024 / 1024).toFixed(2)),
+    }));
+    const wsFiles = XLSX.utils.json_to_sheet(
+      filesRows.length
+        ? filesRows
+        : [{ SubmissionId: detail.id, FileId: "", FileName: "", ContentType: "", SizeBytes: "", SizeMB: "" }]
+    );
+
+    const repliesRows = (detail.replies || []).map((r) => ({
+      SubmissionId: detail.id,
+      ReplyId: r.id,
+      ToEmail: r.toEmail,
+      Subject: r.subject,
+      SentAt: r.sentAt,
+      Body: r.body,
+    }));
+    const wsReplies = XLSX.utils.json_to_sheet(
+      repliesRows.length ? repliesRows : [{ SubmissionId: detail.id, ReplyId: "", ToEmail: "", Subject: "", SentAt: "", Body: "" }]
+    );
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, wsOverview, "Overview");
+    XLSX.utils.book_append_sheet(wb, wsFields, "Fields");
+    XLSX.utils.book_append_sheet(wb, wsFiles, "Files");
+    XLSX.utils.book_append_sheet(wb, wsReplies, "Replies");
+
+    XLSX.writeFile(wb, `submission_${safeId}.xlsx`);
   };
-
-  const wsOverview = XLSX.utils.json_to_sheet([overviewRow]);
-
- 
-  const fieldsRows = (detail.fields || []).map((f) => ({
-    SubmissionId: detail.id,
-    FieldName: f.name,
-    FieldValue: f.value,
-  }));
-  const wsFields = XLSX.utils.json_to_sheet(fieldsRows.length ? fieldsRows : [{ SubmissionId: detail.id, FieldName: "", FieldValue: "" }]);
-
-  
-  const filesRows = (detail.files || []).map((f) => ({
-    SubmissionId: detail.id,
-    FileId: f.id,
-    FileName: f.fileName,
-    ContentType: f.contentType,
-    SizeBytes: f.size,
-    SizeMB: Number((f.size / 1024 / 1024).toFixed(2)),
-  }));
-  const wsFiles = XLSX.utils.json_to_sheet(filesRows.length ? filesRows : [{ SubmissionId: detail.id, FileId: "", FileName: "", ContentType: "", SizeBytes: "", SizeMB: "" }]);
-
- 
-  const repliesRows = (detail.replies || []).map((r) => ({
-    SubmissionId: detail.id,
-    ReplyId: r.id,
-    ToEmail: r.toEmail,
-    Subject: r.subject,
-    SentAt: r.sentAt,
-    Body: r.body,
-  }));
-  const wsReplies = XLSX.utils.json_to_sheet(repliesRows.length ? repliesRows : [{ SubmissionId: detail.id, ReplyId: "", ToEmail: "", Subject: "", SentAt: "", Body: "" }]);
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, wsOverview, "Overview");
-  XLSX.utils.book_append_sheet(wb, wsFields, "Fields");
-  XLSX.utils.book_append_sheet(wb, wsFiles, "Files");
-  XLSX.utils.book_append_sheet(wb, wsReplies, "Replies");
-
-  // download
-  XLSX.writeFile(wb, `submission_${safeId}.xlsx`);
-};
-
 
   const acceptDemo = async () => {
     if (!detail) return;
@@ -632,7 +750,7 @@ const exportOneExcel = () => {
   const canPrev = page > 1;
   const canNext = page < totalPages;
 
-  // ------------------ LIST UI (NE DIRAMO) ------------------
+  // ------------------ LIST UI (NE DIRAMO, samo dodajemo tab) ------------------
 
   return (
     <AdminShell title="Admin Inbox" active="submissions">
@@ -649,6 +767,34 @@ const exportOneExcel = () => {
             <strong>Error:</strong> {error}
           </div>
         ) : null}
+
+        {/* TAB BAR (NOVO) */}
+        <div className="admin-filters-row" style={{ marginBottom: 10 }}>
+          <div className="admin-filters-main" style={{ gap: 10 }}>
+            <div className="admin-table-actions" style={{ display: "flex", gap: 8 }}>
+              <div className="admin-tabs">
+  <button
+    className={`admin-tab-btn ${archiveTab === "active" ? "is-active" : ""}`}
+    onClick={() => { setPage(1); setArchiveTab("active"); }}
+  >
+    Active
+  </button>
+
+  <button
+    className={`admin-tab-btn ${archiveTab === "archived" ? "is-active" : ""}`}
+    onClick={() => { setPage(1); setArchiveTab("archived"); }}
+  >
+    Archived
+  </button>
+</div>
+
+            </div>
+
+            <div style={{ opacity: 0.75, fontSize: 13 }}>
+              Showing: <strong>{archiveTab === "archived" ? "Archived" : "Active"}</strong>
+            </div>
+          </div>
+        </div>
 
         {/* FILTER BAR */}
         <div className="admin-filters-row">
@@ -769,7 +915,12 @@ const exportOneExcel = () => {
               {(visibleItems ?? []).map((s) => (
                 <tr key={s.id} className="admin-row" onClick={() => openSubmission(s.id)}>
                   <td>{new Date(s.createdAt).toLocaleString()}</td>
-                  <td>{typeLabel(s.type)}</td>
+                  <td>
+                    <span className="subm-type">
+                      {typeLabel(s.type)}
+                      {showUnderReview(s.type, s.status) ? <span className="subm-tag subm-tag--review">Under review</span> : null}
+                    </span>
+                  </td>
                   <td>
                     <span className={`admin-badge ${statusBadgeClass(s.status)}`}>{statusLabel(s.status)}</span>
                   </td>
@@ -792,6 +943,33 @@ const exportOneExcel = () => {
                           </option>
                         ))}
                       </select>
+
+                      {/* NOVO: archive/unarchive dugme */}
+                      {archiveTab === "archived" ? (
+                        <button
+                          className="admin-btn admin-btn-secondary admin-btn--xs"
+                          disabled={busyRow === s.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            unarchiveSubmission(s.id);
+                          }}
+                          title="Unarchive"
+                        >
+                          <i className="fa fa-undo" aria-hidden="true"></i>
+                        </button>
+                      ) : (
+                        <button
+                          className="admin-btn admin-btn-secondary admin-btn--xs"
+                          disabled={busyRow === s.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            archiveSubmission(s.id);
+                          }}
+                          title="Archive"
+                        >
+                          <i className="fa fa-archive" aria-hidden="true"></i>
+                        </button>
+                      )}
 
                       <button
                         className="admin-btn admin-btn-danger admin-btn--xs"
@@ -840,6 +1018,29 @@ const exportOneExcel = () => {
               </div>
 
               <div className="subm-modal-actions">
+                {/* NOVO: archive/unarchive u modalu */}
+                {detail && !detailLoading ? (
+                  detail.isArchived ? (
+                    <button
+                      className="subm-btn subm-btn-soft"
+                      onClick={() => unarchiveSubmission(detail.id)}
+                      disabled={busyRow === detail.id}
+                      title="Unarchive"
+                    >
+                      Unarchive
+                    </button>
+                  ) : (
+                    <button
+                      className="subm-btn subm-btn-soft"
+                      onClick={() => archiveSubmission(detail.id)}
+                      disabled={busyRow === detail.id}
+                      title="Archive"
+                    >
+                      Archive
+                    </button>
+                  )
+                ) : null}
+
                 <button className="subm-btn subm-btn-soft" onClick={exportOneExcel} disabled={!detail || detailLoading}>
                   Export
                 </button>
@@ -865,12 +1066,30 @@ const exportOneExcel = () => {
                       <div className="subm-kv">
                         <div className="subm-kv-row">
                           <div className="subm-k">Type</div>
-                          <div className="subm-v">{typeLabel(detail.type)}</div>
+                          <div className="subm-v">
+                            <span className="subm-type">
+                              {typeLabel(detail.type)}
+                              {showUnderReview(detail.type, detail.status) ? <span className="subm-tag subm-tag--review">Under review</span> : null}
+                            </span>
+                          </div>
                         </div>
                         <div className="subm-kv-row">
                           <div className="subm-k">Created</div>
                           <div className="subm-v">{new Date(detail.createdAt).toLocaleString()}</div>
                         </div>
+
+                        {/* NOVO: archived info */}
+                        <div className="subm-kv-row">
+                          <div className="subm-k">Archived</div>
+                          <div className="subm-v">{detail.isArchived ? "Yes" : "No"}</div>
+                        </div>
+                        {detail.isArchived && detail.archivedAtUtc ? (
+                          <div className="subm-kv-row">
+                            <div className="subm-k">Archived at</div>
+                            <div className="subm-v">{new Date(detail.archivedAtUtc).toLocaleString()}</div>
+                          </div>
+                        ) : null}
+
                         <div className="subm-kv-row">
                           <div className="subm-k">Domain</div>
                           <div className="subm-v">{detail.domain}</div>
@@ -1041,9 +1260,7 @@ const exportOneExcel = () => {
                       )}
                     </div>
 
-                    <div className="subm-card subm-card-note">
-                      
-                    </div>
+                    <div className="subm-card subm-card-note"></div>
                   </div>
                 </div>
               </div>
