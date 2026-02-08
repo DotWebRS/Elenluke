@@ -145,12 +145,31 @@ public class SubmissionsController : ControllerBase
             if (form.Files == null || form.Files.Count == 0)
                 return BadRequest("At least one demo file must be uploaded.");
 
+            // WAV explicitly NOT allowed anymore
             static bool IsWav(IFormFile f)
             {
                 var ext = Path.GetExtension(f.FileName ?? "").ToLowerInvariant();
                 var nameOk = ext is ".wav";
                 var ct = (f.ContentType ?? "").ToLowerInvariant();
                 var typeOk = ct == "audio/wav" || ct == "audio/x-wav" || ct == "audio/wave";
+                return nameOk || typeOk;
+            }
+
+            static bool IsMp3(IFormFile f)
+            {
+                var ext = Path.GetExtension(f.FileName ?? "").ToLowerInvariant();
+                var nameOk = ext is ".mp3";
+                var ct = (f.ContentType ?? "").ToLowerInvariant();
+                var typeOk = ct == "audio/mpeg" || ct == "audio/mp3";
+                return nameOk || typeOk;
+            }
+
+            static bool IsMp4(IFormFile f)
+            {
+                var ext = Path.GetExtension(f.FileName ?? "").ToLowerInvariant();
+                var nameOk = ext is ".mp4";
+                var ct = (f.ContentType ?? "").ToLowerInvariant();
+                var typeOk = ct == "video/mp4" || ct == "application/mp4";
                 return nameOk || typeOk;
             }
 
@@ -163,12 +182,17 @@ public class SubmissionsController : ControllerBase
                 return nameOk || typeOk;
             }
 
-            static bool IsAllowedUpload(IFormFile f) => IsWav(f) || IsAllowedImage(f);
+            // Allow: mp3, mp4, images. Disallow: wav.
+            static bool IsAllowedUpload(IFormFile f) => IsMp3(f) || IsMp4(f) || IsAllowedImage(f);
 
             foreach (var f in form.Files)
             {
+                // hard block wav with a clearer message
+                if (IsWav(f))
+                    return BadRequest("WAV files are not allowed. Please upload MP3, MP4, or images (png/jpg/jpeg).");
+
                 if (!IsAllowedUpload(f))
-                    return BadRequest("Only .wav and image files (png/jpg/jpeg) are allowed.");
+                    return BadRequest("Only .mp3, .mp4 and image files (png/jpg/jpeg) are allowed.");
             }
         }
 
@@ -1003,6 +1027,8 @@ Your Purple Crunch Records Team";
         string extra = type switch
         {
             SubmissionType.DemoUpload => shared,
+            SubmissionType.PlaylistPitch => shared,
+
             SubmissionType.ArtistInformation => publishing,
             SubmissionType.SongwriterInformation => publishing,
             SubmissionType.SyncRequest => publishing,
@@ -1011,6 +1037,9 @@ Your Purple Crunch Records Team";
             SubmissionType.LegalRequest => legal,
             _ => ""
         };
+
+        /*if (type == SubmissionType.PlaylistPitch && !string.IsNullOrWhiteSpace(info))
+            list.Add(info);*/
 
         if (type == SubmissionType.SyncRequest && !string.IsNullOrWhiteSpace(legal))
             list.Add(legal);

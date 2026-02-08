@@ -1,0 +1,882 @@
+
+:root{
+  --pcr-bg:#07030e;
+  --pcr-card:rgba(255,255,255,.06);
+  --pcr-card2:rgba(255,255,255,.10);
+  --pcr-line:rgba(255,255,255,.12);
+  --pcr-text:rgba(255,255,255,.92);
+  --pcr-muted:rgba(255,255,255,.72);
+  --pcr-soft:rgba(255,255,255,.55);
+
+  --pcr-g1:#4b0082;
+  --pcr-g2:#8a4fff;
+
+  --pcr-radius:18px;
+  --pcr-radius2:24px;
+  --pcr-shadow:0 18px 60px rgba(0,0,0,.55);
+
+  --pcr-focus:0 0 0 3px rgba(138,79,255,.26);
+}
+
+
+.submitform-page{
+  min-height:100vh;
+  background:
+    radial-gradient(1000px 520px at 20% -10%, rgba(138,79,255,.22), transparent 62%),
+    radial-gradient(900px 520px at 85% 10%, rgba(75,0,130,.18), transparent 58%),
+    radial-gradient(900px 700px at 50% 110%, rgba(138,79,255,.10), transparent 60%),
+    var(--pcr-bg);
+  color:var(--pcr-text);
+  z-index: 2000 !important;
+
+}
+
+.submitform-wrap{
+  width:min(1040px, calc(100% - 32px));
+  margin:0 auto;
+  padding: calc(var(--nav-h, 86px) + 26px) 0 64px;
+  z-index: 200 !important;
+}
+
+
+.submitform-head{
+  text-align:center;
+  padding: 18px 0 18px;
+  
+}
+
+.submitform-title{
+  margin:0;
+  letter-spacing:.14em;
+  font-weight:800;
+  text-transform:uppercase;
+  font-size: clamp(34px, 4.4vw, 56px);
+  line-height:1.02;
+  z-index: 2000 !important;
+}
+
+.submitform-titleLight{
+  color:rgba(255,255,255,.95);
+}
+
+
+.submitform-titleGrad{
+  display:inline-block;
+  background: linear-gradient(90deg, var(--pcr-g1), var(--pcr-g2), var(--pcr-g1));
+  background-size: 220% 220%;
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+  animation:pcrGradMove 6.5s ease-in-out infinite;
+  text-shadow: 0 0 22px rgba(138,79,255,.18);
+}
+
+@keyframes pcrGradMove{
+  0%{ background-position:0% 50%; }
+  50%{ background-position:100% 50%; }
+  100%{ background-position:0% 50%; }
+}
+
+.submitform-sub{
+  margin: 12px auto 0;
+  max-width: 760px;
+  color: var(--pcr-muted);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+
+.submitform-card{
+  margin-top: 18px;
+  background: linear-gradient(180deg, var(--pcr-card), rgba(255,255,255,.04));
+  border: 1px solid var(--pcr-line);
+  border-radius: var(--pcr-radius2);
+  box-shadow: var(--pcr-shadow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  overflow:hidden;
+  position:relative;
+}
+
+.submitform-card::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:
+    radial-gradient(600px 280px at 20% 0%, rgba(138,79,255,.18), transparent 62%),
+    radial-gradient(520px 320px at 90% 10%, rgba(75,0,130,.16), transparent 60%);
+  pointer-events:none;
+}
+
+.submitform-grid{
+  position:relative;
+  display:grid;
+  gap: 14px 16px;
+  padding: 18px 18px 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.submitform-span2{ grid-column: 1 / -1; }
+
+@media (max-width: 860px){
+  .submitform-grid{ grid-template-columns: 1fr; padding: 16px 14px 14px; }
+  .submitform-span2{ grid-column:auto; }
+}
+
+.submitform-divider{
+  grid-column: 1 / -1;
+  height:1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.14), transparent);
+  margin: 2px 0 10px;
+}
+
+
+.submitform-field{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.submitform-label{
+  font-size: 11px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color: rgba(255,255,255,.78);
+}
+
+.submitform-control{
+  width:100%;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.28);
+  color: var(--pcr-text);
+  outline:none;
+  padding: 12px 12px;
+  font-size: 14px;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .05s ease;
+}
+
+.submitform-control::placeholder{
+  color: rgba(255,255,255,.45);
+}
+
+.submitform-control:focus{
+  border-color: rgba(138,79,255,.55);
+  box-shadow: var(--pcr-focus);
+}
+
+.submitform-control:active{
+  transform: translateY(1px);
+}
+
+.submitform-textarea{
+  resize: vertical;
+  min-height: 140px;
+}
+
+.submitform-select{
+  position:relative;
+}
+
+.submitform-select::after{
+  content:"";
+  position:absolute;
+  right: 12px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translateY(-50%) rotate(45deg);
+  border-right: 2px solid rgba(255,255,255,.55);
+  border-bottom: 2px solid rgba(255,255,255,.55);
+  pointer-events:none;
+  opacity:.9;
+}
+
+.submitform-select .submitform-control{
+  padding-right: 40px;
+  appearance:none;
+  -webkit-appearance:none;
+}
+
+.submitform-multiSelect{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.22);
+}
+
+@media (max-width: 860px){
+  .submitform-multiSelect{ grid-template-columns: 1fr; }
+}
+
+.submitform-check{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  cursor:pointer;
+  transition: transform .08s ease, border-color .15s ease, background .15s ease;
+  user-select:none;
+}
+
+.submitform-check:hover{
+  border-color: rgba(138,79,255,.35);
+  background: rgba(138,79,255,.08);
+}
+
+.submitform-check:active{
+  transform: translateY(1px);
+}
+
+.submitform-check input{
+  width: 16px;
+  height: 16px;
+  accent-color: var(--pcr-g2);
+}
+
+.submitform-check span{
+  font-size: 13.5px;
+  color: rgba(255,255,255,.88);
+}
+
+.submitform-help{
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--pcr-soft);
+  line-height: 1.45;
+}
+
+
+.submitform-filesList{
+  margin-top: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.20);
+  overflow:hidden;
+}
+
+.submitform-fileRow{
+  display:flex;
+  justify-content:space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.submitform-fileRow:first-child{
+  border-top: 0;
+}
+
+.submitform-fileName{
+  color: rgba(255,255,255,.90);
+  font-size: 13px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  max-width: 75%;
+}
+
+.submitform-fileMeta{
+  color: rgba(255,255,255,.55);
+  font-size: 12px;
+  white-space:nowrap;
+}
+
+.submitform-fileTotal{
+  padding: 10px 12px;
+  border-top: 1px solid rgba(255,255,255,.08);
+  color: rgba(255,255,255,.70);
+  font-size: 12.5px;
+}
+
+
+.submitform-privacy{
+  padding-top: 6px;
+}
+
+.submitform-privacy input[type="checkbox"]{
+  width: 16px;
+  height: 16px;
+  accent-color: var(--pcr-g2);
+}
+
+.submitform-link{
+  color: rgba(255,255,255,.92);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(138,79,255,.55);
+  padding-bottom: 2px;
+  transition: border-color .15s ease, color .15s ease;
+}
+
+.submitform-link:hover{
+  color: #fff;
+  border-color: rgba(255,255,255,.60);
+}
+
+
+.submitform-note--disclaimer{
+ 
+  color: rgba(255,255,255,.70);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+
+.submitform-alert{
+  margin: 14px 18px 0;
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.28);
+  font-size: 13.5px;
+}
+
+.submitform-alert--err{
+  border-color: rgba(255,80,80,.30);
+  background: rgba(255,80,80,.10);
+  color: rgba(255,230,230,.92);
+}
+
+.submitform-alert--ok{
+  border-color: rgba(120,255,170,.22);
+  background: rgba(120,255,170,.10);
+  color: rgba(235,255,245,.92);
+}
+
+.submitform-mono{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+
+.submitform-foot{
+  position:relative;
+  display:flex;
+  justify-content:flex-end;
+  padding: 16px 18px 18px;
+  border-top: 1px solid rgba(255,255,255,.10);
+}
+
+.submitform-btn{
+  border: 0;
+  cursor:pointer;
+  padding: 12px 18px;
+  border-radius: 14px;
+  color: rgba(255,255,255,.96);
+  font-weight: 800;
+  letter-spacing:.10em;
+  text-transform:uppercase;
+  background: linear-gradient(135deg, rgba(75,0,130,.95), rgba(138,79,255,.95));
+  box-shadow: 0 14px 38px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.10) inset;
+  transition: transform .08s ease, filter .15s ease, opacity .15s ease;
+}
+
+.submitform-btn:hover{
+  filter: brightness(1.05);
+}
+
+.submitform-btn:active{
+  transform: translateY(1px);
+}
+
+.submitform-btn:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+
+input[type="file"].submitform-control{
+  padding: 10px 12px;
+}
+
+/* page wrapper ide iznad svih background/overlay slojeva */
+.submitform-page{
+  position: relative;
+  z-index: 50;
+}
+
+/* kartica i header iznad svega unutar strane */
+.submitform-wrap,
+.submitform-card,
+.submitform-head{
+  position: relative;
+  z-index: 60;
+}
+
+/* ako i dalje nešto sedi preko, podigni i footer bar */
+.submitform-page .releasesFooterBar,
+.submitform-page .ReleasesFooterBar{
+  position: relative;
+  z-index: 60;
+}
+
+
+.global-fade,
+.overlay-root{
+  z-index: 0;
+}
+
+.submitform-select select.submitform-control option{
+  background: #000;
+  color: #fff;
+}
+
+/* opcija "Select..." malo sivlja */
+.submitform-select select.submitform-control option[value=""]{
+  color: rgba(255,255,255,.55);
+}
+
+/* ===== File input (pretty button) ===== */
+.submitform-control[type="file"]{
+  width: 100%;
+  color: rgba(255,255,255,.78);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  outline: none;
+}
+
+/* Chrome/Edge/Safari */
+.submitform-control[type="file"]::-webkit-file-upload-button{
+  -webkit-appearance: none;
+  appearance: none;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 12px 14px;
+  margin: 0 12px 0 0;
+
+  border-radius: 14px;
+  border: 1px solid rgba(138,79,255,.55);
+
+  background: rgba(18,18,18,.72);
+  color: rgba(255,255,255,.92);
+
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+
+  cursor: pointer;
+  transition: transform .15s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease;
+  box-shadow:
+    0 10px 30px rgba(0,0,0,.35),
+    0 0 0 1px rgba(75,0,130,.25) inset;
+}
+
+.submitform-control[type="file"]::-webkit-file-upload-button:hover{
+  border-color: rgba(138,79,255,.95);
+  background: rgba(18,18,18,.9);
+  box-shadow:
+    0 12px 34px rgba(0,0,0,.42),
+    0 0 0 1px rgba(138,79,255,.28) inset,
+    0 0 26px rgba(138,79,255,.20);
+}
+
+.submitform-control[type="file"]::-webkit-file-upload-button:active{
+  transform: translateY(1px);
+}
+
+/* Firefox */
+.submitform-control[type="file"]::file-selector-button{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 12px 14px;
+  margin: 0 12px 0 0;
+
+  border-radius: 14px;
+  border: 1px solid rgba(138,79,255,.55);
+
+  background: rgba(18,18,18,.72);
+  color: rgba(255,255,255,.92);
+
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+
+  cursor: pointer;
+  transition: transform .15s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease;
+  box-shadow:
+    0 10px 30px rgba(0,0,0,.35),
+    0 0 0 1px rgba(75,0,130,.25) inset;
+}
+
+.submitform-control[type="file"]::file-selector-button:hover{
+  border-color: rgba(138,79,255,.95);
+  background: rgba(18,18,18,.9);
+  box-shadow:
+    0 12px 34px rgba(0,0,0,.42),
+    0 0 0 1px rgba(138,79,255,.28) inset,
+    0 0 26px rgba(138,79,255,.20);
+}
+
+.submitform-control[type="file"]::file-selector-button:active{
+  transform: translateY(1px);
+}
+
+/* Nicer file list styling (optional but matches the card vibe) */
+.submitform-filesList{
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.28);
+}
+
+.submitform-fileRow{
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+
+.submitform-fileRow:last-child{
+  border-bottom: 0;
+}
+
+.submitform-fileName{
+  color: rgba(255,255,255,.92);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 70%;
+}
+
+.submitform-fileMeta{
+  color: rgba(255,255,255,.65);
+  font-variant-numeric: tabular-nums;
+}
+
+.submitform-fileTotal{
+  margin-top: 10px;
+  color: rgba(255,255,255,.70);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/***************************************************za plejliste*/
+/* ===== Playlists rail (horizontal scroll + multi-select) ===== */
+.pcr-playlistsRail{
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(280px, 340px);
+  gap: 14px;
+
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 6px 2px 8px;
+
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pcr-playlistsRail::-webkit-scrollbar{ height: 10px; }
+.pcr-playlistsRail::-webkit-scrollbar-track{
+  background: rgba(255,255,255,.06);
+  border-radius: 999px;
+}
+.pcr-playlistsRail::-webkit-scrollbar-thumb{
+  background: rgba(138,79,255,.35);
+  border-radius: 999px;
+}
+.pcr-playlistsRail::-webkit-scrollbar-thumb:hover{
+  background: rgba(138,79,255,.55);
+}
+
+.pcr-playlistCard{
+  scroll-snap-align: start;
+
+  text-align: left;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.28);
+
+  padding: 12px;
+  cursor: pointer;
+  transition: transform .15s ease, border-color .2s ease, box-shadow .2s ease, background .2s ease;
+
+  min-height: 330px;
+}
+
+.pcr-playlistCard:hover{
+  border-color: rgba(138,79,255,.55);
+  box-shadow: 0 18px 44px rgba(0,0,0,.45), 0 0 26px rgba(138,79,255,.10);
+}
+
+.pcr-playlistCard:active{
+  transform: translateY(1px);
+}
+
+.pcr-playlistCard.is-selected{
+  border-color: rgba(138,79,255,.95);
+  box-shadow:
+    0 22px 55px rgba(0,0,0,.55),
+    0 0 0 1px rgba(138,79,255,.25) inset,
+    0 0 34px rgba(138,79,255,.20);
+  background: rgba(10,10,10,.42);
+}
+
+.pcr-playlistTop{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.pcr-playlistTitle{
+  color: rgba(255,255,255,.92);
+  font-weight: 800;
+  letter-spacing: .02em;
+  line-height: 1.1;
+}
+
+.pcr-playlistBadge{
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.78);
+  padding: 6px 10px;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pcr-playlistBadge.on{
+  border-color: rgba(138,79,255,.75);
+  background: rgba(138,79,255,.15);
+  color: rgba(255,255,255,.92);
+}
+
+.pcr-playlistEmbed{
+  width: 100%;
+  height: 240px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.35);
+}
+
+.pcr-playlistEmbed iframe{
+  display: block;
+  border: 0;
+}
+
+.pcr-playlistHint{
+  margin-top: 10px;
+  color: rgba(255,255,255,.62);
+  font-size: 12px;
+}
+
+/*************************************************PLEYLISTA*/
+/* ===== Playlists: pro rail with arrows + full-cover cards ===== */
+.pcr-railWrap{
+  position: relative;
+  display: grid;
+  align-items: center;
+}
+
+.pcr-railBtn{
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.45);
+  color: rgba(255,255,255,.92);
+
+  display: grid;
+  place-items: center;
+
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+
+  backdrop-filter: blur(10px);
+  transition: transform .15s ease, background .2s ease, border-color .2s ease, opacity .2s ease;
+}
+
+.pcr-railBtn:hover{
+  background: rgba(10,10,10,.65);
+  border-color: rgba(138,79,255,.55);
+}
+
+.pcr-railBtn:active{
+  transform: translateY(-50%) scale(.98);
+}
+
+.pcr-railBtn--left{ left: -10px; }
+.pcr-railBtn--right{ right: -10px; }
+
+@media (max-width: 768px){
+  .pcr-railBtn--left{ left: -6px; }
+  .pcr-railBtn--right{ right: -6px; }
+}
+
+.pcr-playlistsRail{
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(260px, 320px);
+  gap: 14px;
+
+  overflow-x: auto;
+  overflow-y: hidden;
+
+  padding: 8px 44px; /* space for arrow buttons */
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pcr-playlistsRail::-webkit-scrollbar{ height: 10px; }
+.pcr-playlistsRail::-webkit-scrollbar-track{
+  background: rgba(255,255,255,.06);
+  border-radius: 999px;
+}
+.pcr-playlistsRail::-webkit-scrollbar-thumb{
+  background: rgba(138,79,255,.35);
+  border-radius: 999px;
+}
+.pcr-playlistsRail::-webkit-scrollbar-thumb:hover{
+  background: rgba(138,79,255,.55);
+}
+
+.pcr-playlistCard{
+  scroll-snap-align: start;
+
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.22);
+
+  padding: 10px;
+  cursor: pointer;
+
+  transition: transform .15s ease, border-color .2s ease, box-shadow .2s ease, filter .2s ease, background .2s ease;
+}
+
+.pcr-playlistCard:hover{
+  border-color: rgba(255,255,255,.18);
+  filter: grayscale(.35) brightness(.92); /* “posivi” */
+}
+
+.pcr-playlistCard.is-selected{
+  border-color: rgba(138,79,255,.95);
+  box-shadow:
+    0 22px 55px rgba(0,0,0,.55),
+    0 0 0 1px rgba(138,79,255,.22) inset,
+    0 0 34px rgba(138,79,255,.18);
+  background: rgba(10,10,10,.38);
+  filter: none;
+}
+
+.pcr-playlistCover{
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;  /* kvadratic */
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.35);
+}
+
+.pcr-playlistCover img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transform: scale(1.02);
+  transition: transform .25s ease;
+}
+
+.pcr-playlistCard:hover .pcr-playlistCover img{
+  transform: scale(1.05);
+}
+
+.pcr-playlistOverlay{
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 30% 25%, rgba(138,79,255,.18), rgba(0,0,0,.0) 55%),
+              linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,.0) 60%);
+  pointer-events: none;
+}
+
+.pcr-playlistTick{
+  position: absolute;
+  top: 10px;
+  right: 10px;
+
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(0,0,0,.45);
+  color: rgba(255,255,255,.78);
+  font-weight: 900;
+
+  opacity: .85;
+  transition: background .2s ease, border-color .2s ease, opacity .2s ease;
+}
+
+.pcr-playlistTick.on{
+  border-color: rgba(138,79,255,.75);
+  background: rgba(138,79,255,.18);
+  color: rgba(255,255,255,.95);
+  opacity: 1;
+}
+
+.pcr-playlistMeta{
+  padding: 10px 4px 2px;
+  text-align: left;
+}
+
+.pcr-playlistTitle{
+  color: rgba(255,255,255,.92);
+  font-weight: 900;
+  letter-spacing: .02em;
+  line-height: 1.15;
+}
+
+.pcr-playlistSub{
+  margin-top: 6px;
+  color: rgba(255,255,255,.62);
+  font-size: 12px;
+}
+
+.pcr-playlistLink{
+  display: inline-block;
+  margin-top: 10px;
+  color: rgba(138,79,255,.92);
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.pcr-playlistLink:hover{
+  text-decoration: underline;
+}
+
+/* only the calendar icon (Chrome/Edge) */
+.submitform-control[type="date"]::-webkit-calendar-picker-indicator{
+  filter: invert(1) !important;  /* makes icon white */
+  opacity: 0.9;
+}

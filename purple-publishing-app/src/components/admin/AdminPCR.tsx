@@ -32,7 +32,7 @@ type ReleaseItem = {
   imageSrc: string;
   artist: string;
   title: string;
-  dateISO: string; // YYYY-MM-DD (store ISO, UI shows date picker)
+  dateISO: string; // YYYY-MM-DD
   platformLabel?: string;
   url?: string;
 };
@@ -41,77 +41,50 @@ type ReleasesHubCms = {
   items: ReleaseItem[];
 };
 
+type PlaylistItem = {
+  id: string;
+  title: string;
+  url: string;
+  coverSrc: string;
+};
+
+type PlaylistsCms = {
+  items: PlaylistItem[];
+};
+
 const CMS_KEYS = {
   hero: "pcr.home.hero",
   about: "pcr.about.text",
   releasesHub: "pcr.releasesHub.items",
   tiktok: "pcr.tiktok.items",
   team: "pcr.team.text",
+  playlists: "pcr.playlists.items",
 } as const;
 
-// -------------------- DEFAULTS --------------------
+// -------------------- EMPTY INITIALS (NO DEFAULT CONTENT) --------------------
 
 function newId(prefix: string) {
   return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now()}`;
 }
 
-const DEFAULT_HERO: HeroCms = {
-  titleLight: "LET'S BE",
-  rotateWords: ["BOLD", "TIMELESS", "UNIGNORABLE"],
-  subLines: ["YOUR SOUND. YOUR VISION. AMPLIFIED.", "MUSIC THAT DEFINES THE DIGITAL GENERATION"],
+const EMPTY_HERO: HeroCms = {
+  titleLight: "",
+  rotateWords: [],
+  subLines: [],
   buttons: {
-    primaryLabel: "SUBMIT DEMO",
-    primaryHref: "/submitform",
-    secondaryLabel: "PLAYLIST",
-    secondaryScrollTo: "spotify-playlist",
+    primaryLabel: "",
+    primaryHref: "",
+    secondaryLabel: "",
+    secondaryScrollTo: "",
   },
 };
 
-const DEFAULT_ABOUT_TEXT =
-  "Purple Crunch Records is the artist engine of the Purple Crunch ecosystem, a label\n" +
-  "built for creators shaping the sound of digital culture.\n\n" +
-  "We champion artists who understand that music today lives beyond streaming. It\n" +
-  "thrives through communities, feeds, and viral moments.\n\n" +
-  "At Purple Crunch Records, we stand for authenticity, creative freedom, and long-term\n" +
-  "artist growth.";
+const EMPTY_TIKTOK: TikTokCms = { items: [] };
+const EMPTY_RELEASES_HUB: ReleasesHubCms = { items: [] };
+const EMPTY_PLAYLISTS: PlaylistsCms = { items: [] };
 
-const DEFAULT_TEAM_TEXT =
-  "At Purple Crunch, we are a young and dynamic collective of music professionals.\n" +
-  "United by passion, creativity, and a shared vision to redefine how music thrives in the digital era.\n\n" +
-  "Our structure spans Marketing, Sales, Operations, and Business Development, working\n" +
-  "together to bridge art and business with precision and purpose.\n\n" +
-  "Driven by curiosity and guided by experience, we build the future of music, one artist at a time.";
-
-const DEFAULT_TIKTOK: TikTokCms = {
-  items: [
-    { id: newId("tt"), url: "https://www.tiktok.com/@rntyler/video/7496960131242970373" },
-    { id: newId("tt"), url: "https://www.tiktok.com/@championsleague/video/7564775226530221334" },
-    { id: newId("tt"), url: "https://www.tiktok.com/@looooooooch/video/7479530147931032840" },
-  ],
-};
-
-const DEFAULT_RELEASES_HUB: ReleasesHubCms = {
-  items: [
-    {
-      id: newId("r"),
-      imageSrc: "https://images.pexels.com/photos/21261/pexels-photo.jpg?w=1200&h=900&auto=compress&cs=tinysrgb",
-      artist: "@violetsaint",
-      title: "Night Signal",
-      dateISO: "2026-02-02",
-      platformLabel: "Spotify",
-      url: "https://open.spotify.com/track/1M6UfseXYQfzkRoms2us89?si=7350d635c4a64b38",
-    },
-    {
-      id: newId("r"),
-      imageSrc: "https://images.pexels.com/photos/567973/pexels-photo-567973.jpeg?w=1200&h=900&auto=compress&cs=tinysrgb",
-      artist: "@novarune",
-      title: "Chrome Hearts",
-      dateISO: "2026-02-07",
-      platformLabel: "Spotify",
-      url: "https://open.spotify.com/track/1M6UfseXYQfzkRoms2us89?si=7350d635c4a64b38",
-    },
-  ],
-};
+const EMPTY_ABOUT_TEXT = "";
+const EMPTY_TEAM_TEXT = "";
 
 // -------------------- HELPERS --------------------
 
@@ -125,33 +98,6 @@ function safeJsonParse<T>(raw: any, fallback: T): T {
   }
 }
 
-function ensureHero(payload: HeroCms | null | undefined): HeroCms {
-  const p = payload ?? ({} as any);
-  const rotateWords = Array.isArray(p.rotateWords) ? p.rotateWords.filter(Boolean) : DEFAULT_HERO.rotateWords;
-  const subLines = Array.isArray(p.subLines) ? p.subLines.filter(Boolean) : DEFAULT_HERO.subLines;
-
-  return {
-    titleLight: String(p.titleLight ?? DEFAULT_HERO.titleLight),
-    rotateWords: rotateWords.length ? rotateWords : DEFAULT_HERO.rotateWords,
-    subLines: subLines.length ? subLines : DEFAULT_HERO.subLines,
-    buttons: {
-      primaryLabel: String(p?.buttons?.primaryLabel ?? DEFAULT_HERO.buttons.primaryLabel),
-      primaryHref: String(p?.buttons?.primaryHref ?? DEFAULT_HERO.buttons.primaryHref),
-      secondaryLabel: String(p?.buttons?.secondaryLabel ?? DEFAULT_HERO.buttons.secondaryLabel),
-      secondaryScrollTo: String(p?.buttons?.secondaryScrollTo ?? DEFAULT_HERO.buttons.secondaryScrollTo),
-    },
-  };
-}
-
-function ensureTikTok(payload: TikTokCms | null | undefined): TikTokCms {
-  const items = (payload?.items ?? []).map((x: any) => ({
-    id: x?.id || newId("tt"),
-    url: String(x?.url ?? ""),
-  }));
-  const trimmed = items.slice(0, 3);
-  return { items: trimmed.length ? trimmed : DEFAULT_TIKTOK.items };
-}
-
 function normalizeLinesFromTextarea(v: string) {
   return (v || "")
     .split(/\r?\n/)
@@ -163,18 +109,68 @@ function isIsoDate(v: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(v || ""));
 }
 
-function ensureReleasesHub(payload: ReleasesHubCms | null | undefined): ReleasesHubCms {
-  const items = (payload?.items ?? []).map((x: any) => ({
-    id: x?.id || newId("r"),
-    imageSrc: String(x?.imageSrc ?? ""),
-    artist: String(x?.artist ?? ""),
-    title: String(x?.title ?? ""),
+// “Ensure” funkcije ovde NE UBACUJU default tekst.
+// Samo normalizuju shape i čiste obvious junk.
+
+function sanitizeHero(payload: HeroCms): HeroCms {
+  const p: any = payload ?? {};
+  const rotateWords = Array.isArray(p.rotateWords) ? p.rotateWords.map(String).map((x: string) => x.trim()).filter(Boolean) : [];
+  const subLines = Array.isArray(p.subLines) ? p.subLines.map(String).map((x: string) => x.trim()).filter(Boolean) : [];
+
+  return {
+    titleLight: String(p.titleLight ?? "").trimEnd(),
+    rotateWords,
+    subLines,
+    buttons: {
+      primaryLabel: String(p?.buttons?.primaryLabel ?? "").trimEnd(),
+      primaryHref: String(p?.buttons?.primaryHref ?? "").trim(),
+      secondaryLabel: String(p?.buttons?.secondaryLabel ?? "").trimEnd(),
+      secondaryScrollTo: String(p?.buttons?.secondaryScrollTo ?? "").trim(),
+    },
+  };
+}
+
+function sanitizeTikTok(payload: TikTokCms): TikTokCms {
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const cleaned = items
+    .map((x: any) => ({
+      id: String(x?.id || newId("tt")),
+      url: String(x?.url ?? "").trim(),
+    }))
+    .filter((x) => x.url.length > 0);
+
+  // Ako želiš striktno max 3 na frontu:
+  return { items: cleaned.slice(0, 3) };
+}
+
+function sanitizeReleasesHub(payload: ReleasesHubCms): ReleasesHubCms {
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const cleaned = items.map((x: any) => ({
+    id: String(x?.id || newId("r")),
+    imageSrc: String(x?.imageSrc ?? "").trim(),
+    artist: String(x?.artist ?? "").trimEnd(),
+    title: String(x?.title ?? "").trimEnd(),
     dateISO: isIsoDate(x?.dateISO) ? String(x.dateISO) : "",
-    platformLabel: x?.platformLabel != null ? String(x.platformLabel) : "",
-    url: x?.url != null ? String(x.url) : "",
+    platformLabel: x?.platformLabel != null ? String(x.platformLabel).trimEnd() : "",
+    url: x?.url != null ? String(x.url).trim() : "",
   }));
 
-  return { items: items.length ? items : DEFAULT_RELEASES_HUB.items };
+  return { items: cleaned };
+}
+
+function sanitizePlaylists(payload: PlaylistsCms): PlaylistsCms {
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const cleaned = items.map((x: any) => ({
+    id: String(x?.id || newId("pl")),
+    title: String(x?.title ?? "").trimEnd(),
+    url: String(x?.url ?? "").trim(),
+    coverSrc: String(x?.coverSrc ?? "").trim(),
+  }));
+
+  // Ne filtriram title/url obavezno (da možeš da imaš draft),
+  // ali možeš ako hoćeš:
+  // const cleaned2 = cleaned.filter(x => x.title || x.url || x.coverSrc);
+  return { items: cleaned };
 }
 
 // -------------------- COMPONENT --------------------
@@ -191,13 +187,14 @@ export default function AdminPCR() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const [hero, setHero] = useState<HeroCms>(DEFAULT_HERO);
-  const [aboutText, setAboutText] = useState<string>(DEFAULT_ABOUT_TEXT);
-  const [teamText, setTeamText] = useState<string>(DEFAULT_TEAM_TEXT);
-  const [tiktok, setTikTok] = useState<TikTokCms>(DEFAULT_TIKTOK);
-  const [releasesHub, setReleasesHub] = useState<ReleasesHubCms>(DEFAULT_RELEASES_HUB);
+  const [hero, setHero] = useState<HeroCms>(EMPTY_HERO);
+  const [aboutText, setAboutText] = useState<string>(EMPTY_ABOUT_TEXT);
+  const [teamText, setTeamText] = useState<string>(EMPTY_TEAM_TEXT);
+  const [tiktok, setTikTok] = useState<TikTokCms>(EMPTY_TIKTOK);
+  const [releasesHub, setReleasesHub] = useState<ReleasesHubCms>(EMPTY_RELEASES_HUB);
+  const [playlistsCms, setPlaylistsCms] = useState<PlaylistsCms>(EMPTY_PLAYLISTS);
 
-  const [openSection, setOpenSection] = useState<"hero" | "about" | "releasesHub" | "tiktok" | "team" | null>("hero");
+  const [openSection, setOpenSection] = useState<"hero" | "about" | "releasesHub" | "tiktok" | "team" | "playlists" | null>("hero");
 
   const newItemFlashId = useRef<string | null>(null);
   const scrollRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -235,6 +232,7 @@ export default function AdminPCR() {
   }, [token, navigate]);
 
   const siteLabel = useMemo(() => ADMIN_SITES.find((s) => s.key === site)?.label ?? site, [site]);
+  const siteLabelSafe = siteLabel || "PCR";
 
   const cmsGet = async (key: string) => {
     if (!site) return null;
@@ -302,21 +300,24 @@ export default function AdminPCR() {
 
     (async () => {
       try {
-        const [h, a, hub, t, team] = await Promise.all([
-          loadOne<HeroCms>(CMS_KEYS.hero, DEFAULT_HERO),
-          loadOne<string>(CMS_KEYS.about, DEFAULT_ABOUT_TEXT),
-          loadOne<ReleasesHubCms>(CMS_KEYS.releasesHub, DEFAULT_RELEASES_HUB),
-          loadOne<TikTokCms>(CMS_KEYS.tiktok, DEFAULT_TIKTOK),
-          loadOne<string>(CMS_KEYS.team, DEFAULT_TEAM_TEXT),
+        const [h, a, hub, t, team, pls] = await Promise.all([
+          loadOne<HeroCms>(CMS_KEYS.hero, EMPTY_HERO),
+          loadOne<string>(CMS_KEYS.about, EMPTY_ABOUT_TEXT),
+          loadOne<ReleasesHubCms>(CMS_KEYS.releasesHub, EMPTY_RELEASES_HUB),
+          loadOne<TikTokCms>(CMS_KEYS.tiktok, EMPTY_TIKTOK),
+          loadOne<string>(CMS_KEYS.team, EMPTY_TEAM_TEXT),
+          loadOne<PlaylistsCms>(CMS_KEYS.playlists, EMPTY_PLAYLISTS),
         ]);
 
         if (!alive) return;
 
-        setHero(ensureHero(h));
-        setAboutText(typeof a === "string" && a.trim().length ? a : DEFAULT_ABOUT_TEXT);
-        setReleasesHub(ensureReleasesHub(hub));
-        setTikTok(ensureTikTok(t));
-        setTeamText(typeof team === "string" && team.trim().length ? team : DEFAULT_TEAM_TEXT);
+        // Ako nema u bazi (null), ostavi prazno (NO DEFAULT).
+        setHero(h ? sanitizeHero(h) : EMPTY_HERO);
+        setAboutText(typeof a === "string" ? a : EMPTY_ABOUT_TEXT);
+        setReleasesHub(hub ? sanitizeReleasesHub(hub) : EMPTY_RELEASES_HUB);
+        setTikTok(t ? sanitizeTikTok(t) : EMPTY_TIKTOK);
+        setTeamText(typeof team === "string" ? team : EMPTY_TEAM_TEXT);
+        setPlaylistsCms(pls ? sanitizePlaylists(pls) : EMPTY_PLAYLISTS);
 
         setOpenSection((prev) => prev ?? "hero");
       } catch (e: any) {
@@ -338,11 +339,13 @@ export default function AdminPCR() {
     setMsg(null);
     setSaving(true);
 
-    const heroToSave = ensureHero(hero);
+    // Snimamo TAČNO state, samo minimalno sanitizovan da je JSON čist.
+    const heroToSave = sanitizeHero(hero);
     const aboutToSave = String(aboutText ?? "").trimEnd();
     const teamToSave = String(teamText ?? "").trimEnd();
-    const tiktokToSave = ensureTikTok(tiktok);
-    const releasesHubToSave = ensureReleasesHub(releasesHub);
+    const tiktokToSave = sanitizeTikTok(tiktok);
+    const releasesHubToSave = sanitizeReleasesHub(releasesHub);
+    const playlistsToSave = sanitizePlaylists(playlistsCms);
 
     try {
       await Promise.all([
@@ -351,6 +354,7 @@ export default function AdminPCR() {
         cmsPut(CMS_KEYS.releasesHub, releasesHubToSave),
         cmsPut(CMS_KEYS.tiktok, tiktokToSave),
         cmsPut(CMS_KEYS.team, teamToSave),
+        cmsPut(CMS_KEYS.playlists, playlistsToSave),
       ]);
 
       setHero(heroToSave);
@@ -358,6 +362,7 @@ export default function AdminPCR() {
       setReleasesHub(releasesHubToSave);
       setTikTok(tiktokToSave);
       setTeamText(teamToSave);
+      setPlaylistsCms(playlistsToSave);
 
       setMsg({ kind: "ok", text: "Saved ✅" });
     } catch (e: any) {
@@ -370,8 +375,6 @@ export default function AdminPCR() {
   const toggleSection = (key: typeof openSection) => {
     setOpenSection((prev) => (prev === key ? null : key));
   };
-
-  const siteLabelSafe = siteLabel || "PCR";
 
   // -------------------- Releases Hub CRUD --------------------
 
@@ -388,7 +391,7 @@ export default function AdminPCR() {
       artist: "",
       title: "",
       dateISO: "",
-      platformLabel: "Spotify",
+      platformLabel: "",
       url: "",
     };
 
@@ -444,6 +447,69 @@ export default function AdminPCR() {
       next.splice(to, 0, item);
       return { items: next };
     });
+  };
+
+  // -------------------- Playlists CRUD --------------------
+
+  const updatePlaylistItem = (id: string, patch: Partial<PlaylistItem>) => {
+    setPlaylistsCms((prev) => ({
+      items: (prev.items || []).map((x) => (x.id === id ? { ...x, ...patch } : x)),
+    }));
+  };
+
+  const addPlaylistItem = () => {
+    const it: PlaylistItem = { id: newId("pl"), title: "", url: "", coverSrc: "" };
+    setPlaylistsCms((prev) => ({ items: [it, ...(prev.items || [])] }));
+    newItemFlashId.current = it.id;
+
+    setTimeout(() => {
+      const el = scrollRefs.current[it.id];
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+  };
+
+  const removePlaylistItem = (id: string) => {
+    setPlaylistsCms((prev) => ({ items: (prev.items || []).filter((x) => x.id !== id) }));
+  };
+
+  const movePlaylistItem = (from: number, to: number) => {
+    setPlaylistsCms((prev) => {
+      const next = [...(prev.items || [])];
+      if (from < 0 || from >= next.length || to < 0 || to >= next.length) return prev;
+      const [item] = next.splice(from, 1);
+      next.splice(to, 0, item);
+      return { items: next };
+    });
+  };
+
+  const uploadPlaylistCover = async (playlistId: string, file: File) => {
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+
+      const res = await fetch(buildApiUrl(`/api/uploads/file`), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+
+      if (!res.ok) return;
+
+      const data = await res.json().catch(() => null as any);
+      const url = data?.url || data?.path || data?.filePath || data?.publicUrl || "";
+
+      const normalizePublicUrl = (u: string) => {
+        if (!u) return "";
+        if (/^https?:\/\//i.test(u)) return u;
+        const withSlash = u.startsWith("/") ? u : `/${u}`;
+        return buildApiUrl(withSlash);
+      };
+
+      const publicUrl = normalizePublicUrl(String(url || ""));
+      if (publicUrl) updatePlaylistItem(playlistId, { coverSrc: publicUrl });
+    } catch {
+      //
+    }
   };
 
   // -------------------- RENDER --------------------
@@ -520,7 +586,7 @@ export default function AdminPCR() {
                     className="cms-input"
                     value={hero.titleLight}
                     onChange={(e) => setHero((p) => ({ ...p, titleLight: e.target.value }))}
-                    placeholder="LET'S BE"
+                    placeholder="(empty allowed)"
                   />
                 </Field>
 
@@ -529,7 +595,7 @@ export default function AdminPCR() {
                     className="cms-textarea"
                     value={heroRotateText}
                     onChange={(e) => setHero((p) => ({ ...p, rotateWords: normalizeLinesFromTextarea(e.target.value) }))}
-                    placeholder="TIMELESS\nUNIGNORABLE"
+                    placeholder="(empty allowed)"
                   />
                 </Field>
               </div>
@@ -539,9 +605,49 @@ export default function AdminPCR() {
                   className="cms-textarea"
                   value={heroSubText}
                   onChange={(e) => setHero((p) => ({ ...p, subLines: normalizeLinesFromTextarea(e.target.value) }))}
-                  placeholder="YOUR SOUND...\nMUSIC THAT..."
+                  placeholder="(empty allowed)"
                 />
               </Field>
+
+              <div className="cms-grid2">
+                <Field label="Primary button label">
+                  <input
+                    className="cms-input"
+                    value={hero.buttons.primaryLabel}
+                    onChange={(e) => setHero((p) => ({ ...p, buttons: { ...p.buttons, primaryLabel: e.target.value } }))}
+                    placeholder="(empty allowed)"
+                  />
+                </Field>
+
+                <Field label="Primary button href">
+                  <input
+                    className="cms-input"
+                    value={hero.buttons.primaryHref}
+                    onChange={(e) => setHero((p) => ({ ...p, buttons: { ...p.buttons, primaryHref: e.target.value } }))}
+                    placeholder="(empty allowed)"
+                  />
+                </Field>
+              </div>
+
+              <div className="cms-grid2">
+                <Field label="Secondary button label">
+                  <input
+                    className="cms-input"
+                    value={hero.buttons.secondaryLabel}
+                    onChange={(e) => setHero((p) => ({ ...p, buttons: { ...p.buttons, secondaryLabel: e.target.value } }))}
+                    placeholder="(empty allowed)"
+                  />
+                </Field>
+
+                <Field label="Secondary scrollTo id">
+                  <input
+                    className="cms-input"
+                    value={hero.buttons.secondaryScrollTo}
+                    onChange={(e) => setHero((p) => ({ ...p, buttons: { ...p.buttons, secondaryScrollTo: e.target.value } }))}
+                    placeholder="(empty allowed)"
+                  />
+                </Field>
+              </div>
             </div>
           )}
 
@@ -714,7 +820,7 @@ export default function AdminPCR() {
                                   return buildApiUrl(withSlash);
                                 };
 
-                                const publicUrl = normalizePublicUrl(url);
+                                const publicUrl = normalizePublicUrl(String(url || ""));
                                 if (publicUrl) updateReleaseHubItem(it.id, { imageSrc: publicUrl });
                               } catch {
                                 //
@@ -794,6 +900,117 @@ export default function AdminPCR() {
               <Field label="Team text (Enter = new line, blank line = new paragraph)">
                 <textarea className="cms-textarea" value={teamText} onChange={(e) => setTeamText(e.target.value)} rows={12} />
               </Field>
+            </div>
+          )}
+
+          {/* PLAYLISTS */}
+          <AccordionHeader title="Playlists from contact" open={openSection === "playlists"} onToggle={() => toggleSection("playlists")} />
+          {openSection === "playlists" && (
+            <div className="cms-panel">
+              <div className="cms-block__head">
+                <div>
+                  <div className="cms-block__title">Items</div>
+                  <div className="cms-block__desc">This powers PlaylistPitch cards in Contact form.</div>
+                </div>
+
+                <button className="cms-btn cms-btn--primary" onClick={addPlaylistItem} type="button">
+                  + Add playlist
+                </button>
+              </div>
+
+              <div className="cms-list">
+                {(playlistsCms.items || []).map((pl, i) => (
+                  <div
+                    key={pl.id}
+                    ref={(el) => {
+                      scrollRefs.current[pl.id] = el;
+                    }}
+                    className={`cms-card ${newItemFlashId.current === pl.id ? "is-new" : ""}`}
+                    onAnimationEnd={() => {
+                      if (newItemFlashId.current === pl.id) newItemFlashId.current = null;
+                    }}
+                  >
+                    <div className="cms-card__head">
+                      <div className="cms-card__title">
+                        <div className="cms-card__index">#{i + 1}</div>
+                        <div className="cms-card__name">Playlist</div>
+                      </div>
+
+                      <div className="cms-card__actions">
+                        <button className="cms-iconbtn" disabled={i === 0} onClick={() => movePlaylistItem(i, i - 1)} type="button">
+                          ↑
+                        </button>
+                        <button
+                          className="cms-iconbtn"
+                          disabled={i === playlistsCms.items.length - 1}
+                          onClick={() => movePlaylistItem(i, i + 1)}
+                          type="button"
+                        >
+                          ↓
+                        </button>
+
+                        <button className="cms-btn cms-btn--danger" onClick={() => removePlaylistItem(pl.id)} type="button">
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="cms-card__body">
+                      {pl.coverSrc ? (
+                        <div className="cms-logoPreview">
+                          <img
+                            src={pl.coverSrc}
+                            alt="preview"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).style.display = "none";
+                            }}
+                          />
+                        </div>
+                      ) : null}
+
+                      <Field label="Title*">
+                        <input
+                          className="cms-input"
+                          value={pl.title || ""}
+                          onChange={(e) => updatePlaylistItem(pl.id, { title: e.target.value })}
+                          placeholder="Playlist title"
+                        />
+                      </Field>
+
+                      <Field label="Playlist URL (Spotify/etc)*">
+                        <input
+                          className="cms-input"
+                          value={pl.url || ""}
+                          onChange={(e) => updatePlaylistItem(pl.id, { url: e.target.value })}
+                          placeholder="https://open.spotify.com/playlist/..."
+                        />
+                      </Field>
+
+                      <Field label="Cover src (URL)">
+                        <input
+                          className="cms-input"
+                          value={pl.coverSrc || ""}
+                          onChange={(e) => updatePlaylistItem(pl.id, { coverSrc: e.target.value })}
+                          placeholder="/playlist-covers/p1.jpg or https://..."
+                        />
+                      </Field>
+
+                      <Field label="Upload cover">
+                        <input
+                          className="cms-input"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const f = (e.target as HTMLInputElement).files?.[0];
+                            if (!f) return;
+                            uploadPlaylistCover(pl.id, f);
+                          }}
+                        />
+                      </Field>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

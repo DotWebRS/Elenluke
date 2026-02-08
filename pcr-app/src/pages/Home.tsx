@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { API_BASE, buildApiUrl } from "../config/apiBase";
+import { useNavigate } from "react-router-dom";
+import { buildApiUrl } from "../config/apiBase";
 
 type Props = {
   refEl?: React.RefObject<HTMLElement | null>;
@@ -12,9 +13,9 @@ type HeroCms = {
   subLines: string[];
   buttons: {
     primaryLabel: string;
-    primaryHref: string;
+    primaryHref: string; 
     secondaryLabel: string;
-    secondaryScrollTo: string;
+    secondaryScrollTo: string; 
   };
 };
 
@@ -26,10 +27,10 @@ const DEFAULT_HERO: HeroCms = {
   rotateWords: ["TIMELESS", "UNIGNORABLE"],
   subLines: ["YOUR SOUND. YOUR VISION. AMPLIFIED.", "MUSIC THAT DEFINES THE DIGITAL GENERATION"],
   buttons: {
-    primaryLabel: "SUBMIT DEMO",
-    primaryHref: "/submitform",
-    secondaryLabel: "PLAYLIST",
-    secondaryScrollTo: "spotify-playlist",
+    primaryLabel: "Submit Demo",
+    primaryHref: "/contact?type=DemoUpload",
+    secondaryLabel: "Playlist Pitch",
+    secondaryScrollTo: "contact?type=PlaylistPitch",
   },
 };
 
@@ -60,17 +61,13 @@ function useTypeRotate(words: string[], speed = 70, holdMs = 1000, eraseMs = 24)
     let t: number | undefined;
 
     if (mode === "typing") {
-      if (typed.length < full.length) {
-        t = window.setTimeout(() => setTyped(full.slice(0, typed.length + 1)), speed);
-      } else {
-        setMode("holding");
-      }
+      if (typed.length < full.length) t = window.setTimeout(() => setTyped(full.slice(0, typed.length + 1)), speed);
+      else setMode("holding");
     } else if (mode === "holding") {
       t = window.setTimeout(() => setMode("erasing"), holdMs);
     } else {
-      if (typed.length > 0) {
-        t = window.setTimeout(() => setTyped(full.slice(0, typed.length - 1)), eraseMs);
-      } else {
+      if (typed.length > 0) t = window.setTimeout(() => setTyped(full.slice(0, typed.length - 1)), eraseMs);
+      else {
         setMode("typing");
         setWordIndex((p) => (p + 1) % list.length);
       }
@@ -84,7 +81,35 @@ function useTypeRotate(words: string[], speed = 70, holdMs = 1000, eraseMs = 24)
   return typed;
 }
 
+function normalizeHeroFromCms(payload: HeroCms): HeroCms {
+  // if CMS still sends old "/submitform", force to /contact demo
+  const primaryHrefRaw = String(payload?.buttons?.primaryHref ?? DEFAULT_HERO.buttons.primaryHref);
+  const primaryHref =
+    primaryHrefRaw === "/submitform" || primaryHrefRaw === "/submit" ? "/contact?type=DemoUpload" : primaryHrefRaw;
+
+  // if CMS sends old secondaryScrollTo (spotify-playlist), force playlist contact
+  const secondaryScrollToRaw = String(payload?.buttons?.secondaryScrollTo ?? DEFAULT_HERO.buttons.secondaryScrollTo);
+  const secondaryScrollTo =
+    secondaryScrollToRaw === "spotify-playlist" || secondaryScrollToRaw === "playlist"
+      ? "contact?type=PlaylistPitch"
+      : secondaryScrollToRaw;
+
+  return {
+    titleLight: String(payload?.titleLight ?? DEFAULT_HERO.titleLight),
+    rotateWords: Array.isArray(payload?.rotateWords) && payload.rotateWords.length ? payload.rotateWords : DEFAULT_HERO.rotateWords,
+    subLines: Array.isArray(payload?.subLines) && payload.subLines.length ? payload.subLines : DEFAULT_HERO.subLines,
+    buttons: {
+      primaryLabel: String(DEFAULT_HERO.buttons.primaryLabel),
+      primaryHref,
+      secondaryLabel: String(DEFAULT_HERO.buttons.secondaryLabel),
+      secondaryScrollTo,
+    },
+  };
+}
+
 export default function Home({ isActive = true }: Props) {
+  const navigate = useNavigate();
+
   const [phase, setPhase] = useState<"in" | "out">("in");
   const [hero, setHero] = useState<HeroCms>(DEFAULT_HERO);
 
@@ -109,18 +134,7 @@ export default function Home({ isActive = true }: Props) {
 
         const dto = safeJsonParse<{ json?: any }>(text, {} as any);
         const payload = safeJsonParse<HeroCms>(dto?.json, DEFAULT_HERO);
-
-        const normalized: HeroCms = {
-          titleLight: String(payload?.titleLight ?? DEFAULT_HERO.titleLight),
-          rotateWords: Array.isArray(payload?.rotateWords) && payload.rotateWords.length ? payload.rotateWords : DEFAULT_HERO.rotateWords,
-          subLines: Array.isArray(payload?.subLines) && payload.subLines.length ? payload.subLines : DEFAULT_HERO.subLines,
-          buttons: {
-            primaryLabel: String(payload?.buttons?.primaryLabel ?? DEFAULT_HERO.buttons.primaryLabel),
-            primaryHref: String(payload?.buttons?.primaryHref ?? DEFAULT_HERO.buttons.primaryHref),
-            secondaryLabel: String(payload?.buttons?.secondaryLabel ?? DEFAULT_HERO.buttons.secondaryLabel),
-            secondaryScrollTo: String(payload?.buttons?.secondaryScrollTo ?? DEFAULT_HERO.buttons.secondaryScrollTo),
-          },
-        };
+        const normalized = normalizeHeroFromCms(payload);
 
         if (alive) setHero(normalized);
       } catch {
@@ -129,7 +143,6 @@ export default function Home({ isActive = true }: Props) {
     };
 
     load();
-
     return () => {
       alive = false;
     };
@@ -142,6 +155,10 @@ export default function Home({ isActive = true }: Props) {
     (phase === "in"
       ? "animate__animated animate__slideInRight"
       : "animate__animated animate__slideOutLeft");
+
+  const goContact = (type: "DemoUpload" | "PlaylistPitch" | "GeneralContactInquiry") => {
+    navigate(`/contact?type=${encodeURIComponent(type)}`);
+  };
 
   return (
     <section className={cls} style={{ animationDuration: "650ms" }} id="hero">
@@ -164,19 +181,19 @@ export default function Home({ isActive = true }: Props) {
         </p>
 
         <div className="hero-actions">
-          <a className="hero-btn hero-btn-primary" href={hero.buttons.primaryHref}>
+          <button
+            type="button"
+            className="hero-btn hero-btn-primary"
+            onClick={() => goContact("DemoUpload")}
+          >
             {hero.buttons.primaryLabel}
-          </a>
+          </button>
 
-          <a
+          <button
+            type="button"
             className="hero-btn hero-btn-spotify"
-            href={`#${hero.buttons.secondaryScrollTo}`}
-            onClick={(e) => {
-              e.preventDefault();
-              const el = document.getElementById(hero.buttons.secondaryScrollTo);
-              if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-            }}
-            aria-label="Open Spotify playlist section"
+            onClick={() => goContact("PlaylistPitch")}
+            aria-label="Open contact form (playlisting)"
           >
             <span className="spotify-ico" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="18" height="18">
@@ -187,7 +204,7 @@ export default function Home({ isActive = true }: Props) {
               </svg>
             </span>
             {hero.buttons.secondaryLabel}
-          </a>
+          </button>
         </div>
       </div>
     </section>

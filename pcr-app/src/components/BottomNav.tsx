@@ -187,14 +187,16 @@ const BottomNav = () => {
             </Nav.Link>
 
             <Nav.Link
-              href="#contact"
+              href="/contact"
               onClick={(e) => {
                 e.preventDefault();
-                goHomeAndScroll("contact");
+                closeAll();
+                navigate("/contact");
               }}
             >
               CONTACT US
             </Nav.Link>
+
           </Nav>
         </Navbar.Collapse>
       </Container>

@@ -21,6 +21,8 @@ import Terms from "./components/TermsOfUse";
 import Impressum from "./components/Impressum";
 
 import ReleasesAndTrendsPage from "./pages/ReleasesAndTrendsPage";
+import PcrContactForm from "./pages/ContactPCR";
+import ArtistInformationSubmission from "./pages/ArtistInformationSubmission";
 
 type Key =
   | "home"
@@ -41,7 +43,9 @@ export default function App() {
     location.pathname === "/privacy" ||
     location.pathname === "/terms" ||
     location.pathname === "/impressum" ||
-    location.pathname === "/releases-trends";
+    location.pathname === "/releases-trends" ||
+    location.pathname === "/contact"||
+    location.pathname === "/artist-information"; 
 
   if (isStandalone) {
     return (
@@ -56,9 +60,10 @@ export default function App() {
           <Route path="/terms" element={<Terms />} />
           <Route path="/impressum" element={<Impressum />} />
           <Route path="/releases-trends" element={<ReleasesAndTrendsPage />} />
+          <Route path="/contact" element={<PcrContactForm />} />
 
-         
           <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/artist-information" element={<ArtistInformationSubmission />} />
         </Routes>
       </>
     );
@@ -177,14 +182,14 @@ export default function App() {
         {renderOverlay("footer", <Footer />)}
       </div>
 
-      <section ref={homeSpacerRef} className="spacer" id="home"/>
+      <section ref={homeSpacerRef} className="spacer" id="home" />
       <section ref={aboutSpacerRef} className="spacer" id="about" />
       <section ref={releasesSpacerRef} className="spacer" id="releases-trends" />
-      <section ref={tiktokSpacerRef} className="spacer" id="tiktok-trends"/>
-      <section ref={partnersSpacerRef} className="spacer" id="partners"/>
-      <section ref={syncSpacerRef} className="spacer" id="sync"/>
-      <section ref={servicesSpacerRef} className="spacer" id="services"  />
-      <section ref={teamSpacerRef} className="spacer" id="team"/>
+      <section ref={tiktokSpacerRef} className="spacer" id="tiktok-trends" />
+      <section ref={partnersSpacerRef} className="spacer" id="partners" />
+      <section ref={syncSpacerRef} className="spacer" id="sync" />
+      <section ref={servicesSpacerRef} className="spacer" id="services" />
+      <section ref={teamSpacerRef} className="spacer" id="team" />
       <section ref={footerSpacerRef} className="spacer" id="footer" />
     </>
   );

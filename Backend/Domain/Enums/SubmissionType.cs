@@ -8,5 +8,7 @@ public enum SubmissionType
     SyncRequest = 4,             // Shared / Sync
     GeneralContactInquiry = 5,   // General contact
     SupportForm = 6,             // Support
-    LegalRequest = 7             // PNG site only
+    LegalRequest = 7,            // PNG site only
+
+    PlaylistPitch = 8            // Purple Crunch Records - playlist pitching
 }
