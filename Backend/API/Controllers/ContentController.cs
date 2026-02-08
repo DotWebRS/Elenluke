@@ -17,8 +17,7 @@ public class ContentController : ControllerBase
         _db = db;
     }
 
-    // PUBLIC: GET /api/content/{siteKey}.{key}?locale=en
-    // Primer: /api/content/purple-crunch-publishing.home.hero?locale=en
+
     [HttpGet("{fullKey}")]
     [AllowAnonymous]
     public async Task<IActionResult> Get(string fullKey, [FromQuery] string? locale)
@@ -34,7 +33,7 @@ public class ContentController : ControllerBase
         if (!string.IsNullOrWhiteSpace(locale))
             keyWithLocale = $"{key}.{locale.Trim().ToLower()}";
 
-        // prvo pokušaj sa key.locale
+
         CmsEntryProjection? entry = null;
 
         if (keyWithLocale != null)
@@ -49,7 +48,7 @@ public class ContentController : ControllerBase
                 .FirstOrDefaultAsync();
         }
 
-        // fallback na key bez locale
+ 
         if (entry == null)
         {
             entry = await _db.CmsEntries
@@ -76,7 +75,6 @@ public class ContentController : ControllerBase
         }
     }
 
-    // mala interna projekcija da ne vučemo ceo entitet
     private sealed class CmsEntryProjection
     {
         public string Json { get; set; } = "{}";

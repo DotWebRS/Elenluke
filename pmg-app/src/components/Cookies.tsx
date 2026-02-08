@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 type Lang = "DE" | "EN";
 
@@ -36,6 +37,8 @@ function LangToggle({ lang, onChange }: { lang: Lang; onChange: (l: Lang) => voi
 
 export default function Cookies() {
   const [lang, setLang] = useState<Lang>(() => getInitialLang());
+
+  const navigate = useNavigate();
 
   const [marketing, setMarketing] = useState(true);
   const [functional, setFunctional] = useState(true);
@@ -76,6 +79,14 @@ export default function Cookies() {
         <div className="legal__inner">
           <header className="legal__header">
             <div className="legal__headerRow">
+              <button
+                type="button"
+                className="legal__back"
+                onClick={() => navigate(-1)}
+                aria-label="Go back"
+              >
+                ← Back
+              </button>
               <div>
                 <h1 className="legal__title">
                   {lang === "DE" ? "Cookie-Einstellungen" : "Cookie Settings"}

@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAdminSite } from "./useAdminSite";
 import { ADMIN_SITES, type AdminSiteKey } from "./adminSites";
 
@@ -11,52 +12,75 @@ type AdminShellProps = {
 };
 
 function buildAdminPath(section: AdminNavKey, site: AdminSiteKey | string) {
-  const qs = `?site=${encodeURIComponent(site || "")}`;
+  const s = site || "purple-music-group";
+  const qs = `?site=${encodeURIComponent(s)}`;
 
   if (section === "cms") {
-    
-    if (site === "purple-music-group") {
-      return `/admin/pmg${qs}`;
-    }
+    if (s === "purple-music-group") return `/admin/pmg${qs}`;
+    if (s === "purple-crunch-records") return `/admin/pcr${qs}`;
     return `/admin/cms${qs}`;
   }
 
-  if (section === "submissions") {
-    return `/admin/submissions${qs}`;
-  }
+  if (section === "submissions") return `/admin/submissions${qs}`;
+  if (section === "users") return `/admin/users${qs}`;
 
-  if (section === "users") {
-    return `/admin/users${qs}`;
-  }
-
+  // fallback
+  if (s === "purple-music-group") return `/admin/pmg${qs}`;
+  if (s === "purple-crunch-records") return `/admin/pcr${qs}`;
   return `/admin/cms${qs}`;
 }
 
 export function AdminShell({ title, active, children }: AdminShellProps) {
+  useEffect(() => {
+    document.body.classList.add("is-admin");
+    return () => document.body.classList.remove("is-admin");
+  }, []);
+
+  const navigate = useNavigate();
   const { site, setSite } = useAdminSite();
 
-  const goSection = (section: AdminNavKey, targetSite?: AdminSiteKey) => {
-    const s = targetSite ?? site;
-    const href = buildAdminPath(section, s);
-    window.location.href = href;
+  useEffect(() => {
+    if (title) document.title = title;
+  }, [title]);
+
+  useEffect(() => {
+    if (!site) setSite("purple-music-group");
+  }, [site, setSite]);
+
+  const safeSite = (site || "purple-music-group") as AdminSiteKey;
+
+  const shellKey = useMemo(() => {
+    // Forsira remount kad menjaš site ili aktivnu sekciju (rešava “ostaje stari sadržaj”).
+    return `${safeSite}__${active}`;
+  }, [safeSite, active]);
+
+  const goSection = (section: AdminNavKey, targetSite?: AdminSiteKey, replace = false) => {
+    const s = (targetSite ?? safeSite) as AdminSiteKey | string;
+    const path = buildAdminPath(section, s);
+    navigate(path, { replace });
   };
 
   const handleSiteChange = (next: AdminSiteKey) => {
+    // 1) set global site
     setSite(next);
-    goSection(active, next);
+    // 2) navigate na istu sekciju ali za novi site (replace da ne gomila history)
+    goSection(active, next, true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/admin/login", { replace: true });
   };
 
   return (
-    <div className="admin-shell">
+    <div className="admin-shell" key={shellKey}>
       <header className="admin-topbar">
         <div className="admin-topbar-left">
           <label className="topbar-site">
             <select
               className="topbar-select"
-              value={site}
-              onChange={(e) =>
-                handleSiteChange(e.target.value as AdminSiteKey)
-              }
+              value={safeSite}
+              onChange={(e) => handleSiteChange(e.target.value as AdminSiteKey)}
             >
               {ADMIN_SITES.map((s) => (
                 <option key={s.key} value={s.key}>
@@ -68,9 +92,7 @@ export function AdminShell({ title, active, children }: AdminShellProps) {
 
           <button
             type="button"
-            className={
-              "topbar-btn" + (active === "cms" ? " topbar-btn--active" : "")
-            }
+            className={"topbar-btn" + (active === "cms" ? " topbar-btn--active" : "")}
             onClick={() => goSection("cms")}
           >
             CMS
@@ -78,13 +100,7 @@ export function AdminShell({ title, active, children }: AdminShellProps) {
         </div>
 
         <div className="admin-topbar-right">
-          <button
-            type="button"
-            className="topbar-link"
-            onClick={() => {
-              window.location.href = "/admin/logout";
-            }}
-          >
+          <button type="button" className="topbar-link" onClick={handleLogout}>
             Logout
           </button>
         </div>
@@ -93,20 +109,15 @@ export function AdminShell({ title, active, children }: AdminShellProps) {
       <nav className="admin-subnav">
         <button
           type="button"
-          className={
-            "subnav-tab" +
-            (active === "submissions" ? " subnav-tab--active" : "")
-          }
+          className={"subnav-tab" + (active === "submissions" ? " subnav-tab--active" : "")}
           onClick={() => goSection("submissions")}
         >
           Submissions
         </button>
+
         <button
           type="button"
-          className={
-            "subnav-tab" +
-            (active === "users" ? " subnav-tab--active" : "")
-          }
+          className={"subnav-tab" + (active === "users" ? " subnav-tab--active" : "")}
           onClick={() => goSection("users")}
         >
           Users

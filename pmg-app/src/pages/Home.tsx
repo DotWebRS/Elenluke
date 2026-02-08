@@ -1,16 +1,15 @@
+// src/pages/Home.tsx
 import { useEffect, useRef, useState } from "react";
 import BrandCarousel from "../components/BrandCarousel";
 import Snow from "../components/Snow";
 import { PMG_COPY } from "../content/copy";
-import { API_BASE, buildApiUrl } from "../config/apiBase";
+import { buildApiUrl } from "../config/apiBase";
 import "../styles/Hero.css";
 
-console.log("[DBG] API_BASE =", API_BASE);
-
 type HeroCmsPayload = {
-  title: string;
-  lines: string[];
-  locations: string;
+  title: string;        // ide u bazu, ali se NE prikazuje korisnicima
+  lines: string[];      // pasusi po redovima
+  locations: string;    // gradovi / lokacije
 };
 
 const CMS_SITE_KEY = "purple-music-group";
@@ -24,6 +23,10 @@ function safeJsonParse<T>(value: any, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function cleanLines(lines: string[]) {
+  return (lines || []).map((l) => (l ?? "").trim()).filter(Boolean);
 }
 
 export default function Home() {
@@ -48,71 +51,55 @@ export default function Home() {
     return () => io.disconnect();
   }, []);
 
-  
   useEffect(() => {
     let alive = true;
 
     async function loadHero() {
       try {
         const url = buildApiUrl(
-          `/api/cms?siteKey=${encodeURIComponent(
-            CMS_SITE_KEY
-          )}&key=${encodeURIComponent(CMS_KEY_HERO)}&ts=${Date.now()}`
+          `/api/cms?siteKey=${encodeURIComponent(CMS_SITE_KEY)}&key=${encodeURIComponent(
+            CMS_KEY_HERO
+          )}&ts=${Date.now()}`
         );
 
-        console.log("[PMG hero] GET", url);
-
         const res = await fetch(url);
-        console.log("[PMG hero] status", res.status);
 
-        if (res.status === 404) {
-          console.log("[PMG hero] 404 – nema CMS unosa, ostaje default");
-          return;
-        }
-
-        if (!res.ok) {
-          console.log("[PMG hero] !res.ok");
-          return;
-        }
+        if (res.status === 404) return;
+        if (!res.ok) return;
 
         const raw: any = await res.json().catch(() => null);
-        console.log("[PMG hero] raw response", raw);
-
         const payload = safeJsonParse<HeroCmsPayload>(raw?.json, {
           title: "",
           lines: [],
           locations: "",
         });
 
-        console.log("[PMG hero] parsed payload", payload);
-
         if (!alive) return;
 
         if (payload && (payload.title || payload.lines?.length || payload.locations)) {
           setHeroCms(payload);
         }
-      } catch (err) {
-        console.error("[PMG hero] error", err);
+      } catch {
         if (!alive) return;
       }
     }
 
     loadHero();
-
     return () => {
       alive = false;
     };
   }, []);
 
-  // CMS ili default
-  const heroTitle = heroCms?.title || PMG_COPY.heroTitle;
-  const heroLines =
-    heroCms?.lines?.length ? heroCms.lines : PMG_COPY.heroLines || [];
+  // CMS ili default (TITLE postoji ali ga NE prikazujemo)
+  const heroLinesRaw = heroCms?.lines?.length ? heroCms.lines : PMG_COPY.heroLines || [];
   const heroLocations = heroCms?.locations || PMG_COPY.locations;
 
-  const firstTwo = heroLines.slice(0, 2);
-  const blockThreeToFive = heroLines.slice(2, 5);
-  const lastLine = heroLines.length ? heroLines[heroLines.length - 1] : "";
+  const lines = cleanLines(heroLinesRaw);
+
+  // layout: logo -> 2 recenice -> razmak -> sve osim zadnje -> razmak -> zadnja -> gradovi
+  const topTwo = lines.slice(0, 2);
+  const last = lines.length ? lines[lines.length - 1] : "";
+  const middle = lines.slice(2, Math.max(2, lines.length - 1));
 
   return (
     <main className="page">
@@ -136,41 +123,44 @@ export default function Home() {
             src="/pmg1.png"
             alt="Purple Music Group logo"
           />
-          <br />
+
           <div className="hero__text">
-            <h1
-              className="hero__title animate__animated animate__fadeInUpBig"
-              style={{ animationDelay: "120ms" }}
-            >
-              {heroTitle}
-            </h1>
-
-            <div
-              className="hero__lines animate__animated animate__fadeInUpBig"
-              style={{ animationDelay: "220ms" }}
-            >
-              <div className="hero__group hero__group--tight">
-                {firstTwo.map((line, i) => (
-                  <p key={`l12-${i}`} className="hero__p">
-                    {line}
-                  </p>
-                ))}
-              </div>
-
-              <div className="hero__group hero__group--block">
-                {blockThreeToFive.map((line, i) => (
-                  <p key={`l35-${i}`} className="hero__p">
-                    {line}
-                  </p>
-                ))}
-              </div>
-
-              {lastLine ? (
-                <p className="hero__p hero__p--oneLine">{lastLine}</p>
+            {/* NASLOV (H1) se ne prikazuje */}
+            <br/>
+            <div className="hero__lines animate__animated animate__fadeInUpBig" style={{ animationDelay: "220ms" }}>
+              {/* 2 recenice */}
+              {topTwo.length ? (
+                <div className="hero__group hero__group--tight">
+                  {topTwo.map((line, i) => (
+                    <p key={`t2-${i}`} className="hero__p">
+                      {line}
+                    </p>
+                  ))}
+                </div>
               ) : null}
 
-              <br />
-              <p className="hero__p hero__p--dim">{heroLocations}</p>
+              {/* razmak */}
+              {topTwo.length && middle.length ? <div className="hero__spacer" /> : null}
+
+              {/* sve osim zadnje (posle prve 2) */}
+              {middle.length ? (
+                <div className="hero__group hero__group--block">
+                  {middle.map((line, i) => (
+                    <p key={`mid-${i}`} className="hero__p">
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+
+              {/* razmak */}
+              {middle.length && last ? <div className="hero__spacer" /> : null}
+
+              {/* zadnja */}
+              {last ? <p className="hero__p hero__p--oneLine">{last}</p> : null}
+
+              {/* gradovi odvojeno */}
+              {heroLocations ? <p className="hero__p hero__p--dim">{heroLocations}</p> : null}
             </div>
           </div>
         </div>

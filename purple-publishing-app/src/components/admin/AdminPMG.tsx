@@ -1,10 +1,5 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+// src/components/admin/AdminPMG.tsx
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { ADMIN_SITES, type AdminSiteKey } from "./adminSites";
 import { useAdminSite } from "./useAdminSite";
@@ -12,7 +7,7 @@ import "../../AdminCms.css";
 import { buildApiUrl } from "../../config/apiBase";
 
 type HeroCms = {
-  title: string;
+  title: string;      // ide u bazu, ali ga ne prikazujemo na public Home
   lines: string[];
   locations: string;
 };
@@ -80,16 +75,6 @@ const DEFAULT_BRANDS: CmsBrandsPayload = {
   ],
 };
 
-/*function buildUrl(path: string) {
-  const base = String(API_BASE || "").replace(/\/+$/, "");
-  const p = String(path || "").replace(/^\/+/, "");
-  const full = base ? `${base}/${p}` : `/${p}`;
-  console.log("[DBG] API_BASE =", API_BASE, "| buildUrl path =", path, "| full =", full);
-  return full;
-}*/
-
-
-
 function safeJsonParse<T>(s: any, fallback: T): T {
   try {
     if (!s) return fallback;
@@ -111,6 +96,13 @@ function ensureBrands(payload: CmsBrandsPayload | null | undefined): CmsBrandsPa
   }));
   if (!items.length) return DEFAULT_BRANDS;
   return { items };
+}
+
+function normalizeLinesFromTextarea(v: string) {
+  return (v || "")
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 export default function AdminPMG() {
@@ -141,8 +133,7 @@ export default function AdminPMG() {
   useEffect(() => {
     const fromUrl = params.get("site");
     if (fromUrl) setSite(fromUrl as any);
-   
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const qp = new URLSearchParams(location.search);
@@ -159,43 +150,30 @@ export default function AdminPMG() {
     if (!token) navigate("/admin/login");
   }, [token, navigate]);
 
-  const siteLabel = useMemo(
-    () => ADMIN_SITES.find((s) => s.key === site)?.label ?? site,
-    [site]
-  );
+  const siteLabel = useMemo(() => ADMIN_SITES.find((s) => s.key === site)?.label ?? site, [site]);
 
   const cmsGet = async (key: string) => {
     if (!site) return null;
 
     const url = buildApiUrl(
-      `/api/cms?siteKey=${encodeURIComponent(site)}&key=${encodeURIComponent(
-        key
-      )}&ts=${Date.now()}`
+      `/api/cms?siteKey=${encodeURIComponent(site)}&key=${encodeURIComponent(key)}&ts=${Date.now()}`
     );
-
-    console.log("[AdminPMG] GET", url);
 
     const res = await fetch(url);
     if (res.status === 404) return null;
 
     const text = await res.text().catch(() => "");
-    if (!res.ok) {
-      console.error("[AdminPMG] error response", res.status, text);
-      throw new Error(text || `HTTP ${res.status}`);
-    }
+    if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
 
     try {
       return JSON.parse(text);
     } catch {
-      console.error("[AdminPMG] raw response for", key, ":", text);
       throw new Error(`API returned non-JSON for ${key}`);
     }
   };
 
   const cmsPut = async (key: string, payload: any) => {
     const url = buildApiUrl(`/api/cms`);
-
-    console.log("[AdminPMG] PUT", url, "siteKey=", site, "key=", key);
 
     const res = await fetch(url, {
       method: "PUT",
@@ -213,16 +191,12 @@ export default function AdminPMG() {
     const text = await res.text().catch(() => "");
 
     if (res.status === 401) {
-      console.error("[AdminPMG] unauthorized PUT", text);
       localStorage.removeItem("token");
       navigate("/admin/login");
       throw new Error("Unauthorized");
     }
 
-    if (!res.ok) {
-      console.error("[AdminPMG] PUT failed", res.status, text);
-      throw new Error(text || `HTTP ${res.status}`);
-    }
+    if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
   };
 
   const loadOne = async <T,>(key: string, fallback: T): Promise<T | null> => {
@@ -255,7 +229,7 @@ export default function AdminPMG() {
 
         if (h) {
           setHero({
-            title: h.title || DEFAULT_HERO.title,
+            title: (h.title || DEFAULT_HERO.title).trim() || DEFAULT_HERO.title,
             lines: Array.isArray(h.lines) ? h.lines : DEFAULT_HERO.lines,
             locations: h.locations || DEFAULT_HERO.locations,
           });
@@ -263,11 +237,8 @@ export default function AdminPMG() {
           setHero(DEFAULT_HERO);
         }
 
-        if (br) {
-          setBrands(ensureBrands(br));
-        } else {
-          setBrands(DEFAULT_BRANDS);
-        }
+        if (br) setBrands(ensureBrands(br));
+        else setBrands(DEFAULT_BRANDS);
 
         setOpenSection((prev) => prev ?? "hero");
       } catch (e: any) {
@@ -282,17 +253,23 @@ export default function AdminPMG() {
     return () => {
       alive = false;
     };
-  }, [site]);
+  }, [site]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveAll = async () => {
     setMsg(null);
     setSaving(true);
-    try {
-      await Promise.all([
-        cmsPut(CMS_KEYS.hero, hero),
-        cmsPut(CMS_KEYS.brands, brands),
-      ]);
 
+    // title je obavezan u bazi, ali ga ne prikazujes korisnicima na Home
+    const heroToSave: HeroCms = {
+      ...hero,
+      title: (hero.title || DEFAULT_HERO.title).trim() || DEFAULT_HERO.title,
+      lines: Array.isArray(hero.lines) ? hero.lines : DEFAULT_HERO.lines,
+      locations: (hero.locations || "").trim(),
+    };
+
+    try {
+      await Promise.all([cmsPut(CMS_KEYS.hero, heroToSave), cmsPut(CMS_KEYS.brands, brands)]);
+      setHero(heroToSave);
       setMsg({ kind: "ok", text: "Saved ✅" });
     } catch (e: any) {
       setMsg({ kind: "err", text: e?.message || "Save failed" });
@@ -332,9 +309,7 @@ export default function AdminPMG() {
   const moveBrand = (from: number, to: number) => {
     setBrands((prev) => {
       const next = [...prev.items];
-      if (from < 0 || from >= next.length || to < 0 || to >= next.length) {
-        return prev;
-      }
+      if (from < 0 || from >= next.length || to < 0 || to >= next.length) return prev;
       const [item] = next.splice(from, 1);
       next.splice(to, 0, item);
       return { items: next };
@@ -355,7 +330,6 @@ export default function AdminPMG() {
           <div className="cms-header cms-header--fluid">
             <div className="cms-title">Admin PMG CMS: {siteLabelSafe}</div>
           </div>
-
           <div className="cms-loading">Loading CMS…</div>
         </div>
       </div>
@@ -389,11 +363,8 @@ export default function AdminPMG() {
                 const next = e.target.value;
                 setSite(next as any);
 
-                if (next === "purple-music-group") {
-                  navigate(`/admin/pmg?site=${encodeURIComponent(next)}`);
-                } else {
-                  navigate(`/admin/cms?site=${encodeURIComponent(next)}`);
-                }
+                if (next === "purple-music-group") navigate(`/admin/pmg?site=${encodeURIComponent(next)}`);
+                else navigate(`/admin/cms?site=${encodeURIComponent(next)}`);
               }}
             >
               {ADMIN_SITES.map((s) => (
@@ -403,56 +374,33 @@ export default function AdminPMG() {
               ))}
             </select>
 
-            <button
-              className="cms-btn cms-btn--primary"
-              onClick={saveAll}
-              disabled={saving}
-              type="button"
-            >
+            <button className="cms-btn cms-btn--primary" onClick={saveAll} disabled={saving} type="button">
               {saving ? "Saving…" : "Save all"}
             </button>
           </div>
 
-
-          {msg && (
-            <div className={`cms-headerToast ${msg.kind === "ok" ? "is-ok" : "is-err"}`}>
-              {msg.text}
-            </div>
-          )}
+          {msg && <div className={`cms-headerToast ${msg.kind === "ok" ? "is-ok" : "is-err"}`}>{msg.text}</div>}
         </div>
 
         <div className="cms-sections">
-          <AccordionHeader
-            title="Hero"
-            open={openSection === "hero"}
-            onToggle={() => toggleSection("hero")}
-          />
+          <AccordionHeader title="Hero" open={openSection === "hero"} onToggle={() => toggleSection("hero")} />
           {openSection === "hero" && (
             <div className="cms-panel">
-              <Field label="Hero title (H1)">
-                <input
-                  className="cms-input"
-                  value={hero.title}
-                  onChange={(e) =>
-                    setHero((p) => ({
-                      ...p,
-                      title: e.target.value,
-                    }))
-                  }
-                />
-              </Field>
+              {/* TITLE se cuva u bazi, ali ga NE prikazujes public -> zato ga ovde sakrivamo,
+                 i samo ga drzimo u state-u sa defaultom */}
+              <input
+                type="hidden"
+                value={hero.title}
+                onChange={(e) => setHero((p) => ({ ...p, title: e.target.value }))}
+              />
 
-              <Field label="Hero text (full paragraph with line breaks)">
+              <Field label="Hero text">
                 <textarea
                   className="cms-textarea"
                   value={heroText}
                   onChange={(e) => {
-                    const value = e.target.value;
-                    const linesArray = value.split(/\r?\n/);
-                    setHero((p) => ({
-                      ...p,
-                      lines: linesArray,
-                    }));
+                    const linesArray = normalizeLinesFromTextarea(e.target.value);
+                    setHero((p) => ({ ...p, lines: linesArray }));
                   }}
                 />
               </Field>
@@ -461,37 +409,23 @@ export default function AdminPMG() {
                 <input
                   className="cms-input"
                   value={hero.locations}
-                  onChange={(e) =>
-                    setHero((p) => ({
-                      ...p,
-                      locations: e.target.value,
-                    }))
-                  }
+                  onChange={(e) => setHero((p) => ({ ...p, locations: e.target.value }))}
                 />
               </Field>
             </div>
           )}
 
-          <AccordionHeader
-            title="Brands (PMG)"
-            open={openSection === "brands"}
-            onToggle={() => toggleSection("brands")}
-          />
+          <AccordionHeader title="Brands (PMG)" open={openSection === "brands"} onToggle={() => toggleSection("brands")} />
           {openSection === "brands" && (
             <div className="cms-panel">
               <div className="cms-block__head">
                 <div>
                   <div className="cms-block__title">Brand cards</div>
                   <div className="cms-block__desc">
-                    These map 1:1 to BrandCarousel cards on the PMG homepage
-                    (key, title, description, logo, href).
+                    These map 1:1 to BrandCarousel cards on the PMG homepage (key, title, description, logo, href).
                   </div>
                 </div>
-                <button
-                  className="cms-btn cms-btn--primary"
-                  onClick={addBrand}
-                  type="button"
-                >
+                <button className="cms-btn cms-btn--primary" onClick={addBrand} type="button">
                   + Add brand
                 </button>
               </div>
@@ -514,18 +448,11 @@ export default function AdminPMG() {
                       <div className="cms-card__head">
                         <div className="cms-card__title">
                           <div className="cms-card__index">#{i + 1}</div>
-                          <div className="cms-card__name">
-                            {b.title || "Brand"}
-                          </div>
+                          <div className="cms-card__name">{b.title || "Brand"}</div>
                         </div>
 
                         <div className="cms-card__actions">
-                          <button
-                            className="cms-iconbtn"
-                            disabled={i === 0}
-                            onClick={() => moveBrand(i, i - 1)}
-                            type="button"
-                          >
+                          <button className="cms-iconbtn" disabled={i === 0} onClick={() => moveBrand(i, i - 1)} type="button">
                             ↑
                           </button>
                           <button
@@ -536,11 +463,7 @@ export default function AdminPMG() {
                           >
                             ↓
                           </button>
-                          <button
-                            className="cms-btn cms-btn--danger"
-                            onClick={() => removeBrand(b.id)}
-                            type="button"
-                          >
+                          <button className="cms-btn cms-btn--danger" onClick={() => removeBrand(b.id)} type="button">
                             Delete
                           </button>
                         </div>
@@ -564,41 +487,25 @@ export default function AdminPMG() {
                             <input
                               className="cms-input"
                               value={b.key}
-                              onChange={(e) =>
-                                updateBrand(b.id, { key: e.target.value })
-                              }
+                              onChange={(e) => updateBrand(b.id, { key: e.target.value })}
                               placeholder="e.g. records / pmg / publishing"
                             />
                           </Field>
                           <Field label="Title">
-                            <input
-                              className="cms-input"
-                              value={b.title}
-                              onChange={(e) =>
-                                updateBrand(b.id, { title: e.target.value })
-                              }
-                            />
+                            <input className="cms-input" value={b.title} onChange={(e) => updateBrand(b.id, { title: e.target.value })} />
                           </Field>
                           <Field label="Href">
                             <input
                               className="cms-input"
                               value={b.href}
-                              onChange={(e) =>
-                                updateBrand(b.id, { href: e.target.value })
-                              }
+                              onChange={(e) => updateBrand(b.id, { href: e.target.value })}
                               placeholder="https://…"
                             />
                           </Field>
                         </div>
 
                         <Field label="Description">
-                          <textarea
-                            className="cms-textarea"
-                            value={b.desc}
-                            onChange={(e) =>
-                              updateBrand(b.id, { desc: e.target.value })
-                            }
-                          />
+                          <textarea className="cms-textarea" value={b.desc} onChange={(e) => updateBrand(b.id, { desc: e.target.value })} />
                         </Field>
 
                         <div className="cms-grid2">
@@ -606,12 +513,11 @@ export default function AdminPMG() {
                             <input
                               className="cms-input"
                               value={b.logoSrc}
-                              onChange={(e) =>
-                                updateBrand(b.id, { logoSrc: e.target.value })
-                              }
+                              onChange={(e) => updateBrand(b.id, { logoSrc: e.target.value })}
                               placeholder="/record.png or uploaded URL"
                             />
                           </Field>
+
                           <Field label="Upload logo">
                             <input
                               className="cms-input"
@@ -625,39 +531,28 @@ export default function AdminPMG() {
                                   const fd = new FormData();
                                   fd.append("file", f);
 
-                                  const res = await fetch(
-                                    buildApiUrl(`/api/uploads/file`),
-                                    {
-                                      method: "POST",
-                                      headers: {
-                                        Authorization: `Bearer ${token}`,
-                                      },
-                                      body: fd,
-                                    }
-                                  );
+                                  const res = await fetch(buildApiUrl(`/api/uploads/file`), {
+                                    method: "POST",
+                                    headers: { Authorization: `Bearer ${token}` },
+                                    body: fd,
+                                  });
 
-                                  if (res.ok) {
-                                    const data = await res.json().catch(() => null as any);
-                                    const url =
-                                      data?.url ||
-                                      data?.path ||
-                                      data?.filePath ||
-                                      data?.publicUrl ||
-                                      "";
-                                    const normalizePublicUrl = (u: string) => {
+                                  if (!res.ok) return;
+
+                                  const data = await res.json().catch(() => null as any);
+                                  const url = data?.url || data?.path || data?.filePath || data?.publicUrl || "";
+
+                                  const normalizePublicUrl = (u: string) => {
                                     if (!u) return "";
-                                  
                                     if (/^https?:\/\//i.test(u)) return u;
-
                                     const withSlash = u.startsWith("/") ? u : `/${u}`;
                                     return buildApiUrl(withSlash);
                                   };
 
                                   const publicUrl = normalizePublicUrl(url);
                                   if (publicUrl) updateBrand(b.id, { logoSrc: publicUrl });
-                                  }
                                 } catch {
-                                  
+                                  // ignore
                                 }
                               }}
                             />
@@ -676,15 +571,7 @@ export default function AdminPMG() {
   );
 }
 
-function AccordionHeader({
-  title,
-  open,
-  onToggle,
-}: {
-  title: string;
-  open: boolean;
-  onToggle: () => void;
-}) {
+function AccordionHeader({ title, open, onToggle }: { title: string; open: boolean; onToggle: () => void }) {
   return (
     <button className={`cms-acc ${open ? "is-open" : ""}`} onClick={onToggle} type="button">
       <span className="cms-acc__title">{title}</span>

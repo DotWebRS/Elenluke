@@ -1,0 +1,365 @@
+/* src/pages/Legal.css */
+
+/* page wrapper so fixed nav doesn't collide; you can tune these */
+.legal{
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+
+  /* you asked to keep the same spacing vibe as Impressum */
+  margin-top: 15vh;
+
+
+  padding: 0 0 220px;
+  color: rgba(255,255,255,0.92);
+
+  z-index: 20;
+}
+
+.legal__bg{
+  position: absolute;
+  inset: 0;
+
+  z-index: 0;
+}
+
+.legal__fadeTop{
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 88px;
+ 
+  pointer-events: none;
+}
+
+.legal__fadeBottom{
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 120px;
+  background: linear-gradient(to top, rgba(0,0,0,0.92), rgba(0,0,0,0));
+  z-index: 1;
+  pointer-events: none;
+}
+
+.legal__inner{
+  position: relative;
+  z-index: 2;
+  width: min(980px, 100%);
+  margin: 0 auto;
+  padding: 0 clamp(14px, 3.2vw, 36px);
+}
+
+/* header row: title left, back+lang right */
+.legal__header{
+  margin-bottom: 18px;
+}
+
+.legal__headerRow{
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px 16px;
+  align-items: start;
+}
+
+.legal__title{
+  margin: 0;
+  font-size: clamp(28px, 4.2vw, 44px);
+  line-height: 1.05;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.legal__subtitle{
+  margin: 8px 0 0;
+  color: rgba(255,255,255,0.74);
+  font-size: clamp(13px, 1.45vw, 15px);
+  line-height: 1.45;
+}
+
+.legal__actions{
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.legal__back{
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.92);
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 12px 34px rgba(0,0,0,0.36);
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.legal__back:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(138,79,255,0.34);
+}
+
+.legal__back:active{ transform: translateY(0); }
+
+.legal__lang{
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 4px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.legal__langBtn{
+  border: 0;
+  background: transparent;
+  color: rgba(255,255,255,0.86);
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-weight: 900;
+  letter-spacing: 0.10em;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.legal__langBtn.is-active,
+.legal__langBtn:disabled{
+  background: rgba(138,79,255,0.18);
+  color: rgba(255,255,255,0.95);
+  cursor: default;
+}
+
+/* card */
+.legal__card{
+  border-radius: 18px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 18px 56px rgba(0,0,0,0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: clamp(16px, 2.4vw, 22px);
+}
+
+.legal__section{
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+}
+
+.legal__h2{
+  margin: 0 0 10px;
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 900;
+  color: rgba(255,255,255,0.92);
+}
+
+.legal__h3{
+  margin: 12px 0 8px;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 900;
+  color: rgba(255,255,255,0.90);
+}
+
+.legal__p{
+  margin: 0 0 10px 0;
+  color: rgba(255,255,255,0.86);
+  font-size: 14px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.legal__p:last-child{ margin-bottom: 0; }
+
+.legal__address{
+  margin: 10px 0 14px;
+  font-style: normal;
+  color: rgba(255,255,255,0.88);
+  line-height: 1.6;
+}
+
+.legal__strong{
+  font-weight: 900;
+  color: rgba(255,255,255,0.96);
+}
+
+.legal__link{
+  color: rgba(138,79,255,0.95);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(138,79,255,0.35);
+}
+
+.legal__link:hover{
+  border-bottom-color: rgba(138,79,255,0.75);
+}
+
+@media (max-width: 575.98px){
+  .legal{
+    margin-top: 20vh;
+    margin-bottom: 20vh;
+    padding-bottom: 200px;
+  }
+
+  .legal__headerRow{
+    grid-template-columns: 1fr;
+  }
+
+  .legal__actions{
+    justify-content: flex-start;
+  }
+}
+
+
+/* === Cookies modal: smaller, lower, scrollable === */
+
+.modal{
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+.modal__backdrop{
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.modal__panel{
+  position: relative;
+  z-index: 1;
+
+  width: min(920px, calc(100% - 28px));
+  margin: 22vh auto 6vh;         /* pulls it down */
+  max-height: 68vh;              /* makes it smaller */
+  display: flex;
+  flex-direction: column;
+
+  border-radius: 18px;
+  background: rgba(10,10,14,0.78);
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.65);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  overflow: hidden;              /* keeps rounded corners clean */
+}
+
+.modal__top{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+}
+
+.modal__title{
+  font-weight: 900;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: rgba(255,255,255,0.92);
+}
+
+.modal__close{
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.92);
+  border-radius: 999px;
+  width: 36px;
+  height: 36px;
+  line-height: 34px;
+  font-size: 18px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.modal__close:hover{
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(138,79,255,0.34);
+}
+
+.modal__body{
+  padding: 14px 16px 16px;
+  overflow: auto;                /* scroll inside */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* nice scrollbar (optional) */
+.modal__body::-webkit-scrollbar{ width: 10px; }
+.modal__body::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,0.16);
+  border-radius: 999px;
+  border: 2px solid rgba(10,10,14,0.78);
+}
+.modal__body::-webkit-scrollbar-track{
+  background: rgba(255,255,255,0.06);
+}
+
+/* modal typography (keep it consistent with legal look) */
+.modal__block{ margin-bottom: 14px; }
+.modal__block:last-child{ margin-bottom: 0; }
+
+.modal__h{
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: rgba(255,255,255,0.92);
+  margin: 0 0 8px;
+}
+
+.modal__h2{
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: rgba(255,255,255,0.90);
+  margin: 12px 0 8px;
+}
+
+.modal__h3{
+  font-weight: 900;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: rgba(255,255,255,0.88);
+  margin: 10px 0 6px;
+}
+
+.modal__p{
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: rgba(255,255,255,0.84);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.modal__p:last-child{ margin-bottom: 0; }
+
+@media (max-width: 575.98px){
+  .modal__panel{
+    margin: 24vh auto 6vh;
+    max-height: 64vh;
+  }
+  .modal__body{
+    padding: 12px 14px 14px;
+  }
+}

@@ -4,11 +4,13 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { AdminLogin } from "./components/admin/AdminLogin";
 import AdminSubmissions from "./components/admin/AdminSubmissions";
 import AdminCms from "./components/admin/AdminCms";
-import AdminSubmissionDetails from "./components/admin/AdminSubmissionDetails";
 import AdminUsers from "./components/admin/AdminUsers";
+import AdminPMG from "./components/admin/AdminPMG";
+import AdminPCR from "./components/admin/AdminPCR";
 
 import "./App.css";
 import "./styles/admin.css";
+import "animate.css";
 
 import BottomNav from "./components/BottomNav";
 import Hero from "./components/Hero";
@@ -26,19 +28,15 @@ import WhatIsPublishingPage from "./components/WhatIsPublishingPage";
 import SyncLicensingPage from "./components/SyncLicensingPage";
 import SubmitForm from "./components/SubmitForm";
 
-import "animate.css";
 import PrivacyPolicyPage from "./components/PrivacyPolicyPage";
 import TermsPage from "./components/TermsPage";
 import CookiePolicyPage from "./components/CookiePolicyPage";
 
-import AdminPMG from "./components/admin/AdminPMG";
+import ScrollToTop from "./components/ScrollToTop";
 
 export type Theme = "dark" | "light";
 export type Language = "EN" | "DE";
 
-import ScrollToTop from "./components/ScrollToTop";
-
-/** Public layout wrapper da ne ponavljaš isti markup svuda */
 function PublicLayout({
   theme,
   children,
@@ -49,7 +47,21 @@ function PublicLayout({
   return (
     <div className={`app app--${theme}`}>
       <BottomNav />
-      <main className="app-main">{children}</main>
+      <main className="app-main app-main--public">{children}</main>
+    </div>
+  );
+}
+
+function AdminLayout({
+  theme,
+  children,
+}: {
+  theme: Theme;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`app app--${theme} app--admin`}>
+      <main className="app-main app-main--admin">{children}</main>
     </div>
   );
 }
@@ -74,145 +86,140 @@ function App() {
 
   return (
     <>
-    <ScrollToTop />
-    <Routes>
-      {/* PUBLIC */}
-      <Route
-        path="/"
-        element={
-          <PublicLayout theme={theme}>
-            <HomePage />
-          </PublicLayout>
-        }
-      />
+      <ScrollToTop />
 
-      <Route
-        path="/artists"
-        element={
-          <PublicLayout theme={theme}>
-            <ArtistsPage />
-          </PublicLayout>
-        }
-      />
-
-      <Route
-        path="/sync-licensing"
-        element={
-          <PublicLayout theme={theme}>
-            <SyncLicensingPage />
-          </PublicLayout>
-        }
-      />
-
-      <Route
-        path="/what-is-publishing"
-        element={
-          <PublicLayout theme={theme}>
-            <WhatIsPublishingPage />
-          </PublicLayout>
-        }
-      />
-
-      <Route
-        path="/submitform"
-        element={
-          <PublicLayout theme={theme}>
-            <SubmitForm />
-          </PublicLayout>
-        }
-      />
-
-      {/* ADMIN */}
-      <Route
-        path="/admin/login"
-        element={
-          <div className={`app app--${theme}`}>
-            <main className="app-main">
-              <AdminLogin />
-            </main>
-          </div>
-        }
-      />
-
-      <Route
-        path="/admin/submissions"
-        element={
-          <div className={`app app--${theme}`}>
-            <main className="app-main">
-              <AdminSubmissions />
-            </main>
-          </div>
-        }
-      />
-
-     
-      <Route
-        path="/admin/users"
-        element={
-          <div className={`app app--${theme}`}>
-            <main className="app-main">
-              <AdminUsers />
-            </main>
-          </div>
-        }
-      />
-
-      <Route
-        path="/admin/cms"
-        element={
-          <div className={`app app--${theme}`}>
-            <main className="app-main">
-              <AdminCms />
-            </main>
-          </div>
-        }
-      />
-
-      {/* fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Routes>
+        {/* PUBLIC */}
+        <Route
+          path="/"
+          element={
+            <PublicLayout theme={theme}>
+              <HomePage />
+            </PublicLayout>
+          }
+        />
 
         <Route
-        path="/privacy-policy"
-        element={
-          <PublicLayout theme={theme}>
-            <PrivacyPolicyPage />
-          </PublicLayout>
-        }
-      />
+          path="/artists"
+          element={
+            <PublicLayout theme={theme}>
+              <ArtistsPage />
+            </PublicLayout>
+          }
+        />
 
-      <Route
-        path="/cookie-policy"
-        element={
-          <PublicLayout theme={theme}>
-            <CookiePolicyPage />
-          </PublicLayout>
-        }
-      />
+        <Route
+          path="/sync-licensing"
+          element={
+            <PublicLayout theme={theme}>
+              <SyncLicensingPage />
+            </PublicLayout>
+          }
+        />
 
-      <Route
-        path="/terms"
-        element={
-          <PublicLayout theme={theme}>
-            <TermsPage />
-          </PublicLayout>
-        }
-      />
+        <Route
+          path="/what-is-publishing"
+          element={
+            <PublicLayout theme={theme}>
+              <WhatIsPublishingPage />
+            </PublicLayout>
+          }
+        />
 
-      <Route
-        path="/admin/pmg"
-        element={
-          <div className={`app app--${theme}`}>
-            <main className="app-main">
+        <Route
+          path="/submitform"
+          element={
+            <PublicLayout theme={theme}>
+              <SubmitForm />
+            </PublicLayout>
+          }
+        />
+
+        <Route
+          path="/privacy-policy"
+          element={
+            <PublicLayout theme={theme}>
+              <PrivacyPolicyPage />
+            </PublicLayout>
+          }
+        />
+
+        <Route
+          path="/cookie-policy"
+          element={
+            <PublicLayout theme={theme}>
+              <CookiePolicyPage />
+            </PublicLayout>
+          }
+        />
+
+        <Route
+          path="/terms"
+          element={
+            <PublicLayout theme={theme}>
+              <TermsPage />
+            </PublicLayout>
+          }
+        />
+
+        {/* ADMIN */}
+        <Route
+          path="/admin/login"
+          element={
+            <AdminLayout theme={theme}>
+              <AdminLogin />
+            </AdminLayout>
+          }
+        />
+
+        <Route
+          path="/admin/submissions"
+          element={
+            <AdminLayout theme={theme}>
+              <AdminSubmissions />
+            </AdminLayout>
+          }
+        />
+
+        <Route
+          path="/admin/users"
+          element={
+            <AdminLayout theme={theme}>
+              <AdminUsers />
+            </AdminLayout>
+          }
+        />
+
+        <Route
+          path="/admin/cms"
+          element={
+            <AdminLayout theme={theme}>
+              <AdminCms />
+            </AdminLayout>
+          }
+        />
+
+        <Route
+          path="/admin/pmg"
+          element={
+            <AdminLayout theme={theme}>
               <AdminPMG />
-            </main>
-          </div>
-        }
-      />
+            </AdminLayout>
+          }
+        />
 
+        <Route
+          path="/admin/pcr"
+          element={
+            <AdminLayout theme={theme}>
+              <AdminPCR />
+            </AdminLayout>
+          }
+        />
 
-
-      
-    </Routes>
+        {/* FALLBACK MORA POSLEDNJI */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </>
   );
 }

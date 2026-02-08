@@ -64,8 +64,7 @@ const CMS_KEYS = {
 const DEFAULT_HERO: HeroCms = {
   prefixes: ["BUILT FOR", "EMPOWERING", "ELEVATING"],
   typeWords: ["SONGWRITERS.", "CREATORS.", "TALENT."],
-  subtext:
-    "Your trusted partner in music publishing, global rights administration, and creative career growth.",
+  subtext: "Your trusted partner in music publishing, global rights administration, and creative career growth.",
 };
 
 const DEFAULT_ABOUT: AboutCms = {
@@ -209,7 +208,6 @@ async function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-
 function resolvePreviewSrc(src: string) {
   const s = (src || "").trim();
   if (!s) return "";
@@ -224,19 +222,11 @@ function resolvePreviewSrc(src: string) {
   return s;
 }
 
-
 function ImagePreview({ src, alt }: { src: string; alt: string }) {
   const s = resolvePreviewSrc(src);
   if (!s) return null;
   return (
-    <div
-      style={{
-        marginTop: 8,
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-      }}
-    >
+    <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10 }}>
       <div
         style={{
           width: 56,
@@ -299,32 +289,11 @@ export default function AdminCms() {
   const [artistPreview, setArtistPreview] = useState<Record<string, string>>({});
   const [partnerPreview, setPartnerPreview] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    return () => {
-      Object.values(artistPreview).forEach((u) => URL.revokeObjectURL(u));
-      Object.values(partnerPreview).forEach((u) => URL.revokeObjectURL(u));
-    };
-  }, [artistPreview, partnerPreview]);
-
-  const setLocalPreview = (kind: "artist" | "partner", id: string, file: File) => {
-    const url = URL.createObjectURL(file);
-    if (kind === "artist") {
-      setArtistPreview((p) => ({ ...p, [id]: url }));
-    } else {
-      setPartnerPreview((p) => ({ ...p, [id]: url }));
-    }
-  };
-
-  useEffect(() => {
-    if (!msg) return;
-    const t = window.setTimeout(() => setMsg(null), 1500);
-    return () => window.clearTimeout(t);
-  }, [msg]);
-
+  // --- URL/SITE SYNC (fix) ---
   useEffect(() => {
     const fromUrl = params.get("site");
     if (fromUrl) setSite(fromUrl as any);
-  }, []);
+  }, [params, setSite]);
 
   useEffect(() => {
     const qp = new URLSearchParams(location.search);
@@ -337,14 +306,47 @@ export default function AdminCms() {
     setSite(s as AdminSiteKey);
   }, [location.search, setSite]);
 
+  // --- route guard (fix): nikad ne prikazuj AdminCms za PMG/PCR ---
+  useEffect(() => {
+    if (!site) return;
+
+    if (site === "purple-crunch-records") {
+      navigate(`/admin/pcr?site=${encodeURIComponent(site)}`, { replace: true });
+      return;
+    }
+    if (site === "purple-music-group") {
+      navigate(`/admin/pmg?site=${encodeURIComponent(site)}`, { replace: true });
+      return;
+    }
+  }, [site, navigate]);
+
+  // --- token guard ---
   useEffect(() => {
     if (!token) navigate("/admin/login");
   }, [token, navigate]);
 
-  const siteLabel = useMemo(
-    () => ADMIN_SITES.find((s) => s.key === site)?.label ?? site,
-    [site]
-  );
+  // --- toast autoclear ---
+  useEffect(() => {
+    if (!msg) return;
+    const t = window.setTimeout(() => setMsg(null), 1500);
+    return () => window.clearTimeout(t);
+  }, [msg]);
+
+  // --- revoke previews ---
+  useEffect(() => {
+    return () => {
+      Object.values(artistPreview).forEach((u) => URL.revokeObjectURL(u));
+      Object.values(partnerPreview).forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [artistPreview, partnerPreview]);
+
+  const setLocalPreview = (kind: "artist" | "partner", id: string, file: File) => {
+    const url = URL.createObjectURL(file);
+    if (kind === "artist") setArtistPreview((p) => ({ ...p, [id]: url }));
+    else setPartnerPreview((p) => ({ ...p, [id]: url }));
+  };
+
+  const siteLabel = useMemo(() => ADMIN_SITES.find((s) => s.key === site)?.label ?? site, [site]);
 
   const cmsGet = async (key: string) => {
     if (!site) return null;
@@ -398,10 +400,12 @@ export default function AdminCms() {
     return safeJsonParse<T>(data.json, fallback);
   };
 
+  // --- LOAD CMS ---
   useEffect(() => {
     let alive = true;
 
-    if (!site) {
+    // ako route-guard prebaci PMG/PCR, ne ucitavaj ovde nista
+    if (!site || site === "purple-music-group" || site === "purple-crunch-records") {
       setLoading(false);
       return () => {
         alive = false;
@@ -483,6 +487,7 @@ export default function AdminCms() {
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [site]);
 
   const saveAll = async () => {
@@ -710,7 +715,6 @@ export default function AdminCms() {
       <div className="cms-shell">
         <div className="cms-header">
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        
             <div>
               <div className="cms-title">Admin CMS: {siteLabel}</div>
               <div className="cms-subtitle">Purple Crunch Publishing</div>
@@ -720,7 +724,7 @@ export default function AdminCms() {
           <div className="cms-actions">
             <button
               className="cms-btn cms-btn--primary"
-              onClick={() => navigate(`/admin/submissions?site=${encodeURIComponent(site)}`)}
+              onClick={() => navigate(`/admin/submissions?site=${encodeURIComponent(site || "")}`)}
               type="button"
             >
               Back
@@ -728,15 +732,17 @@ export default function AdminCms() {
 
             <select
               className="cms-select"
-              value={site}
+              value={site || ""}
               onChange={(e) => {
-                const next = e.target.value;
+                const next = e.target.value as AdminSiteKey;
                 setSite(next as any);
 
                 if (next === "purple-music-group") {
-                  navigate(`/admin/pmg?site=${encodeURIComponent(next)}`);
+                  navigate(`/admin/pmg?site=${encodeURIComponent(next)}`, { replace: true });
+                } else if (next === "purple-crunch-records") {
+                  navigate(`/admin/pcr?site=${encodeURIComponent(next)}`, { replace: true });
                 } else {
-                  navigate(`/admin/cms?site=${encodeURIComponent(next)}`);
+                  navigate(`/admin/cms?site=${encodeURIComponent(next)}`, { replace: true });
                 }
               }}
             >
@@ -747,17 +753,12 @@ export default function AdminCms() {
               ))}
             </select>
 
-            <button className="cms-btn cms-btn--primary" onClick={saveAll} disabled={saving}>
+            <button className="cms-btn cms-btn--primary" onClick={saveAll} disabled={saving} type="button">
               {saving ? "Saving…" : "Save all"}
             </button>
           </div>
 
-
-          {msg && (
-            <div className={`cms-headerToast ${msg.kind === "ok" ? "is-ok" : "is-err"}`}>
-              {msg.text}
-            </div>
-          )}
+          {msg && <div className={`cms-headerToast ${msg.kind === "ok" ? "is-ok" : "is-err"}`}>{msg.text}</div>}
         </div>
 
         <div className="cms-sections" style={{ marginTop: 0 }}>
@@ -769,27 +770,21 @@ export default function AdminCms() {
                   <input
                     className="cms-input"
                     value={hero.prefixes[0]}
-                    onChange={(e) =>
-                      setHero((p) => ({ ...p, prefixes: [e.target.value, p.prefixes[1], p.prefixes[2]] }))
-                    }
+                    onChange={(e) => setHero((p) => ({ ...p, prefixes: [e.target.value, p.prefixes[1], p.prefixes[2]] }))}
                   />
                 </Field>
                 <Field label="Prefix 2">
                   <input
                     className="cms-input"
                     value={hero.prefixes[1]}
-                    onChange={(e) =>
-                      setHero((p) => ({ ...p, prefixes: [p.prefixes[0], e.target.value, p.prefixes[2]] }))
-                    }
+                    onChange={(e) => setHero((p) => ({ ...p, prefixes: [p.prefixes[0], e.target.value, p.prefixes[2]] }))}
                   />
                 </Field>
                 <Field label="Prefix 3">
                   <input
                     className="cms-input"
                     value={hero.prefixes[2]}
-                    onChange={(e) =>
-                      setHero((p) => ({ ...p, prefixes: [p.prefixes[0], p.prefixes[1], e.target.value] }))
-                    }
+                    onChange={(e) => setHero((p) => ({ ...p, prefixes: [p.prefixes[0], p.prefixes[1], e.target.value] }))}
                   />
                 </Field>
               </div>
@@ -799,37 +794,27 @@ export default function AdminCms() {
                   <input
                     className="cms-input"
                     value={hero.typeWords[0]}
-                    onChange={(e) =>
-                      setHero((p) => ({ ...p, typeWords: [e.target.value, p.typeWords[1], p.typeWords[2]] }))
-                    }
+                    onChange={(e) => setHero((p) => ({ ...p, typeWords: [e.target.value, p.typeWords[1], p.typeWords[2]] }))}
                   />
                 </Field>
                 <Field label="Typed text 2">
                   <input
                     className="cms-input"
                     value={hero.typeWords[1]}
-                    onChange={(e) =>
-                      setHero((p) => ({ ...p, typeWords: [p.typeWords[0], e.target.value, p.typeWords[2]] }))
-                    }
+                    onChange={(e) => setHero((p) => ({ ...p, typeWords: [p.typeWords[0], e.target.value, p.typeWords[2]] }))}
                   />
                 </Field>
                 <Field label="Typed text 3">
                   <input
                     className="cms-input"
                     value={hero.typeWords[2]}
-                    onChange={(e) =>
-                      setHero((p) => ({ ...p, typeWords: [p.typeWords[0], p.typeWords[1], e.target.value] }))
-                    }
+                    onChange={(e) => setHero((p) => ({ ...p, typeWords: [p.typeWords[0], p.typeWords[1], e.target.value] }))}
                   />
                 </Field>
               </div>
 
               <Field label="Subtitle (subtext)">
-                <textarea
-                  className="cms-textarea"
-                  value={hero.subtext}
-                  onChange={(e) => setHero((p) => ({ ...p, subtext: e.target.value }))}
-                />
+                <textarea className="cms-textarea" value={hero.subtext} onChange={(e) => setHero((p) => ({ ...p, subtext: e.target.value }))} />
               </Field>
             </div>
           )}
@@ -854,7 +839,7 @@ export default function AdminCms() {
             </div>
           )}
 
-          <AccordionHeader title="Artist " open={openSection === "artists"} onToggle={() => toggleSection("artists")} />
+          <AccordionHeader title="Artist" open={openSection === "artists"} onToggle={() => toggleSection("artists")} />
           {openSection === "artists" && (
             <div className="cms-panel">
               <div className="cms-block">
@@ -872,11 +857,7 @@ export default function AdminCms() {
                   <div key={i} className="cms-row">
                     <div className="cms-row__label">Top {i + 1}</div>
 
-                    <select
-                      className="cms-select"
-                      value={homeArtists.top3[i] ?? ""}
-                      onChange={(e) => setTop3At(i, e.target.value)}
-                    >
+                    <select className="cms-select" value={homeArtists.top3[i] ?? ""} onChange={(e) => setTop3At(i, e.target.value)}>
                       <option value="">— select artist —</option>
                       {roster.artists.map((a) => (
                         <option key={a.id} value={a.id}>
@@ -973,11 +954,7 @@ export default function AdminCms() {
                           <div className="cms-card__body">
                             <div className="cms-grid2">
                               <Field label="Artist name">
-                                <input
-                                  className="cms-input"
-                                  value={a.name}
-                                  onChange={(e) => updateRosterArtist(i, { name: e.target.value })}
-                                />
+                                <input className="cms-input" value={a.name} onChange={(e) => updateRosterArtist(i, { name: e.target.value })} />
                               </Field>
 
                               <Field label="Spotify URL">
@@ -991,11 +968,7 @@ export default function AdminCms() {
 
                             <div className="cms-grid2">
                               <Field label="Image URL (or dataURL)">
-                                <input
-                                  className="cms-input"
-                                  value={a.image}
-                                  onChange={(e) => updateRosterArtist(i, { image: e.target.value })}
-                                />
+                                <input className="cms-input" value={a.image} onChange={(e) => updateRosterArtist(i, { image: e.target.value })} />
                                 <ImagePreview src={previewSrc} alt={`${a.name} preview`} />
                               </Field>
 
@@ -1027,11 +1000,7 @@ export default function AdminCms() {
                             </div>
 
                             <Field label="Bio">
-                              <textarea
-                                className="cms-textarea"
-                                value={a.bio}
-                                onChange={(e) => updateRosterArtist(i, { bio: e.target.value })}
-                              />
+                              <textarea className="cms-textarea" value={a.bio} onChange={(e) => updateRosterArtist(i, { bio: e.target.value })} />
                             </Field>
 
                             <div className="cms-divider" />
@@ -1069,7 +1038,7 @@ export default function AdminCms() {
             </div>
           )}
 
-          <AccordionHeader title="Services" open={openSection === "services"} onToggle={() => toggleSection("services")} />
+          <AccordionHeader title="Services (Shared content for PCP and PCR: edits here update both sites.)" open={openSection === "services"} onToggle={() => toggleSection("services")} />
           {openSection === "services" && (
             <div className="cms-panel">
               <div className="cms-block__head">
@@ -1125,7 +1094,7 @@ export default function AdminCms() {
             </div>
           )}
 
-          <AccordionHeader title="Sync" open={openSection === "sync"} onToggle={() => toggleSection("sync")} />
+          <AccordionHeader title="Sync (Shared content for PCP and PCR: edits here update both sites.)" open={openSection === "sync"} onToggle={() => toggleSection("sync")} />
           {openSection === "sync" && (
             <div className="cms-panel">
               <div className="cms-grid3">
@@ -1154,7 +1123,7 @@ export default function AdminCms() {
             </div>
           )}
 
-          <AccordionHeader title="Partners" open={openSection === "partners"} onToggle={() => toggleSection("partners")} />
+          <AccordionHeader title="Partners (Shared content for PCP and PCR: edits here update both sites.)" open={openSection === "partners"} onToggle={() => toggleSection("partners")} />
           {openSection === "partners" && (
             <div className="cms-panel">
               <div className="cms-block__head">
@@ -1329,15 +1298,7 @@ export default function AdminCms() {
   );
 }
 
-function AccordionHeader({
-  title,
-  open,
-  onToggle,
-}: {
-  title: string;
-  open: boolean;
-  onToggle: () => void;
-}) {
+function AccordionHeader({ title, open, onToggle }: { title: string; open: boolean; onToggle: () => void }) {
   return (
     <button className={`cms-acc ${open ? "is-open" : ""}`} onClick={onToggle} type="button">
       <span className="cms-acc__title">{title}</span>

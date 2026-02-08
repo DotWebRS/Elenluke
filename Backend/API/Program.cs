@@ -34,15 +34,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-          /*.WithOrigins(
-            "https://purplecrunchpublishing.com",
-            "https://www.purplecrunchpublishing.com",
-            "http://localhost:5173",
-            "http://localhost:5174"
-          )*/
-          .AllowAnyOrigin()
-          .AllowAnyHeader()
-          .AllowAnyMethod();
+
+            .AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
     });
 });
 
@@ -118,22 +113,30 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 var app = builder.Build();
 
+
 app.UseForwardedHeaders();
 
+app.UseHttpsRedirection();
+
+app.UseStaticFiles();
+
 app.UseRouting();
+
 app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
 
+
 Directory.CreateDirectory(Path.Combine(app.Environment.WebRootPath ?? app.Environment.ContentRootPath, "uploads"));
 Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "uploads_private"));
+
 
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
-    //db.Database.EnsureCreated();
+
     var seedUser = builder.Configuration["Admin:Username"] ?? "admin";
     var seedPass = builder.Configuration["Admin:Password"] ?? "admin123";
 
@@ -166,8 +169,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseStaticFiles();
-app.UseHttpsRedirection();
-
 app.MapControllers();
+
 app.Run();

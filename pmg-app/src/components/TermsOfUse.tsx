@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 type Lang = "DE" | "EN";
 
@@ -48,6 +49,8 @@ export default function TermsOfUse() {
     localStorage.setItem("legalLang", lang);
   }, [lang]);
 
+  const navigate = useNavigate();
+
   return (
     <main className="page">
       <section className="legal">
@@ -58,6 +61,14 @@ export default function TermsOfUse() {
         <div className="legal__inner">
           <header className="legal__header">
             <div className="legal__headerRow">
+              <button
+                type="button"
+                className="legal__back"
+                onClick={() => navigate(-1)}
+                aria-label="Go back"
+              >
+                ← Back
+              </button>
               <div>
                 <h1 className="legal__title">
                   {lang === "EN" ? "Terms of Use" : "Nutzungsbedingungen"}

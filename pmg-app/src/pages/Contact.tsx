@@ -1,11 +1,15 @@
-import { useMemo, useState } from "react";
+// src/pages/Contact.tsx
+import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { API_BASE } from "../config/apiBase";
-import "../styles/submitform.css"
+import "../styles/submitform.css";
 
 type UiType = "" | "Sync" | "General" | "Legal";
-type BackendSubmissionType = "SyncRequest" | "GeneralContactInquiry" | "LegalRequest";
-
+type BackendSubmissionType =
+  | "SyncRequest"
+  | "GeneralContactInquiry"
+  | "LegalRequest";
 type ExtraFields = Record<string, string>;
 
 function buildUrl(path: string) {
@@ -15,50 +19,129 @@ function buildUrl(path: string) {
 }
 
 const DISCLAIMER = "";
+const DRAFT_KEY = "contact_form_draft_v1";
+
+const DEFAULT_FIELDS: ExtraFields = {
+  company: "",
+  phone: "",
+  productionName: "",
+  songTitle: "",
+  mediaType: "",
+  term: "",
+  territory: "",
+};
+
+type DraftPayload = {
+  type: UiType;
+  name: string;
+  email: string;
+  message: string;
+  privacyAccepted: boolean;
+  fields: ExtraFields;
+};
 
 function looksLikeFullName(v: string) {
-  const parts = (v || "").trim().replace(/\s+/g, " ").split(" ").filter(Boolean);
+  const parts = (v || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .filter(Boolean);
   return parts.length >= 2;
 }
 
+function safeParseDraft(raw: string | null): DraftPayload | null {
+  if (!raw) return null;
+  try {
+    const d = JSON.parse(raw);
+    if (!d || typeof d !== "object") return null;
+
+    return {
+      type: (typeof d.type === "string" ? d.type : "") as UiType,
+      name: typeof d.name === "string" ? d.name : "",
+      email: typeof d.email === "string" ? d.email : "",
+      message: typeof d.message === "string" ? d.message : "",
+      privacyAccepted:
+        typeof d.privacyAccepted === "boolean" ? d.privacyAccepted : false,
+      fields: {
+        ...DEFAULT_FIELDS,
+        ...(d.fields && typeof d.fields === "object" ? d.fields : {}),
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function Contact() {
-  const [type, setType] = useState<UiType>("");
+  const navigate = useNavigate();
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
+  // read draft ONCE (mount)
+  const initialDraft = useMemo(
+    () => safeParseDraft(sessionStorage.getItem(DRAFT_KEY)),
+    []
+  );
 
-  const [privacyAccepted, setPrivacyAccepted] = useState(false);
-
-  const [fields, setFields] = useState<ExtraFields>({
-    company: "",
-    phone: "",
-    productionName: "",
-    songTitle: "",
-    mediaType: "",
-    term: "",
-    territory: "",
-  });
+  const [type, setType] = useState<UiType>(initialDraft?.type ?? "");
+  const [name, setName] = useState(initialDraft?.name ?? "");
+  const [email, setEmail] = useState(initialDraft?.email ?? "");
+  const [message, setMessage] = useState(initialDraft?.message ?? "");
+  const [privacyAccepted, setPrivacyAccepted] = useState(
+    initialDraft?.privacyAccepted ?? false
+  );
+  const [fields, setFields] = useState<ExtraFields>(
+    initialDraft?.fields ?? DEFAULT_FIELDS
+  );
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [okId, setOkId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  // helper: save immediately (prevents losing last keystroke if user clicks link fast)
+  const saveDraftNow = (next?: Partial<DraftPayload>) => {
+    if (isSubmitting) return;
+    try {
+      const payload: DraftPayload = {
+        type,
+        name,
+        email,
+        message,
+        privacyAccepted,
+        fields,
+        ...(next || {}),
+      };
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+    } catch {
+      // ignore
+    }
+  };
+
   const setField = (key: string, value: string) => {
-    setFields((p) => ({ ...p, [key]: value }));
+    setFields((prev) => {
+      const next = { ...prev, [key]: value };
+      saveDraftNow({ fields: next });
+      return next;
+    });
   };
 
   const backendType = useMemo<BackendSubmissionType | "">(() => {
     if (type === "Sync") return "SyncRequest";
     if (type === "General") return "GeneralContactInquiry";
-    if (type === "Legal") return "LegalRequest"; 
+    if (type === "Legal") return "LegalRequest";
     return "";
   }, [type]);
 
   const visibleFieldKeys = useMemo(() => {
     switch (type) {
       case "Sync":
-        return ["company", "phone", "productionName", "songTitle", "mediaType", "term", "territory"];
+        return [
+          "company",
+          "phone",
+          "productionName",
+          "songTitle",
+          "mediaType",
+          "term",
+          "territory",
+        ];
       case "General":
       case "Legal":
         return ["company", "phone"];
@@ -86,14 +169,41 @@ export default function Contact() {
     if (!n || !e) return "Name and Email are required.";
     if (!looksLikeFullName(n)) return "In Name box enter First name Last name.";
     if (!privacyAccepted) return "Privacy policy must be accepted.";
-
-    // client request: Legal must have a message body
-    if (type === "Legal" && !msg) return "Message is required for Legal submissions.";
-
-    // optional: enforce General too (uncomment if you want)
-    // if (type === "General" && !msg) return "Message is required.";
+    if (type === "Legal" && !msg)
+      return "Message is required for Legal submissions.";
 
     return null;
+  };
+
+  // safety: if browser navigates away / reloads, persist draft
+  useEffect(() => {
+    const onPageHide = () => saveDraftNow();
+    window.addEventListener("pagehide", onPageHide);
+    return () => window.removeEventListener("pagehide", onPageHide);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type, name, email, message, privacyAccepted, fields, isSubmitting]);
+
+  // optional: keep your effect-save too (fine), but now we also save immediately on change
+  useEffect(() => {
+    saveDraftNow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type, name, email, message, privacyAccepted, fields]);
+
+  const resetForm = () => {
+    setType("");
+    setName("");
+    setEmail("");
+    setMessage("");
+    setPrivacyAccepted(false);
+    setFields(DEFAULT_FIELDS);
+  };
+
+  const clearDraft = () => {
+    try {
+      sessionStorage.removeItem(DRAFT_KEY);
+    } catch {
+      // ignore
+    }
   };
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -135,8 +245,9 @@ export default function Contact() {
       const data = await res.json().catch(() => null);
       setOkId(data?.id ?? "submitted");
 
-      // reset only what makes sense
-      setMessage("");
+      // SUCCESS: clear storage + reset state
+      clearDraft();
+      resetForm();
     } catch (ex: any) {
       setErr(ex?.message || "Submit failed.");
     } finally {
@@ -148,26 +259,46 @@ export default function Contact() {
     <main className="submitform-page">
       <section className="submitform-wrap">
         <header className="submitform-head">
+          <button
+            type="button"
+            className="submitform-back"
+            onClick={() => navigate(-1)}
+            aria-label="Go back"
+          >
+            <span className="submitform-backIcon" aria-hidden="true">
+              ←
+            </span>
+            <span className="submitform-backTxt">Back</span>
+          </button>
+
           <h1 className="submitform-title">
             CONTACT <span className="submitform-titleGrad">US</span>
           </h1>
-          <p className="submitform-sub">Use this page to contact us or submit a request.</p>
+          <p className="submitform-sub">
+            Use this page to contact us or submit a request.
+          </p>
         </header>
 
         <form className="submitform-card" onSubmit={onSubmit}>
           <div className="submitform-grid">
             <label className="submitform-field">
               <span className="submitform-label">SUBMISSION TYPE*</span>
-              <select
-                className="submitform-control"
-                value={type}
-                onChange={(ev) => setType(ev.target.value as UiType)}
-              >
-                <option value="">Select…</option>
-                <option value="General">General</option>
-                <option value="Sync">Sync</option>
-                <option value="Legal">Legal</option>
-              </select>
+              <div className="submitform-select">
+                <select
+                  className="submitform-control"
+                  value={type}
+                  onChange={(ev) => {
+                    const v = ev.target.value as UiType;
+                    setType(v);
+                    saveDraftNow({ type: v });
+                  }}
+                >
+                  <option value="">Select…</option>
+                  <option value="General">General</option>
+                  <option value="Sync">Sync</option>
+                  <option value="Legal">Legal</option>
+                </select>
+              </div>
             </label>
 
             <div className="submitform-divider" />
@@ -177,7 +308,11 @@ export default function Contact() {
               <input
                 className="submitform-control"
                 value={name}
-                onChange={(ev) => setName(ev.target.value)}
+                onChange={(ev) => {
+                  const v = ev.target.value;
+                  setName(v);
+                  saveDraftNow({ name: v });
+                }}
                 placeholder="First name Last name"
               />
             </label>
@@ -188,7 +323,11 @@ export default function Contact() {
                 className="submitform-control"
                 type="email"
                 value={email}
-                onChange={(ev) => setEmail(ev.target.value)}
+                onChange={(ev) => {
+                  const v = ev.target.value;
+                  setEmail(v);
+                  saveDraftNow({ email: v });
+                }}
                 placeholder="name@email.com"
               />
             </label>
@@ -244,7 +383,9 @@ export default function Contact() {
                   <input
                     className="submitform-control"
                     value={fields.productionName}
-                    onChange={(ev) => setField("productionName", ev.target.value)}
+                    onChange={(ev) =>
+                      setField("productionName", ev.target.value)
+                    }
                     placeholder="Production name"
                   />
                 </label>
@@ -261,63 +402,75 @@ export default function Contact() {
 
                 <label className="submitform-field">
                   <span className="submitform-label">MEDIA TYPE</span>
-                  <select
-                    className="submitform-control"
-                    value={fields.mediaType}
-                    onChange={(ev) => setField("mediaType", ev.target.value)}
-                  >
-                    <option value="">Select</option>
-                    <option>Film</option>
-                    <option>TV</option>
-                    <option>Advertising</option>
-                    <option>Gaming</option>
-                    <option>Digital</option>
-                    <option>Social</option>
-                  </select>
+                  <div className="submitform-select">
+                    <select
+                      className="submitform-control"
+                      value={fields.mediaType}
+                      onChange={(ev) => setField("mediaType", ev.target.value)}
+                    >
+                      <option value="">Select</option>
+                      <option>Film</option>
+                      <option>TV</option>
+                      <option>Advertising</option>
+                      <option>Gaming</option>
+                      <option>Digital</option>
+                      <option>Social</option>
+                    </select>
+                  </div>
                 </label>
 
                 <label className="submitform-field">
                   <span className="submitform-label">TERM</span>
-                  <select
-                    className="submitform-control"
-                    value={fields.term}
-                    onChange={(ev) => setField("term", ev.target.value)}
-                  >
-                    <option value="">Select</option>
-                    <option>3 months</option>
-                    <option>6 months</option>
-                    <option>12 months</option>
-                    <option>24 months</option>
-                    <option>Perpetuity</option>
-                  </select>
+                  <div className="submitform-select">
+                    <select
+                      className="submitform-control"
+                      value={fields.term}
+                      onChange={(ev) => setField("term", ev.target.value)}
+                    >
+                      <option value="">Select</option>
+                      <option>3 months</option>
+                      <option>6 months</option>
+                      <option>12 months</option>
+                      <option>24 months</option>
+                      <option>Perpetuity</option>
+                    </select>
+                  </div>
                 </label>
 
                 <label className="submitform-field submitform-span2">
                   <span className="submitform-label">TERRITORY</span>
-                  <select
-                    className="submitform-control"
-                    value={fields.territory}
-                    onChange={(ev) => setField("territory", ev.target.value)}
-                  >
-                    <option value="">Select</option>
-                    <option>Worldwide</option>
-                    <option>Europe</option>
-                    <option>North America</option>
-                    <option>LATAM</option>
-                    <option>Asia</option>
-                    <option>Custom</option>
-                  </select>
+                  <div className="submitform-select">
+                    <select
+                      className="submitform-control"
+                      value={fields.territory}
+                      onChange={(ev) => setField("territory", ev.target.value)}
+                    >
+                      <option value="">Select</option>
+                      <option>Worldwide</option>
+                      <option>Europe</option>
+                      <option>North America</option>
+                      <option>LATAM</option>
+                      <option>Asia</option>
+                      <option>Custom</option>
+                    </select>
+                  </div>
                 </label>
               </>
             )}
 
             <label className="submitform-field submitform-span2">
-              <span className="submitform-label">MESSAGE{type === "Legal" ? "*" : ""}</span>
+              <span className="submitform-label">
+                MESSAGE{type === "Legal" ? "*" : ""}
+              </span>
               <textarea
                 className="submitform-control submitform-textarea"
                 rows={7}
                 value={message}
-                onChange={(ev) => setMessage(ev.target.value)}
+                onChange={(ev) => {
+                  const v = ev.target.value;
+                  setMessage(v);
+                  saveDraftNow({ message: v });
+                }}
                 placeholder="Project details, references, deadlines, budget notes..."
               />
             </label>
@@ -327,16 +480,20 @@ export default function Contact() {
                 <input
                   type="checkbox"
                   checked={privacyAccepted}
-                  onChange={(ev) => setPrivacyAccepted(ev.target.checked)}
+                  onChange={(ev) => {
+                    const v = ev.target.checked;
+                    setPrivacyAccepted(v);
+                    saveDraftNow({ privacyAccepted: v });
+                  }}
                 />
                 &nbsp;&nbsp;I agree to the{" "}
-                <a className="submitform-link" href="/privacy">
+                <Link className="submitform-link" to="/privacy">
                   Privacy Policy
-                </a>{" "}
+                </Link>{" "}
                 and{" "}
-                <a className="submitform-link" href="/cookies">
+                <Link className="submitform-link" to="/cookies">
                   Cookie Policy
-                </a>
+                </Link>
                 .
               </span>
             </label>
@@ -349,7 +506,8 @@ export default function Contact() {
           {err && <div className="submitform-alert submitform-alert--err">{err}</div>}
           {okId && (
             <div className="submitform-alert submitform-alert--ok">
-              Submitted successfully. Reference ID: <span className="submitform-mono">{okId}</span>
+              Submitted successfully. Reference ID:{" "}
+              <span className="submitform-mono">{okId}</span>
             </div>
           )}
 

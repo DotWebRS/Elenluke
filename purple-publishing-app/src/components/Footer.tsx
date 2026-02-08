@@ -51,26 +51,24 @@ const Footer = () => {
 
 
           <div className="pcp-footer__brandsGrid">
-            {brands.map((b) => (
+            {brands.map((b, i) => (
               <a
                 key={b.name}
-                className={`pcp-footer__brandLink ${b.isCurrent ? "is-current" : ""}`}
+                className={[
+                  "pcp-footer__brandLink",
+                  b.isCurrent ? "is-current" : "",
+                  i === 1 ? "is-midGlow" : "",
+                ].join(" ")}
                 href={b.href}
                 target={b.isCurrent ? undefined : "_blank"}
                 rel={b.isCurrent ? undefined : "noreferrer"}
-                aria-label={`Open ${b.name}`}
-                title={`Open ${b.name}`}
               >
-                <img
-                  className="pcp-footer__brandLogo"
-                  src={b.logo}
-                  alt={b.name}
-                  draggable={false}
-                  loading="lazy"
-                />
+                <img className="pcp-footer__brandLogo" src={b.logo} alt={b.name} draggable={false} loading="lazy" />
               </a>
             ))}
+
           </div>
+
         </div>
       </section>
 

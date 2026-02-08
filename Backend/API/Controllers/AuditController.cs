@@ -18,7 +18,6 @@ public class AuditController : ControllerBase
         _db = db;
     }
 
-    // GET /api/audit?entityType=Submission&entityId=...&from=2025-01-01&to=2025-12-31&take=200
     [HttpGet]
     public async Task<IActionResult> Get(
         [FromQuery] string? entityType,

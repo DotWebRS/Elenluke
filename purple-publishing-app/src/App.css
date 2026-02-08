@@ -7007,3 +7007,227 @@ body.uc-page .app-main{
 
 
 /***************************************************submission filters*/
+
+
+/****traka*/
+/* ===== Partners marquee (scoped, no :root) ===== */
+
+.pmPartners{
+  padding: 22px 0 10px;
+}
+
+/* viewport */
+.pmPartners-viewport{
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  margin-top: 14px;
+}
+
+/* edge fades (so you don’t see hard cut) */
+.pmPartners-fade{
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 64px;
+  z-index: 2;
+  pointer-events: none;
+}
+.pmPartners-fade--left{
+  left: 0;
+  background: linear-gradient(90deg, rgba(0,0,0,1), rgba(0,0,0,0));
+}
+.pmPartners-fade--right{
+  right: 0;
+  background: linear-gradient(270deg, rgba(0,0,0,1), rgba(0,0,0,0));
+}
+
+/* mover = 2 identical tracks side-by-side */
+.pmPartners-move{
+  display: flex;
+  width: max-content;
+  will-change: transform;
+
+  /* default duration, JS overrides via --pmPartnersDur */
+  animation: pmPartnersScroll var(--pmPartnersDur, 36s) linear infinite;
+}
+
+/* EACH track */
+.pmPartners-track{
+  display: inline-flex;
+  align-items: center;
+  gap: 34px;              /* spacing between logos */
+  padding: 10px 10px;
+  flex: 0 0 auto;
+}
+
+/* clickable logo wrapper */
+.pmPartners-logo{
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 8px 10px;
+  background: transparent;
+  border: 0;
+  text-decoration: none;
+  cursor: pointer;
+
+  border-radius: 0;       /* no rounding */
+  outline: none;
+}
+
+/* purple glow on hover */
+.pmPartners-logo::before{
+  content: "";
+  position: absolute;
+  inset: -12px -14px;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(168,85,247,0.38) 0%,
+    rgba(168,85,247,0.18) 35%,
+    rgba(168,85,247,0.00) 72%);
+  opacity: 0;
+  transform: scale(0.98);
+  transition: opacity 180ms ease, transform 180ms ease;
+  pointer-events: none;
+}
+
+.pmPartners-logo:hover::before,
+.pmPartners-logo:focus-visible::before{
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* image styling: medium size, white, consistent */
+.pmPartners-logo img{
+  height: auto;           /* medium */
+  width: auto;
+  max-width: 190px;
+  display: block;
+
+  filter: brightness(0) invert(1);
+  opacity: 0.88;
+
+  transform-origin: center;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.pmPartners-logo:hover img,
+.pmPartners-logo:focus-visible img{
+  transform: scale(1.07);
+  opacity: 1;
+}
+
+/* keyboard focus */
+.pmPartners-logo:focus-visible{
+  outline: 2px solid rgba(168,85,247,0.7);
+  outline-offset: 3px;
+}
+
+/* IMPORTANT:
+   We move by -50% because 2 tracks are identical widths.
+   That guarantees seamless loop (no jump). */
+@keyframes pmPartnersScroll{
+  from { transform: translate3d(0,0,0); }
+  to   { transform: translate3d(-50%,0,0); }
+}
+
+/* responsive */
+@media (max-width: 900px){
+  .pmPartners-track{ gap: 26px; }
+  .pmPartners-logo img{  
+    height: auto;           /* medium */
+    width: auto;
+    max-width: 120px; }
+  .pmPartners-fade{ width: 52px; }
+}
+
+@media (max-width: 520px){
+  .pmPartners-track{ gap: 20px; padding: 8px 8px; }
+  .pmPartners-logo{ padding: 6px 8px; }
+ .pmPartners-logo img{  
+    height: auto;           /* medium */
+    width: auto;
+    max-width: 120px; }
+  .pmPartners-fade{ width: 44px; }
+}
+
+/* reduce motion */
+@media (prefers-reduced-motion: reduce){
+  .pmPartners-move{ animation: none; transform: none; }
+}
+
+
+/******************************************************SREDNJA SLIKA FOOTER*/
+/* osnovno (ako već nemaš) */
+.pcp-footer__brandLogo{
+  transition: transform 180ms ease, filter 180ms ease;
+}
+
+/* JAČI glow samo za srednji logo, bez pravougaonika */
+.pcp-footer__brandLink.is-midGlow:hover .pcp-footer__brandLogo{
+  transform: scale(1.06);
+  filter:
+    brightness(1.12)
+    drop-shadow(0 0 10px rgba(168,85,247,0.70))
+    drop-shadow(0 0 22px rgba(168,85,247,0.50))
+    drop-shadow(0 0 48px rgba(168,85,247,0.28));
+}
+
+/* opciono: malo slabiji glow i kad nije hover (ako želiš da uvek “živi”) */
+.pcp-footer__brandLink.is-midGlow .pcp-footer__brandLogo{
+  filter:
+    brightness(1.02)
+    drop-shadow(0 0 6px rgba(168,85,247,0.22));
+}
+
+/*************************************ZA KONTAKT FORMU*/
+/* WRAP */
+.submitform-select{
+  position: relative;
+  display: block;
+}
+
+/* NATIVE ARROW OFF (razni browseri) */
+.submitform-select .submitform-control{
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: none !important; /* ako neki stari css dodaje arrow bg */
+  padding-right: 44px;
+}
+
+/* IE / old Edge arrow off */
+.submitform-select .submitform-control::-ms-expand{
+  display: none;
+}
+
+/* NAŠA STRELICA */
+.submitform-select::after{
+  content: "";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translateY(-50%) rotate(45deg);
+  border-right: 2px solid rgba(255,255,255,.78);
+  border-bottom: 2px solid rgba(255,255,255,.78);
+  pointer-events: none;
+  opacity: .9;
+}
+
+/* FOCUS */
+.submitform-select:focus-within::after{
+  border-right-color: rgba(168,85,247,.95);
+  border-bottom-color: rgba(168,85,247,.95);
+}
+
+.submitform-select:focus-within .submitform-control{
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(168,85,247,.25);
+}
+
+
+

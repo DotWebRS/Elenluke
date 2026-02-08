@@ -17,7 +17,6 @@ public class CmsController : ControllerBase
         _db = db;
     }
 
-    // PUBLIC READ (frontend)
     [HttpGet]
     [AllowAnonymous]
     public IActionResult Get([FromQuery] string siteKey, [FromQuery] string key)
@@ -42,7 +41,6 @@ public class CmsController : ControllerBase
         });
     }
 
-    // ADMIN UPSERT – koristi ga AdminPMG
     [HttpPut]
     [Authorize(Roles = "Admin,Editor")]
     public IActionResult Upsert([FromBody] CmsUpsertDto dto)

@@ -1,13 +1,24 @@
+import { useNavigate } from "react-router-dom";
+
 export default function Impressum() {
+  const navigate = useNavigate();
   return (
     <main className="page">
       <section className="impressum">
         <div className="impressum__bg" aria-hidden="true" />
         <div className="impressum__fadeTop" aria-hidden="true" />
         <div className="impressum__fadeBottom" aria-hidden="true" />
-
+        
         <div className="impressum__inner">
           <header className="impressum__header">
+             <button
+                type="button"
+                className="legal__back"
+                onClick={() => navigate(-1)}
+                aria-label="Go back"
+              >
+                ← Back
+              </button>
             <h1 className="impressum__title">Impressum</h1>
             <p className="impressum__subtitle">
               Angaben gemäß § 5 TMG

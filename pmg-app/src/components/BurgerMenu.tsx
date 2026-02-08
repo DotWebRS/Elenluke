@@ -1,3 +1,4 @@
+// src/components/BurgerMenu.tsx
 import { useEffect, useState } from "react";
 
 type Props = {
@@ -7,7 +8,6 @@ type Props = {
 export default function BurgerMenu({ onNavigate }: Props) {
   const [open, setOpen] = useState(false);
 
-  // ESC close
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
@@ -16,14 +16,7 @@ export default function BurgerMenu({ onNavigate }: Props) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  // lock scroll when open
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = open ? "hidden" : prev;
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
+  // Drawer nav: DO NOT lock body scroll.
 
   const go = (path: string) => {
     setOpen(false);
@@ -35,7 +28,7 @@ export default function BurgerMenu({ onNavigate }: Props) {
       <button
         type="button"
         className={`hamburgerIcon ${open ? "hamburgerIcon--open" : ""}`}
-        aria-label="Menu"
+        aria-label={open ? "Close menu" : "Open menu"}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
@@ -46,34 +39,18 @@ export default function BurgerMenu({ onNavigate }: Props) {
         </span>
       </button>
 
-      {/* Overlay stays mounted for smooth close animation */}
-      <div
-        className={`menuOverlay ${open ? "menuOverlay--open" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-hidden={!open}
-      >
+      {/* Right drawer wrapper (kept mounted for smooth close animation) */}
+      <div className={`menuOverlay ${open ? "menuOverlay--open" : ""}`} aria-hidden={!open}>
+        {/* Transparent click-outside area */}
         <button
           type="button"
           className="menuOverlay__backdrop"
-          aria-label="Close"
+          aria-label="Close menu"
           onClick={() => setOpen(false)}
           tabIndex={open ? 0 : -1}
         />
 
         <aside className="menuOverlay__panel" aria-label="Sidebar menu">
-          <div className="menuOverlay__top">
-            <button
-              type="button"
-              className="menuOverlay__close"
-              aria-label="Close menu"
-              onClick={() => setOpen(false)}
-              tabIndex={open ? 0 : -1}
-            >
-              ✕
-            </button>
-          </div>
-
           <nav className="menuOverlay__nav">
             <button
               type="button"

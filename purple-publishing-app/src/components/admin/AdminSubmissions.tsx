@@ -261,8 +261,7 @@ export function AdminSubmissions() {
   const authHeaders = useAuthHeaders();
   const { site } = useAdminSite();
 
-  // TAB: po difoltu Archived
-  const [archiveTab, setArchiveTab] = useState<ArchiveTab>("archived");
+  const [archiveTab, setArchiveTab] = useState<ArchiveTab>("active");
 
   const [page, setPage] = useState(1);
   const pageSize = 50;
@@ -300,6 +299,11 @@ export function AdminSubmissions() {
   useEffect(() => {
     previewUrlsRef.current = previewUrls;
   }, [previewUrls]);
+
+  useEffect(() => {
+    setPage(1);
+    setArchiveTab("active");
+  }, [site]);
 
   useEffect(() => {
     return () => {
@@ -750,7 +754,7 @@ export function AdminSubmissions() {
   const canPrev = page > 1;
   const canNext = page < totalPages;
 
-  // ------------------ LIST UI (NE DIRAMO, samo dodajemo tab) ------------------
+
 
   return (
     <AdminShell title="Admin Inbox" active="submissions">
@@ -768,7 +772,6 @@ export function AdminSubmissions() {
           </div>
         ) : null}
 
-        {/* TAB BAR (NOVO) */}
         <div className="admin-filters-row" style={{ marginBottom: 10 }}>
           <div className="admin-filters-main" style={{ gap: 10 }}>
             <div className="admin-table-actions" style={{ display: "flex", gap: 8 }}>

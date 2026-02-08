@@ -14,7 +14,6 @@ public class UploadsController : ControllerBase
         _env = env;
     }
 
-    // ADMIN – upload image/file for CMS (returns public URL under /uploads/...)
     [HttpPost("file")]
     [Authorize(Roles = "Admin")]
     [Consumes("multipart/form-data")]

@@ -1485,3 +1485,34 @@
   background: rgba(245, 158, 11, 0.95);
   box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
 }
+
+
+
+/********************************************************Admin shell*******************/
+/* App.css (ili gde ti je layout za public) */
+body.is-admin .app-main,
+body.is-admin .page {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+/* Ako ti public nav dodaje offset, ovo sprečava to u adminu */
+body.is-admin .bottom-nav,
+body.is-admin .site-nav {
+  display: none;
+}
+/* ADMIN: nema nav offset */
+.app-main--admin{
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+  min-height: 100vh;
+}
+
+/* ako ti .page ima padding/margin globalno */
+.app-main--admin .page{
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+
+/************************************************************************************/

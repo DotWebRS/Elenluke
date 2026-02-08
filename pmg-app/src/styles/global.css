@@ -428,7 +428,7 @@ button{ font:inherit; color:inherit; }
 
   opacity: 0;
   pointer-events: none;
-  transition: opacity 180ms ease;
+  transition: opacity 380ms ease;
 }
 
 .menuOverlay--open{
@@ -451,7 +451,7 @@ button{ font:inherit; color:inherit; }
   right: 0;
   height: 100%;
 
-  width: 360px;
+  width: 50%;
   max-width: 92vw;
 
   background: #000;
@@ -563,18 +563,16 @@ button{ font:inherit; color:inherit; }
 
 
 /*********************za hero*/
-/* Naglasi grupisanje */
+
 .hero__group{ margin: 0; }
 
-/* 1–2 zajedno (manji razmak izmedju linija, malo vazduha posle grupe) */
+
 .hero__group--tight{ margin-bottom: 16px; }
 .hero__group--tight .hero__p{ margin: 0 0 4px; }
 
-/* 3–5 kao blok (linije blize nego default, ali blok ima vise vazduha oko sebe) */
 .hero__group--block{ margin-bottom: 26px; }
 .hero__group--block .hero__p{ margin: 0 0 6px; }
 
-/* Poslednja recenica: jedna linija + responsivno kroz font */
 .hero__p--oneLine{
   margin: 0 0 18px;
   white-space: nowrap;
@@ -585,7 +583,6 @@ button{ font:inherit; color:inherit; }
   letter-spacing: -0.02em;
 }
 
-/* Ako je bas usko, dodatno smanji da stane u jednu liniju */
 @media (max-width: 420px){
   .hero__p--oneLine{
     font-size: clamp(14px);
@@ -593,13 +590,12 @@ button{ font:inherit; color:inherit; }
   }
 }
 @media (max-width: 560px){
-  /* realna visina ekrana na telefonu (bez skakanja zbog browser bara) */
+
   .hero{
     min-height: 110vh;
     min-height: 110svh;
   }
 
-  /* makni padding koji gura sadržaj gore/dole i centriraj “u srce” */
   .hero__content{
     padding: 0 !important;
     margin: 0 auto;
@@ -618,13 +614,12 @@ button{ font:inherit; color:inherit; }
     max-height: 150px;
   }
 
-  /* da tekst ne bude “razvučen” po širini */
   .hero__text,
   .hero__lines{
     max-width: 92vw;
   }
 
-  /* da fade ne pojede previše prostora */
+ 
   .hero__fadeBottom{
     height: 90px;
   }
@@ -1751,4 +1746,648 @@ body{
 }
 .brandCard.is-disabled:hover {
   transform: none;
+}
+
+
+
+
+/*************************burger*/
+/* ---------------- OVERLAY + PANEL ---------------- */
+
+/* Keep mounted: use opacity/visibility + pointer-events */
+.menuOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+
+  transition:
+    opacity 260ms ease,
+    visibility 0s linear 260ms;
+}
+
+.menuOverlay--open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+
+  transition:
+    opacity 260ms ease,
+    visibility 0s;
+}
+
+/* Backdrop (click area) */
+.menuOverlay__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+
+  background: rgba(0,0,0,.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+
+.menuOverlay--open .menuOverlay__backdrop {
+  opacity: 1;
+}
+
+/* Side panel animation */
+.menuOverlay__panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(360px, 92vw);
+
+  background: rgb(0, 0, 0);
+  color: #fff;
+
+  transform: translateX(18px);
+  opacity: 0;
+  filter: blur(8px);
+
+  transition:
+    transform 360ms cubic-bezier(.2,.9,.2,1),
+    opacity 260ms ease,
+    filter 360ms ease;
+
+  will-change: transform, opacity, filter;
+  box-shadow: -24px 0 60px rgba(0,0,0,.35);
+  border-left:2px solid rgba(138, 79, 255, 0.144);
+}
+
+.menuOverlay--open .menuOverlay__panel {
+  transform: translateX(0);
+  opacity: 1;
+  filter: blur(0);
+}
+
+/* Top area (nema vise close dugmeta) */
+.menuOverlay__top {
+  display: flex;
+  justify-content: flex-end;
+  padding: 18px 18px 10px;
+}
+
+/* Ako si ostavila .menuOverlay__close u JSX, ovo ga gasi */
+.menuOverlay__close {
+  display: none;
+}
+
+.menuOverlay__nav {
+  display: grid;
+  gap: 10px;
+  padding: 12px 18px 18px;
+}
+
+/* Links: bez sivog fill-a, belo + blagi hover */
+.menuOverlay__link {
+  text-align: left;
+  border: 0;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+
+  background: transparent;     /* uklonjen sivi sloj */
+  color: #fff;
+  cursor: pointer;
+
+  transform: translateY(10px);
+  opacity: 0;
+
+  transition:
+    transform 280ms cubic-bezier(.2,.9,.2,1),
+    opacity 260ms ease,
+    color 180ms ease,
+    background 180ms ease,
+    box-shadow 220ms ease;
+}
+
+.menuOverlay__link:hover {
+  color: #c9b6ff;              /* blagi hover ton */
+}
+
+.menuOverlay__link:active {
+  background: rgba(138,79,255,.14);
+}
+
+.menuOverlay__link:focus-visible {
+  outline: 2px solid rgba(138,79,255,.65);
+  outline-offset: 3px;
+}
+
+.menuOverlay--open .menuOverlay__link {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.menuOverlay--open .menuOverlay__link:nth-child(1) { transition-delay: 40ms; }
+.menuOverlay--open .menuOverlay__link:nth-child(2) { transition-delay: 80ms; }
+.menuOverlay--open .menuOverlay__link:nth-child(3) { transition-delay: 120ms; }
+.menuOverlay--open .menuOverlay__link:nth-child(4) { transition-delay: 160ms; }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .hamburgerIcon__lines > span,
+  .menuOverlay,
+  .menuOverlay__backdrop,
+  .menuOverlay__panel,
+  .menuOverlay__link {
+    transition: none !important;
+    filter: none !important;
+  }
+}
+
+/* da X bude beo i iznad svega */
+
+
+/* opcionalno: kad je otvoreno malo jači kontrast */
+.hamburgerIcon--open{
+  color:#fff;
+   z-index:10001;
+}
+
+/* ---------------- HAMBURGER ICON ---------------- */
+
+.hamburgerIcon{
+  width: 60px;
+  height: 60px;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+
+  position: fixed;
+  top: 18px;
+  right: 18px;
+
+  color: #fff;
+  z-index: 10002;
+}
+
+.hamburgerIcon__lines{
+  position: relative;
+  width: 30px;
+  height: 20px;
+  display: block;
+}
+
+.hamburgerIcon__lines > span{
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  transform-origin: center;
+
+  transition:
+    transform 280ms cubic-bezier(.2,.9,.2,1),
+    top 280ms cubic-bezier(.2,.9,.2,1),
+    opacity 180ms ease,
+    width 260ms cubic-bezier(.2,.9,.2,1);
+}
+
+.hamburgerIcon__lines > span:nth-child(1){ top: 0; }
+.hamburgerIcon__lines > span:nth-child(2){ top: 9px; width: 80%; margin-left: auto; }
+.hamburgerIcon__lines > span:nth-child(3){ top: 18px; width: 60%; margin-left: auto; }
+
+.hamburgerIcon--open .hamburgerIcon__lines > span:nth-child(1){
+  top: 9px;
+  transform: rotate(45deg);
+  width: 100%;
+}
+
+.hamburgerIcon--open .hamburgerIcon__lines > span:nth-child(2){
+  opacity: 0;
+  width: 0;
+}
+
+.hamburgerIcon--open .hamburgerIcon__lines > span:nth-child(3){
+  top: 9px;
+  transform: rotate(-45deg);
+  width: 100%;
+}
+
+.hamburgerIcon:focus-visible{
+  outline: 2px solid rgba(138,79,255,.7);
+  outline-offset: 3px;
+  border-radius: 14px;
+}
+
+/* ---------------- EXPANDING CIRCLE (BACKGROUND) ---------------- */
+
+.menuCircle{
+  position: fixed;
+  top: 19px;
+  right: 19px;
+  width: 60px;
+  height: 60px;
+
+  z-index: 10000;
+  pointer-events: none;
+
+  transform-origin: center;
+  transform: scale(1);
+  transition: transform 520ms cubic-bezier(.2,.9,.2,1);
+}
+
+.menuCircle circle{
+  fill: #000000;
+}
+
+.menuCircle--open{
+  transform: scale(75);
+}
+
+/* ---------------- OVERLAY + PANEL ---------------- */
+
+/* We keep overlay mounted, but we do NOT add extra gray backgrounds on links/X */
+.menuOverlay{
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+
+  transition:
+    opacity 260ms ease,
+    visibility 0s linear 260ms;
+}
+
+.menuOverlay--open{
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+
+  transition:
+    opacity 260ms ease,
+    visibility 0s;
+}
+
+/* keep backdrop click area, but no visible "gray layer" */
+.menuOverlay__backdrop{
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+}
+
+/* panel is only for layout; no translucent bg over text */
+.menuOverlay__panel{
+  position: absolute;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  transform: translateY(18px);
+  opacity: 0;
+  transition:
+    transform 360ms cubic-bezier(.2,.9,.2,1),
+    opacity 260ms ease;
+
+  will-change: transform, opacity;
+}
+
+.menuOverlay--open .menuOverlay__panel{
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.menuOverlay__nav{
+  display: grid;
+  gap: 18px;
+  padding: 20px;
+  text-align: center;
+}
+
+/* Links: white text, subtle hover color change (no gray boxes) */
+.menuOverlay__link{
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+
+  font-size: 32px;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+
+  color: #fff;
+
+  transform: translateY(10px);
+  opacity: 0;
+
+  transition:
+    transform 280ms cubic-bezier(.2,.9,.2,1),
+    opacity 260ms ease,
+    color 160ms ease;
+}
+
+.menuOverlay__link:hover{
+  color: rgba(255,255,255,.78);
+}
+
+.menuOverlay--open .menuOverlay__link{
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.menuOverlay--open .menuOverlay__link:nth-child(1){ transition-delay: 40ms; }
+.menuOverlay--open .menuOverlay__link:nth-child(2){ transition-delay: 80ms; }
+.menuOverlay--open .menuOverlay__link:nth-child(3){ transition-delay: 120ms; }
+.menuOverlay--open .menuOverlay__link:nth-child(4){ transition-delay: 160ms; }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .hamburgerIcon__lines > span,
+  .menuCircle,
+  .menuOverlay,
+  .menuOverlay__panel,
+  .menuOverlay__link{
+    transition: none !important;
+  }
+}
+
+
+/* --- change only these parts / add to your existing CSS --- */
+
+/* default: transparent (nothing visible) */
+.menuCircle{
+  opacity: 0;
+  transform: scale(1);
+  transition:
+    transform 520ms cubic-bezier(.2,.9,.2,1),
+    opacity 0s linear 520ms; /* stay hidden until open */
+}
+
+.menuCircle circle{
+  fill: #000; /* black when it appears */
+}
+
+/* on open: show + expand */
+.menuCircle--open{
+  opacity: 1;
+  transform: scale(75);
+  transition:
+    transform 520ms cubic-bezier(.2,.9,.2,1),
+    opacity 0s;
+}
+
+/* phones: slow down animations */
+@media (max-width: 768px){
+  .hamburgerIcon__lines > span{
+    transition:
+      transform 420ms cubic-bezier(.2,.9,.2,1),
+      top 420ms cubic-bezier(.2,.9,.2,1),
+      opacity 240ms ease,
+      width 360ms cubic-bezier(.2,.9,.2,1);
+  }
+
+  .menuCircle{
+    transition:
+      transform 760ms cubic-bezier(.2,.9,.2,1),
+      opacity 0s linear 760ms;
+  }
+
+  .menuCircle--open{
+    transition:
+      transform 760ms cubic-bezier(.2,.9,.2,1),
+      opacity 0s;
+  }
+
+  .menuOverlay{
+    transition:
+      opacity 420ms ease,
+      visibility 0s linear 420ms;
+  }
+
+  .menuOverlay--open{
+    transition:
+      opacity 420ms ease,
+      visibility 0s;
+  }
+
+  .menuOverlay__panel{
+    transition:
+      transform 520ms cubic-bezier(.2,.9,.2,1),
+      opacity 420ms ease;
+  }
+
+  .menuOverlay__link{
+    transition:
+      transform 420ms cubic-bezier(.2,.9,.2,1),
+      opacity 420ms ease,
+      color 180ms ease;
+  }
+}
+
+/* ===== CONTACT: BACK BUTTON ===== */
+.submitform-head{
+  position: relative; /* da absolute back radi */
+}
+
+.submitform-back{
+  position: absolute;
+  top: 0;
+  left: 0;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 10px 12px;
+  border-radius: 999px;
+
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.14);
+  color: rgba(242,242,245,.92);
+
+  cursor: pointer;
+  user-select: none;
+
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  transition: transform .12s ease, background .15s ease, border-color .15s ease;
+}
+
+.submitform-back:hover{
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.22);
+}
+
+.submitform-back:active{
+  transform: translateY(1px);
+}
+
+.submitform-back:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(138,79,255,.35);
+  border-color: rgba(138,79,255,.55);
+}
+
+/* mobile: nemoj absolute (da ne gura naslov) */
+@media (max-width: 520px){
+  .submitform-back{
+    position: static;
+    margin-bottom: 10px;
+    width: fit-content;
+  }
+}
+
+select.submitform-control{
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+
+  padding-right: 44px !important;
+
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='rgba(242,242,245,0.90)' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 18px 18px !important;
+  background-attachment: scroll !important;
+}
+
+select.submitform-control:focus{
+  background-color: rgba(0,0,0,.52) !important; 
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='rgba(242,242,245,0.92)' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 18px 18px !important;
+}
+
+/**********************************************************************/
+/* LEGAL BACK — hard override */
+.legal__back{
+  -webkit-appearance: none;
+  appearance: none;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 10px 12px;
+  border-radius: 999px;
+
+  background: rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  color: rgba(242,242,245,.92) !important;
+
+  cursor: pointer;
+  user-select: none;
+  text-decoration: none;
+
+  box-shadow: none !important;
+  outline: none !important;
+
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+
+  transition: transform .12s ease, background .15s ease, border-color .15s ease;
+}
+
+.legal__back:hover{
+  background: rgba(255,255,255,.10) !important;
+  border-color: rgba(255,255,255,.22) !important;
+}
+
+.legal__back:active{
+  transform: translateY(1px);
+}
+
+.legal__back:focus,
+.legal__back:focus-visible{
+  background: rgba(255,255,255,.08) !important;
+  border-color: rgba(138,79,255,.55) !important;
+  box-shadow: 0 0 0 2px rgba(138,79,255,.35) !important;
+  outline: none !important;
+}
+
+/* ako globalno imas :disabled stilove */
+.legal__back:disabled{
+  opacity: .6;
+  cursor: default;
+}
+
+/*************************************************/
+/* Panel JE DESNO kad je otvoren, ali dolazi "iz levo" (slide) */
+.menuOverlay__panel{
+  position: absolute;
+  top: 0;
+  right: 0;            /* otvoren = zalepljen desno */
+  left: auto;
+  height: 100%;
+
+  width: min(360px, 88vw);
+  background: #000;
+
+  display: flex;
+  flex-direction: column;
+
+  border-left: 1px solid rgba(255,255,255,.12);
+  box-shadow: -24px 0 60px rgba(0,0,0,.45);
+
+  /* zatvoren: skloni ga ulevo za njegovu sirinu */
+  transform: translateX(calc(-1 * min(360px, 88vw)));
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.menuOverlay--open .menuOverlay__panel{
+  transform: translateX(0);
+}
+
+/* phones */
+@media (max-width: 560px){
+  .menuOverlay__panel{
+    width: min(320px, 86vw);
+    transform: translateX(calc(-1 * min(320px, 86vw)));
+  }
+}
+
+/* src/styles/Hero.css */
+/* DODAJ OVO (ili ubaci u postojeci Hero.css) */
+
+.hero__spacer{
+  height: 14px;
+}
+
+/* optional: da "zadnja" izgleda kao zasebna misao */
+.hero__p--oneLine{
+  margin-top: 0;
+}
+
+/* gradovi odvojeno */
+.hero__p--dim{
+  margin-top: 12px;
+}
+
+/* zadnja recenica */
+.hero__p--oneLine{
+  margin: 0; /* bez dodatnog razmaka odozdo */
+}
+
+/* VECI razmak izmedju zadnje recenice i gradova */
+.hero__p--oneLine + .hero__p--dim{
+  margin-top: 25px;
+}
+
+/* (opciono) gradovi malo “laksi” i stabilan razmak */
+.hero__p--dim{
+  margin-bottom: 0;
 }

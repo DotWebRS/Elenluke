@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+
 
 type Lang = "DE" | "EN";
 
@@ -44,6 +45,8 @@ function LangToggle({
 export default function PrivacyPolicy() {
   const [lang, setLang] = useState<Lang>(() => getInitialLang());
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     localStorage.setItem("legalLang", lang);
   }, [lang]);
@@ -55,9 +58,17 @@ export default function PrivacyPolicy() {
         <div className="legal__fadeTop" aria-hidden="true" />
         <div className="legal__fadeBottom" aria-hidden="true" />
 
-        <div className="legal__inner">
-          <header className="legal__header">
-            <div className="legal__headerRow">
+          <div className="legal__inner">
+            <header className="legal__header">
+              <div className="legal__headerRow">
+                <button
+                type="button"
+                className="legal__back"
+                onClick={() => navigate(-1)}
+                aria-label="Go back"
+              >
+                ← Back
+              </button>
               <div>
                 <h1 className="legal__title">
                   {lang === "EN" ? "Privacy Policy" : "Datenschutzerklärung"}
