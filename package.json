@@ -2,6 +2,7 @@
   "dependencies": {
     "bootstrap": "^5.3.8",
     "react-bootstrap": "^2.10.10",
-    "react-router-dom": "^7.13.0"
+    "react-router-dom": "^7.13.0",
+    "three": "^0.182.0"
   }
 }

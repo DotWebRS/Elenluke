@@ -56,8 +56,8 @@ export const AdminLogin = () => {
       <BottomNav />
       <div className="admin-login-card">
         <div className="admin-login-header">
-          <p className="admin-login-eyebrow">ADMIN AREA</p>
-          <h2 className="admin-login-title">Sign in to Publishing</h2>
+          <p className="admin-login-eyebrow">ADMIN PORTAL</p>
+          <h2 className="admin-login-title">Sign in</h2>
           <p className="admin-login-subtitle">
             Restricted access, please use your assigned credentials.
           </p>

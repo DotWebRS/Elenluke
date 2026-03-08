@@ -3,11 +3,11 @@ import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import Modal from "react-bootstrap/Modal";
-
+import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../config/apiBase";
-import { Link } from "react-router-dom";
 
 type CmsTrack = { title: string; url: string; length?: string };
+
 type CmsArtist = {
   id?: string;
   name?: string;
@@ -16,6 +16,7 @@ type CmsArtist = {
   spotifyUrl?: string;
   tracks?: CmsTrack[];
 };
+
 type CmsRosterPayload = { artists?: CmsArtist[] };
 
 type Artist = {
@@ -46,13 +47,31 @@ function buildUrl(path: string) {
   return base ? `${base}/${p}` : `/${p}`;
 }
 
+function resolveImg(src: string) {
+  if (!src) return DEFAULT_IMG;
+
+  const s0 = String(src).trim();
+  if (!s0) return DEFAULT_IMG;
+
+  if (s0.startsWith("data:")) return s0;
+  if (/^https?:\/\//i.test(s0)) return s0;
+
+  const s = s0.replace(/\\/g, "/");
+  const withSlash = s.startsWith("/") ? s : `/${s}`;
+  return buildUrl(withSlash);
+}
+
 async function fetchCms(siteKey: string, key: string) {
   const url = buildUrl(
-    `/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(key)}&ts=${Date.now()}`
+    `/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(
+      key
+    )}&ts=${Date.now()}`
   );
 
   const res = await fetch(url);
+
   if (res.status === 404) return null;
+
   if (!res.ok) {
     let txt = "";
     try {
@@ -69,23 +88,20 @@ async function fetchCms(siteKey: string, key: string) {
 }
 
 function normalizeArtist(a: CmsArtist, idx: number): Artist {
-  const id = String(a?.id || `artist_${idx}`);
-  const tracks = Array.from({ length: 5 }).map((_, i) => {
-    const t = a?.tracks?.[i];
-    return {
-      title: String(t?.title || `Track ${i + 1}`),
-      url: String(t?.url || ""),
-      length: typeof t?.length === "string" ? t.length : "—",
-    };
-  });
-
   return {
-    id,
+    id: String(a?.id || `artist_${idx}`),
     name: String(a?.name || "Untitled artist"),
     bio: String(a?.bio || ""),
-    image: String(a?.image || DEFAULT_IMG),
+    image: String(a?.image || ""),
     spotifyUrl: String(a?.spotifyUrl || ""),
-    tracks,
+    tracks: Array.from({ length: 5 }).map((_, i) => {
+      const t = a?.tracks?.[i];
+      return {
+        title: String(t?.title || `Track ${i + 1}`),
+        url: String(t?.url || ""),
+        length: typeof t?.length === "string" ? t.length : "—",
+      };
+    }),
   };
 }
 
@@ -105,38 +121,52 @@ function toEmbedTrack(url: string) {
 }
 
 const ArtistPage = () => {
+  const navigate = useNavigate();
+
   const [all, setAll] = useState<Artist[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(8);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "auto" });
     document.body.setAttribute("data-active-section", "artists");
+
     return () => document.body.removeAttribute("data-active-section");
   }, []);
 
   useEffect(() => {
     let cancelled = false;
 
-    (async () => {
+    const load = async () => {
       try {
+        setLoading(true);
+        setErrorMsg("");
+
         const wrap = await fetchCms(SITE_KEY, "artists.roster");
         const payload = safeJsonParse<CmsRosterPayload>(wrap?.json, { artists: [] });
 
-        const list = (payload.artists || [])
-          .map(normalizeArtist)
-          .filter((x) => x.id && x.name);
+        const artistsRaw = Array.isArray(payload?.artists) ? payload.artists : [];
+        const list = artistsRaw.map((artist, idx) => normalizeArtist(artist, idx));
 
         if (!cancelled) {
           setAll(list);
           setVisibleCount(8);
         }
-      } catch {
+      } catch (err) {
+        console.error("Artist roster load failed:", err);
         if (!cancelled) {
           setAll([]);
           setVisibleCount(8);
+          setErrorMsg("Could not load artists from CMS.");
         }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    })();
+    };
+
+    load();
 
     return () => {
       cancelled = true;
@@ -152,20 +182,29 @@ const ArtistPage = () => {
   const shownTracks = useMemo(() => (active?.tracks || []).slice(0, 5), [active]);
 
   return (
-    <section className="artists-section" id="roster">
+    <section className="artists-section artists-page-section" id="roster">
       <Container fluid className="artists-roster-fluid">
-        <div className="artists-head artists-head--center">
-          
+        <div className="artists-head artists-head--center artists-page-head">
           <h2 className="about-title about-title-centered">
             FULL <span className="about-us-animated">ROSTER</span>
           </h2>
-           <Link className="artists-link" to="/home">
-               BACK
-            </Link>
-        </div>
-         
 
-        {shown.length === 0 ? (
+          <button
+            type="button"
+            className="artists-link artists-link--back"
+            onClick={() => {
+              navigate("/", { state: { scrollTo: "top-tracks" } });
+            }}
+          >
+            BACK TO HOME
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="artists-empty">Loading artists...</div>
+        ) : errorMsg ? (
+          <div className="artists-empty">{errorMsg}</div>
+        ) : shown.length === 0 ? (
           <div className="artists-empty">
             No artists yet. Add them in Admin CMS → Artists roster, then Save all.
           </div>
@@ -190,7 +229,7 @@ const ArtistPage = () => {
                     <div className="artist-media">
                       <img
                         className="artist-photo"
-                        src={a.image || DEFAULT_IMG}
+                        src={resolveImg(a.image)}
                         alt={a.name}
                         loading="lazy"
                         onError={(e) => {
@@ -225,14 +264,14 @@ const ArtistPage = () => {
         show={!!active}
         onHide={close}
         centered
-        size="lg"
+        size="xl"
         contentClassName="artist-modal"
         backdropClassName="artist-backdrop"
       >
         <div className="artist-modal-hero">
           <div
             className="artist-modal-hero-bg"
-            style={{ backgroundImage: `url(${active?.image || DEFAULT_IMG})` }}
+            style={{ backgroundImage: `url(${resolveImg(active?.image || "")})` }}
             aria-hidden="true"
           />
           <div className="artist-modal-hero-overlay" aria-hidden="true" />
@@ -301,7 +340,7 @@ const ArtistPage = () => {
                       title={`Spotify Track ${i + 1}`}
                       src={toEmbedTrack(t.url)}
                       width="100%"
-                      height="152"          // umesto 80
+                      height="152"
                       scrolling="no"
                       style={{ display: "block", border: 0 }}
                       allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"

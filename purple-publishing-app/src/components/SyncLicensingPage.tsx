@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import Container from "react-bootstrap/Container";
-import BottomNav from "./BottomNav";
-import Footer from "./Footer";
+import { useNavigate } from "react-router-dom";
 import type { AdminSiteKey } from "../components/admin/adminSites";
 
 import { API_BASE } from "../config/apiBase";
+import FadeSection from "./FadeSection";
+import Footer from "./Footer";
 
 type CmsSyncPayload = {
   h1: string;
@@ -24,17 +25,30 @@ const DEFAULT_SYNC: CmsSyncPayload = {
   t3: "From trending digital sounds to bespoke compositions—built for your audience and your brief.",
 };
 
-const CMS_KEY = "home.syncText";
-
-const DEALS = [
-  { name: "Roblox", src: "./branding/PNG/roblox.png", alt: "Roblox" },
-  { name: "Fortnite", src: "./branding/PNG/fortnite.png", alt: "Fortnite" },
-  { name: "Amanotes", src: "../branding/PNG/amanotes.avif", alt: "Amanotes" },
+const PARTNERS = [
+  {
+    name: "Roblox",
+    src: "/branding/PNG/roblox.png",
+    alt: "Roblox",
+    href: "https://www.roblox.com/",
+  },
+  {
+    name: "Amanotes",
+    src: "/branding/PNG/amanotes.avif",
+    alt: "Amanotes",
+    href: "https://amanotes.com/",
+  },
+  {
+    name: "Fortnite",
+    src: "/branding/PNG/fortnite.png",
+    alt: "Fortnite",
+    href: "https://www.fortnite.com/",
+  },
 ];
 
 function safeParseJson<T>(raw: any, fallback: T): T {
   try {
-    if (!raw) return fallback;
+    if (raw == null) return fallback;
     if (typeof raw === "string") return JSON.parse(raw) as T;
     return raw as T;
   } catch {
@@ -77,6 +91,7 @@ async function cmsGet(siteKey: string, key: string, signal: AbortSignal) {
 }
 
 const SyncLicensingPage = () => {
+  const navigate = useNavigate();
   const [syncText, setSyncText] = useState<CmsSyncPayload>(DEFAULT_SYNC);
 
   useEffect(() => {
@@ -86,9 +101,10 @@ const SyncLicensingPage = () => {
     (async () => {
       const host = window.location.hostname.toLowerCase().replace(/^www\./, "");
       const siteKey = hostnameToSiteKey(host);
+      const key = "home.syncText";
 
       try {
-        const res = await cmsGet(siteKey, CMS_KEY, controller.signal);
+        const res = await cmsGet(siteKey, key, controller.signal);
 
         if (res.status === 404) return;
         if (!res.ok) return;
@@ -117,65 +133,87 @@ const SyncLicensingPage = () => {
   }, []);
 
   return (
-    <section className="sync-section sync-page" id="sync-licensing">
-      <BottomNav />
-      <Container className="site-container">
-        <div className="sync-page-head">
-          <h2 className="about-title about-title-centered">
-            SYNC <span className="about-us-animated">LICENSING</span>
-          </h2>
-        </div>
+    <>
+      <FadeSection id="sync-licensing-page" className="sync-section">
+        <Container className="site-container">
+          <div className="sync-head sync-head--center">
+            <h2 className="about-title about-title-centered">
+              SYNC <span className="about-us-animated">LICENSING</span>
+            </h2>
 
-        <div className="sync-layout">
-          <article className="sync-card sync-main">
-            <h3 className="sync-subtitle sync-purple">{syncText.h1}</h3>
+            <button
+              type="button"
+              className="artists-link artists-link--back sync-link-btn"
+              onClick={() => {
+                window.location.href = "/#sync";
+              }}
+            >
+              BACK
+            </button>
+          </div>
 
-            <div className="sync-body">
-              <p>{syncText.t1}</p>
-              <p>{syncText.t2}</p>
-              <p className="sync-strong">{syncText.t3}</p>
+          <div className="sync-layout">
+            <article className="sync-card sync-main">
+              <h3 className="sync-subtitle sync-purple">{syncText.h1}</h3>
+
+              <div className="sync-body">
+                <p>{syncText.t1}</p>
+                <p className="sync-strong">{syncText.t2}</p>
+              </div>
+
+              <div className="sync-main-spacer" aria-hidden="true" />
+            </article>
+
+            <aside className="sync-side">
+              <section className="sync-card sync-side-card">
+                <h3 className="sync-subtitle sync-purple">{syncText.h2}</h3>
+                <p className="sync-side-text">{syncText.t2}</p>
+                <div className="sync-side-grow" aria-hidden="true" />
+              </section>
+
+              <section className="sync-card sync-side-card">
+                <p className="sync-kickerline">Commercial Music Licensing</p>
+                <h3 className="sync-subtitle sync-purple">{syncText.h3}</h3>
+                <p className="sync-side-text">{syncText.t3}</p>
+                <div className="sync-side-grow" aria-hidden="true" />
+              </section>
+            </aside>
+          </div>
+
+          <div className="sync-partners-block">
+            <div className="sync-head sync-head--center">
+              <h2 className="about-title about-title-centered">
+                OUR <span className="about-us-animated">PARTNERS</span>
+              </h2>
             </div>
 
-            <div className="sync-main-spacer" aria-hidden="true" />
-          </article>
-
-          <aside className="sync-side">
-            <section className="sync-card sync-side-card">
-              <h3 className="sync-subtitle sync-purple">{syncText.h2}</h3>
-              <p className="sync-side-text">{syncText.t2}</p>
-              <div className="sync-side-grow" aria-hidden="true" />
-            </section>
-
-            <section className="sync-card sync-side-card">
-              <p className="sync-side-text">Commercial Music Licensing</p>
-              <h3 className="sync-subtitle sync-purple">{syncText.h3}</h3>
-              <p className="sync-side-text">{syncText.t3}</p>
-              <div className="sync-side-grow" aria-hidden="true" />
-            </section>
-          </aside>
-        </div>
-
-        <div className="sync-deals">
-          <div className="sync-page-head">
-            <h2 className="about-title about-title-centered">
-              EXISTING <span className="about-us-animated">DEALS</span>
-            </h2>
+            <div className="sync-partners-row">
+              {PARTNERS.map((partner) => (
+                <a
+                  key={partner.name}
+                  className="sync-partner-logo"
+                  href={partner.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={partner.name}
+                  aria-label={partner.name}
+                >
+                  <img
+                    src={partner.src}
+                    alt={partner.alt}
+                    loading="lazy"
+                    decoding="async"
+                    draggable={false}
+                  />
+                </a>
+              ))}
+            </div>
           </div>
+        </Container>
+      </FadeSection>
 
-          <div className="sync-deals-grid">
-            {DEALS.map((d) => (
-              <div key={d.name} className="sync-deal partner-logo" title={d.name} aria-label={d.name}>
-                <img src={d.src} alt={d.alt || d.name} loading="lazy" decoding="async" draggable={false} />
-              </div>
-            ))}
-          </div>
-
-
-
-        </div>
-      </Container>
       <Footer />
-    </section>
+    </>
   );
 };
 

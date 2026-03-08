@@ -2,14 +2,12 @@ import { useEffect, useState } from "react";
 import Container from "react-bootstrap/Container";
 import Nav from "react-bootstrap/Nav";
 import Navbar from "react-bootstrap/Navbar";
-//import NavDropdown from "react-bootstrap/NavDropdown";
 import { useLocation, useNavigate } from "react-router-dom";
 
 const BottomNav = () => {
-  const [ ,setOpen] = useState<string | null>(null);
+  const [, setOpen] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
-
-  const [isOn, ] = useState(false);
+  const [isOn] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,18 +22,55 @@ const BottomNav = () => {
     setOpen(null);
   };
 
-  const scrollToId = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  const getNavOffset = (id?: string) => {
+    const isMobile = window.innerWidth <= 991.98;
+
+    if (id === "about-anchor") {
+      return isMobile ? 76 : 86;
+    }
+
+    if (id === "hero") {
+      return isMobile ? 84 : 96;
+    }
+
+    if (id === "top-tracks") {
+      return isMobile ? 82 : 94;
+    }
+
+    return isMobile ? 88 : 100;
   };
 
-  
+  const scrollToId = (id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const offset = getNavOffset(id);
+    const y = el.getBoundingClientRect().top + window.scrollY - offset;
+
+    window.scrollTo({
+      top: Math.max(0, y),
+      behavior: "smooth",
+    });
+  };
+
+  useEffect(() => {
+    if (location.pathname === "/" && (location.state as any)?.scrollTo) {
+      const target = (location.state as any).scrollTo as string;
+
+      const t = window.setTimeout(() => {
+        scrollToId(target);
+        navigate(location.pathname, { replace: true, state: {} });
+      }, 180);
+
+      return () => window.clearTimeout(t);
+    }
+  }, [location, navigate]);
+
   const goHomeAndScroll = (id: string) => {
     closeAll();
 
     if (location.pathname !== "/") {
-      navigate("/", { replace: false });
-      window.setTimeout(() => scrollToId(id), 50);
+      navigate("/", { state: { scrollTo: id } });
     } else {
       scrollToId(id);
     }
@@ -45,20 +80,14 @@ const BottomNav = () => {
     closeAll();
 
     if (location.pathname !== path) {
-      navigate(path, { replace: false });
-      window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
+      navigate(path);
+      window.setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }, 0);
     } else {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
-
-  /*const goToPath = (path: string) => {
-    closeAll();
-    if (location.pathname !== path) navigate(path, { replace: false });
-  };*/
-
-  //const handleEnter = (menu: string) => setOpen(menu);
-  //const handleLeave = () => setOpen(null);
 
   return (
     <Navbar
@@ -66,10 +95,9 @@ const BottomNav = () => {
       expand="lg"
       expanded={expanded}
       onToggle={(v) => setExpanded(!!v)}
-      className="bottom-nav nav-fade-in"
+      className="bottom-nav"
     >
       <Container fluid className="nav-wrap">
-        {/* LOGO (levo) */}
         <Navbar.Brand
           href="/"
           className="nav-brand"
@@ -86,7 +114,6 @@ const BottomNav = () => {
           />
         </Navbar.Brand>
 
-        {/* HAMBURGER (animiran) */}
         <button
           className={`navbar-toggler custom-toggler ${expanded ? "is-open" : ""}`}
           type="button"
@@ -99,7 +126,7 @@ const BottomNav = () => {
         </button>
 
         <Navbar.Collapse className="justify-content-center">
-          <Nav className="gap-5 align-items-center nav-center">
+          <Nav className="nav-center">
             <Nav.Link
               href="#hero"
               onClick={(e) => {
@@ -111,31 +138,25 @@ const BottomNav = () => {
             </Nav.Link>
 
             <Nav.Link
-              href="#about"
+              href="#about-anchor"
               onClick={(e) => {
                 e.preventDefault();
-                goHomeAndScroll("about");
+                goHomeAndScroll("about-anchor");
               }}
             >
               ABOUT US
             </Nav.Link>
 
-            {/* OUR TALENTS: */}
             <Nav.Link
               href="#top-tracks"
               onClick={(e) => {
                 e.preventDefault();
                 goHomeAndScroll("top-tracks");
-                closeAll();
               }}
             >
-              OUR TALENTS
+              TALENTS
             </Nav.Link>
 
-            
-            
-
-            {/* OUR SERVICES: */}
             <Nav.Link
               href="#services"
               onClick={(e) => {
@@ -143,17 +164,14 @@ const BottomNav = () => {
                 goHomeAndScroll("services");
               }}
             >
-              OUR SERVICES
+              SERVICES
             </Nav.Link>
-
-            {/* SYNC:  */}
-            
 
             <Nav.Link
               href="/sync-licensing"
               onClick={(e) => {
                 e.preventDefault();
-                goToPathTop("sync-licensing"); 
+                goToPathTop("/sync-licensing");
               }}
             >
               SYNC
@@ -163,16 +181,13 @@ const BottomNav = () => {
               href="/submitform"
               onClick={(e) => {
                 e.preventDefault();
-                goToPathTop("/submitform"); // umesto goToPath
+                goToPathTop("/submitform");
               }}
             >
               CONTACT US
             </Nav.Link>
-
           </Nav>
         </Navbar.Collapse>
-
-        
       </Container>
     </Navbar>
   );

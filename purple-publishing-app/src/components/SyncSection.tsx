@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Container from "react-bootstrap/Container";
 import { useNavigate } from "react-router-dom";
 import type { AdminSiteKey } from "../components/admin/adminSites";
 
 import { API_BASE } from "../config/apiBase";
+import FadeSection from "./FadeSection";
 
 type CmsSyncPayload = {
   h1: string;
@@ -22,31 +23,6 @@ const DEFAULT_SYNC: CmsSyncPayload = {
   h3: "Where premium sound meets viral energy.",
   t3: "From trending digital sounds to bespoke compositions—built for your audience and your brief.",
 };
-
-function useInViewOnce<T extends HTMLElement>(rootMargin = "-12% 0px -12% 0px") {
-  const ref = useRef<T | null>(null);
-  const [inView, setInView] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setInView(true);
-          obs.disconnect();
-        }
-      },
-      { rootMargin }
-    );
-
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [rootMargin]);
-
-  return { ref, inView };
-}
 
 function safeParseJson<T>(raw: any, fallback: T): T {
   try {
@@ -93,9 +69,7 @@ async function cmsGet(siteKey: string, key: string, signal: AbortSignal) {
 }
 
 const SyncSection = () => {
-  const { ref, inView } = useInViewOnce<HTMLElement>();
   const navigate = useNavigate();
-
   const [syncText, setSyncText] = useState<CmsSyncPayload>(DEFAULT_SYNC);
 
   useEffect(() => {
@@ -105,7 +79,6 @@ const SyncSection = () => {
     (async () => {
       const host = window.location.hostname.toLowerCase().replace(/^www\./, "");
       const siteKey = hostnameToSiteKey(host);
-
       const key = "home.syncText";
 
       try {
@@ -137,26 +110,36 @@ const SyncSection = () => {
     };
   }, []);
 
-  const goSyncLicensingTop = (e: React.MouseEvent) => {
-    e.preventDefault();
-    navigate("/sync-licensing");
-    window.setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: "auto" }), 0);
-  };
+  useEffect(() => {
+    if (window.location.hash === "#sync") {
+      const el = document.getElementById("sync");
+
+      if (el) {
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 120);
+      }
+    }
+  }, []);
 
   return (
-    <section ref={ref as any} className="sync-section" id="sync">
+    <FadeSection id="sync" className="sync-section">
       <Container className="site-container">
-        <div className="artists-head">
+        <div className="sync-head sync-head--center">
           <h2 className="about-title about-title-centered">
-            SYNC <span className="about-us-animated">LICENCING</span>
+            SYNC <span className="about-us-animated">LICENSING</span>
           </h2>
 
-          <a className="artists-link" href="/sync-licensing" onClick={goSyncLicensingTop}>
-            Learn more
-          </a>
+          <button
+            type="button"
+            className="artists-link artists-link--back sync-link-btn"
+            onClick={() => navigate("/sync-licensing")}
+          >
+            LEARN MORE
+          </button>
         </div>
 
-        <div className={`sync-layout reveal delay-1 ${inView ? "is-in" : ""}`}>
+        <div className="sync-layout">
           <article className="sync-card sync-main">
             <h3 className="sync-subtitle sync-purple">{syncText.h1}</h3>
 
@@ -176,7 +159,7 @@ const SyncSection = () => {
             </section>
 
             <section className="sync-card sync-side-card">
-              <p className="sync-side-text">Commercial Music Licensing</p>
+              <p className="sync-kickerline">Commercial Music Licensing</p>
               <h3 className="sync-subtitle sync-purple">{syncText.h3}</h3>
               <p className="sync-side-text">{syncText.t3}</p>
               <div className="sync-side-grow" aria-hidden="true" />
@@ -184,7 +167,7 @@ const SyncSection = () => {
           </aside>
         </div>
       </Container>
-    </section>
+    </FadeSection>
   );
 };
 

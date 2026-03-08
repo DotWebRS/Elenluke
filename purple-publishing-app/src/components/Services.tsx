@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 
 import { API_BASE } from "../config/apiBase";
+import FadeSection from "./FadeSection";
 
 const ShieldIcon = () => (
   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
@@ -98,32 +99,6 @@ const iconForIndex = (i: number) => {
   return icons[i % icons.length];
 };
 
-function useInViewClass<T extends HTMLElement>(threshold = 0.22) {
-  const ref = useRef<T | null>(null);
-  const [inView, setInView] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const e = entries[0];
-        if (e?.isIntersecting) {
-          setInView(true);
-          obs.disconnect();
-        }
-      },
-      { threshold, rootMargin: "0px 0px -18% 0px" }
-    );
-
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [threshold]);
-
-  return { ref, inView };
-}
-
 function buildUrl(path: string) {
   const base = String(API_BASE || "").replace(/\/+$/, "");
   const p = String(path || "").replace(/^\/+/, "");
@@ -131,7 +106,6 @@ function buildUrl(path: string) {
 }
 
 const Services = () => {
-  const { ref, inView } = useInViewClass<HTMLElement>(0.18);
   const [cms, setCms] = useState<CmsServicesPayload>(DEFAULT);
 
   useEffect(() => {
@@ -177,11 +151,11 @@ const Services = () => {
   );
 
   return (
-    <section ref={ref} className={`services-section ${inView ? "is-inview" : ""}`} id="services">
+    <FadeSection id="services" className="services-section">
       <Container>
         <div className="services-head services-head--center">
           <h2 className="about-title about-title-centered">
-            OUR <span className="about-us-animated">SERVICES</span>
+            {cms.headingPrefix} <span className="about-us-animated">{cms.headingAccent}</span>
           </h2>
         </div>
 
@@ -192,8 +166,7 @@ const Services = () => {
                 className="service-card"
                 style={
                   {
-                    ["--i" as any]: idx,
-                    ["--tilt" as any]: idx % 2 === 0 ? "-7deg" : "7deg",
+                    ["--service-stagger" as any]: `${idx * 90}ms`,
                   } as React.CSSProperties
                 }
               >
@@ -212,7 +185,7 @@ const Services = () => {
           ))}
         </Row>
       </Container>
-    </section>
+    </FadeSection>
   );
 };
 

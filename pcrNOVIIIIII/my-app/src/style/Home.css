@@ -1,0 +1,100 @@
+body{
+  font-family:"GuardianSans", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* sadržaj iznad 3D */
+.home-content{
+  position:relative;
+  z-index:2;
+  color:var(--text);
+  min-width:100vw;
+  margin:0;
+}
+
+/* malo podignuto za sve uređaje */
+.home-content{
+  z-index: 2;
+
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+
+  padding-top: calc(var(--navH) + var(--navGap));
+  transform: translateY(18vh); /* bilo 25vh */
+}
+
+.heroTitle{
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* TABLET + MOBILE DEFAULT: dve linije, centrirano */
+.heroTitle__h1{
+  margin: 0 0 14px;
+  font-weight: 800;
+  line-height: 1.02;
+  font-size: clamp(34px, 5.4vw, 78px);
+  color: rgba(255,255,255,.96);
+
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+
+  display: flex;
+  flex-direction: column;   /* ✅ typed ide ispod */
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  text-align: center;
+}
+
+.heroTitle__light,
+.heroTitle__typed{
+  white-space: nowrap;
+}
+
+/* subtitle: malo veći i malo bold */
+.heroTitle__sub{
+  margin: 0;
+  font-family:"GuardianSans", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-size: clamp(15px, 1.55vw, 20px); /* malo veće */
+  font-weight: 600;                     /* malo podebljano */
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.82);
+  max-width: 980px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* DESKTOP/LAPTOP: split na sredini (tvoj fazon) */
+@media (min-width: 992px){
+  .heroTitle__h1{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: clamp(10px, 1.4vw, 18px);
+    align-items: baseline;
+
+    text-align: left;
+  }
+
+  .heroTitle__light{
+    justify-self: end;
+    text-align: right;
+  }
+
+  .heroTitle__typed{
+    justify-self: start;
+    text-align: left;
+  }
+}
+
+/* baš usko: dozvoli prelom da ne puca */
+@media (max-width: 520px){
+  .heroTitle__light,
+  .heroTitle__typed{
+    white-space: normal;
+  }
+}

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Container from "react-bootstrap/Container";
 import type { AdminSiteKey } from "../components/admin/adminSites";
 import { API_BASE } from "../config/apiBase";
+import FadeSection from "./FadeSection";
 
 type Partner = {
   src: string;
@@ -37,7 +38,7 @@ function absolutizeSrc(src: string) {
   if (s.startsWith("data:")) return s;
   if (/^https?:\/\//i.test(s)) return s;
   if (s.startsWith("/uploads/")) return buildUrl(s);
-  return s;
+  return s.startsWith("/") ? buildUrl(s) : buildUrl(`/${s}`);
 }
 
 function hostnameToSiteKey(hostname: string): AdminSiteKey {
@@ -77,7 +78,6 @@ function normalizePartnersPayload(payload: any): Partner[] {
     .filter((x) => x.src && x.name && x.href);
 }
 
-/** ponovi listu dok ne dobiješ dovoljno elemenata da traka bude "puna" */
 function repeatToMinCount<T>(arr: T[], minCount: number): T[] {
   if (arr.length === 0) return [];
   if (arr.length >= minCount) return arr;
@@ -88,14 +88,12 @@ function repeatToMinCount<T>(arr: T[], minCount: number): T[] {
 
 export default function Partners() {
   const viewportRef = useRef<HTMLDivElement | null>(null);
-  const measureRef = useRef<HTMLDivElement | null>(null); // merenje širine 1 seta
+  const measureRef = useRef<HTMLDivElement | null>(null);
+
   const [partners, setPartners] = useState<Partner[]>([]);
-
-  // bazni set iz CMS-a (koliko god da ih ima)
-  const base = useMemo(() => partners, [partners]);
-
-  // display set (može biti ponovljen da popuni ekran)
   const [display, setDisplay] = useState<Partner[]>([]);
+
+  const base = useMemo(() => partners, [partners]);
 
   useEffect(() => {
     let alive = true;
@@ -115,7 +113,10 @@ export default function Partners() {
         }
 
         const payload = await res.json().catch(() => null as any);
-        setPartners(normalizePartnersPayload(payload));
+        const next = normalizePartnersPayload(payload);
+
+        if (!alive) return;
+        setPartners(next);
       } catch {
         if (!alive) return;
         setPartners([]);
@@ -128,71 +129,65 @@ export default function Partners() {
     };
   }, []);
 
-  // 1) postavi neki inicijalni display da se odmah renderuje
   useEffect(() => {
     if (base.length === 0) {
       setDisplay([]);
       return;
     }
-    // minimum 12 je ok polazno, posle layout efekat fino podešava
+
     setDisplay(repeatToMinCount(base, Math.max(12, base.length)));
   }, [base]);
 
-  // 2) posle rendera izmeri i po potrebi još ponovi da popuni 2x viewport
   useLayoutEffect(() => {
     const viewport = viewportRef.current;
     const measure = measureRef.current;
-    if (!viewport || !measure) return;
-    if (base.length === 0) return;
+    if (!viewport || !measure || base.length === 0) return;
+
+    let alive = true;
 
     const recompute = async () => {
-      // sačekaj slike da se učitaju da bi scrollWidth bio tačan
       const imgs = Array.from(measure.querySelectorAll("img"));
+
       await Promise.all(
         imgs.map(
           (img) =>
             img.complete ||
-            new Promise<void>((res) => {
-              img.addEventListener("load", () => res(), { once: true });
-              img.addEventListener("error", () => res(), { once: true });
+            new Promise<void>((resolve) => {
+              img.addEventListener("load", () => resolve(), { once: true });
+              img.addEventListener("error", () => resolve(), { once: true });
             })
         )
       );
 
+      if (!alive) return;
+
       const vw = Math.max(1, viewport.clientWidth);
       const setW = Math.max(1, measure.scrollWidth);
 
-      // cilj: jedan set (pre dupliranja) da bude bar ~2 širine viewport-a
-      const targetW = vw * 2.1;
-
-      // procena koliko ponavljanja treba
+      const targetW = vw * 2.2;
       const reps = Math.ceil(targetW / setW);
       const neededCount = Math.max(base.length, base.length * Math.max(1, reps));
 
-      // update samo ako stvarno treba više
       setDisplay((prev) => {
         const next = repeatToMinCount(base, neededCount);
-        if (prev.length === next.length) return prev;
-        return next;
+        return prev.length === next.length ? prev : next;
       });
 
-      // set CSS var za brzinu prema širini (glatko i bez “jurcanja”)
-      // 120px/s je prirodno, prilagodi po želji
       const pxPerSec = 120;
-      const duration = Math.max(12, Math.round((setW / pxPerSec) * 10) / 10);
+      const duration = Math.max(14, Math.round((setW / pxPerSec) * 10) / 10);
       viewport.style.setProperty("--pmPartnersDur", `${duration}s`);
     };
 
-    let alive = true;
     recompute();
 
     const ro = new ResizeObserver(() => {
       if (!alive) return;
       recompute();
     });
-    ro.observe(viewport);
 
+    ro.observe(viewport);
     window.addEventListener("resize", recompute);
+
     return () => {
       alive = false;
       ro.disconnect();
@@ -202,24 +197,21 @@ export default function Partners() {
 
   if (base.length === 0) return null;
 
-  // dve identične trake jedna za drugom (bez seckanja):
-  // animiramo wrapper za -50% (što je tačno širina prve trake)
   return (
-    <section className="pmPartners" id="partners">
+    <FadeSection id="partners" className="pmPartners-section">
       <Container>
-        <div className="services-head services-head--center">
+        <div className="pmPartners-head">
           <h2 className="about-title about-title-centered">
             OUR <span className="about-us-animated">PARTNERS</span>
           </h2>
         </div>
       </Container>
-
+      <div className="pmPartners-rail">
       <div className="pmPartners-viewport" ref={viewportRef}>
         <div className="pmPartners-fade pmPartners-fade--left" aria-hidden="true" />
         <div className="pmPartners-fade pmPartners-fade--right" aria-hidden="true" />
 
         <div className="pmPartners-move" aria-label="Partners marquee">
-          {/* SET A (merenje) */}
           <div className="pmPartners-track" ref={measureRef}>
             {display.map((p, i) => (
               <a
@@ -231,12 +223,13 @@ export default function Partners() {
                 aria-label={p.name}
                 title={p.name}
               >
-                <img src={p.src} alt={p.name} loading="lazy" decoding="async" draggable={false} />
+                <span className="pmPartners-logoBox">
+                  <img src={p.src} alt={p.name} loading="lazy" decoding="async" draggable={false} />
+                </span>
               </a>
             ))}
           </div>
 
-          {/* SET B (kopija) */}
           <div className="pmPartners-track" aria-hidden="true">
             {display.map((p, i) => (
               <a
@@ -247,12 +240,15 @@ export default function Partners() {
                 rel="noopener noreferrer"
                 tabIndex={-1}
               >
-                <img src={p.src} alt="" loading="lazy" decoding="async" draggable={false} />
+                <span className="pmPartners-logoBox">
+                  <img src={p.src} alt="" loading="lazy" decoding="async" draggable={false} />
+                </span>
               </a>
             ))}
           </div>
         </div>
       </div>
-    </section>
+      </div>
+    </FadeSection>
   );
 }

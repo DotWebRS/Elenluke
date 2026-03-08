@@ -1,15 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import { API_BASE } from "../config/apiBase";
+import FadeSection from "./FadeSection";
 
-type AboutCms = { paragraphs: string[] };
-
-const DEFAULT: AboutCms = {
-  paragraphs: [
-    "Purple Crunch Publishing is the creative backbone of the Purple Music Group. A home for songwriters, producers, and artists who want to shape the sound of the digital generation.",
-  ],
+type AboutCms = {
+  paragraphs: string[];
 };
 
 function buildUrl(path: string) {
@@ -18,62 +15,69 @@ function buildUrl(path: string) {
   return base ? `${base}/${p}` : `/${p}`;
 }
 
-type Phase = "hidden" | "enter" | "exit";
+function normalizeAboutCms(data: any): AboutCms {
+  const paragraphs = Array.isArray(data?.paragraphs)
+    ? data.paragraphs.map((item: unknown) => String(item ?? "").trim()).filter(Boolean)
+    : [];
 
-const ENTER_CLASS = "animate__fadeInUpBig";
-const EXIT_CLASS = "animate__fadeOutRightBig";
+  if (paragraphs.length > 0) {
+    return { paragraphs };
+  }
+
+  if (typeof data?.text === "string" && data.text.trim()) {
+    return { paragraphs: [data.text.trim()] };
+  }
+
+  return { paragraphs: [] };
+}
 
 export default function About() {
-  const [cms, setCms] = useState<AboutCms>(DEFAULT);
-
-  const sectionRef = useRef<HTMLElement | null>(null);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const animRef = useRef<HTMLDivElement | null>(null);
-
-  const [phase, setPhase] = useState<Phase>("hidden");
-  const [reduceMotion, setReduceMotion] = useState(false);
-  const hasEnteredOnce = useRef(false);
+  const [cms, setCms] = useState<AboutCms | null>(null);
 
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const apply = () => setReduceMotion(!!mq.matches);
-    apply();
-    mq.addEventListener?.("change", apply);
-    return () => mq.removeEventListener?.("change", apply);
-  }, []);
+    const controller = new AbortController();
 
-  useEffect(() => {
-    const siteKey = "purple-crunch-publishing";
-    const key = "home.about";
-    const url = buildUrl(
-      `/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(key)}&ts=${Date.now()}`
-    );
+    const loadAbout = async () => {
+      try {
+        const siteKey = "purple-crunch-publishing";
+        const key = "home.about";
+        const url = buildUrl(
+          `/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(key)}&ts=${Date.now()}`
+        );
 
-    fetch(url)
-      .then(async (r) => {
-        if (r.status === 404) return null;
-        if (!r.ok) return null;
-        try {
-          return await r.json();
-        } catch {
-          return null;
+        const response = await fetch(url, {
+          method: "GET",
+          signal: controller.signal,
+          headers: { Accept: "application/json" },
+        });
+
+        if (!response.ok) {
+          setCms({ paragraphs: [] });
+          return;
         }
-      })
-      .then((wrapper) => {
-        if (!wrapper?.json) return;
-        try {
-          const data = JSON.parse(wrapper.json);
-          const list = Array.isArray(data?.paragraphs) ? data.paragraphs : null;
-          const p0 = list?.[0] ?? data?.text ?? DEFAULT.paragraphs[0];
-          setCms({ paragraphs: [String(p0 || "").trim()] });
-        } catch {}
-      })
-      .catch(() => {});
+
+        const wrapper = await response.json();
+
+        if (!wrapper?.json) {
+          setCms({ paragraphs: [] });
+          return;
+        }
+
+        const parsed = JSON.parse(wrapper.json);
+        setCms(normalizeAboutCms(parsed));
+      } catch (error: any) {
+        if (error?.name === "AbortError") return;
+        setCms({ paragraphs: [] });
+      }
+    };
+
+    loadAbout();
+
+    return () => controller.abort();
   }, []);
 
-  // Parallax (ostaje kao ranije)
   useEffect(() => {
-    const el = sectionRef.current;
+    const el = document.getElementById("about");
     if (!el) return;
 
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -90,6 +94,7 @@ export default function About() {
 
     const update = () => {
       raf = 0;
+
       const rect = el.getBoundingClientRect();
       const vh = window.innerHeight || 1;
 
@@ -122,8 +127,11 @@ export default function About() {
         el.style.setProperty("--about-bg-y", "0px");
         el.style.setProperty("--about-orb-y", "0px");
         el.style.setProperty("--about-text-y", "0px");
+      } else {
+        onScroll();
       }
     };
+
     mobile.addEventListener?.("change", mqHandler);
 
     return () => {
@@ -134,99 +142,28 @@ export default function About() {
     };
   }, []);
 
-  // Observer: gleda sentinel (centar About sekcije), ne ceo section
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel || reduceMotion) return;
-
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        const isInBand = entry.isIntersecting;
-
-        if (isInBand) {
-          hasEnteredOnce.current = true;
-          setPhase("enter");
-        } else {
-          if (hasEnteredOnce.current) setPhase("exit");
-        }
-      },
-      {
-        threshold: 0,
-        rootMargin: "-35% 0px -35% 0px", // centralna zona ekrana
-      }
-    );
-
-    obs.observe(sentinel);
-    return () => obs.disconnect();
-  }, [reduceMotion]);
-
-  // Replay animacije (kao Hero)
-  useEffect(() => {
-    const el = animRef.current;
-    if (!el) return;
-
-    if (reduceMotion) {
-      el.classList.remove("animate__animated", ENTER_CLASS, EXIT_CLASS);
-      el.style.opacity = "1";
-      el.style.transform = "none";
-      return;
-    }
-
-    if (phase === "hidden") {
-      el.classList.remove("animate__animated", ENTER_CLASS, EXIT_CLASS);
-      el.style.opacity = "0";
-      el.style.transform = "translate3d(0,18px,0)";
-      return;
-    }
-
-    const cls = phase === "enter" ? ENTER_CLASS : EXIT_CLASS;
-    const dur = phase === "enter" ? "980ms" : "1150ms";
-    el.style.setProperty("--animate-duration", dur);
-
-    el.classList.remove(ENTER_CLASS, EXIT_CLASS);
-    void el.offsetWidth;
-    el.classList.add("animate__animated", cls);
-  }, [phase, reduceMotion]);
-
   const aboutText = useMemo(() => {
-    return (cms.paragraphs?.[0] || DEFAULT.paragraphs[0] || "")
-      .replace(/\r\n/g, "\n")
-      .trim();
-  }, [cms.paragraphs]);
+    return (cms?.paragraphs?.[0] || "").replace(/\r\n/g, "\n").trim();
+  }, [cms]);
 
   return (
-    <section id="about" ref={sectionRef as any} className="about-section">
-      {/* sentinel u centru sekcije */}
-      <div
-        ref={sentinelRef}
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: 0,
-          right: 0,
-          height: 1,
-          pointerEvents: "none",
-        }}
-      />
-
+    <FadeSection id="about" className="about-section">
+      <div id="about-anchor" className="about-anchor" aria-hidden="true" />
       <div className="about-orb" aria-hidden="true" />
 
       <div className="about-content">
         <Container>
           <Row className="justify-content-center">
             <Col xs={12} md={11} lg={9} className="about-inner">
-              <div ref={animRef}>
-                <h2 className="about-title about-title-centered">
-                  ABOUT <span className="about-us-animated">US</span>
-                </h2>
+              <h2 className="about-title about-title-centered">
+                ABOUT <span className="about-us-animated">US</span>
+              </h2>
 
-                <p className="about-text">{aboutText}</p>
-              </div>
+              {aboutText && <p className="about-text">{aboutText}</p>}
             </Col>
           </Row>
         </Container>
       </div>
-    </section>
+    </FadeSection>
   );
 }

@@ -1,0 +1,10 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "animate.css";
+import App from "./App";
+import "./App.css";
+import ScrollToTop from "./components/ScrollToTop";
+ReactDOM.createRoot(document.getElementById("root")).render(_jsx(React.StrictMode, { children: _jsxs(BrowserRouter, { children: [_jsx(ScrollToTop, {}), _jsx(App, {})] }) }));

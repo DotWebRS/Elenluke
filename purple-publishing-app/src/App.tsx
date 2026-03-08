@@ -8,9 +8,10 @@ import AdminUsers from "./components/admin/AdminUsers";
 import AdminPMG from "./components/admin/AdminPMG";
 import AdminPCR from "./components/admin/AdminPCR";
 
-import "./App.css";
+
 import "./styles/admin.css";
 import "animate.css";
+import "./NewStyle.css";
 
 import BottomNav from "./components/BottomNav";
 import Hero from "./components/Hero";
@@ -33,6 +34,7 @@ import TermsPage from "./components/TermsPage";
 import CookiePolicyPage from "./components/CookiePolicyPage";
 
 import ScrollToTop from "./components/ScrollToTop";
+import ImpressumPage from "./components/ImpressumPage";
 
 export type Theme = "dark" | "light";
 export type Language = "EN" | "DE";
@@ -144,6 +146,17 @@ function App() {
           }
         />
 
+           <Route
+            path="/impressum"
+            element={
+              <PublicLayout theme={theme}>
+                <ImpressumPage />
+              </PublicLayout>
+            }
+          />
+
+  
+
         <Route
           path="/cookie-policy"
           element={
@@ -180,6 +193,8 @@ function App() {
             </AdminLayout>
           }
         />
+
+        
 
         <Route
           path="/admin/users"

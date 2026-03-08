@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Container from "react-bootstrap/Container";
-import { Link } from "react-router-dom";
-import "../styles/Publishing.css";
-
+import { Link, useNavigate } from "react-router-dom";
+import Footer from "./Footer";
+import "../styles/TermsPage.css";
 
 type Language = "EN" | "DE";
 const LS_LANG_KEY = "pcp_lang";
@@ -11,27 +11,31 @@ function readLang(): Language {
   const v = (localStorage.getItem(LS_LANG_KEY) || "").toUpperCase();
   return v === "DE" ? "DE" : "EN";
 }
+
 function writeLang(lang: Language) {
   localStorage.setItem(LS_LANG_KEY, lang);
 }
 
 function renderTextWithLinks(text: string) {
   const parts = text.split(/(\[\[cookie-policy\]\]|\[\[privacy-policy\]\])/g);
+
   return parts.map((p, i) => {
     if (p === "[[cookie-policy]]") {
       return (
-        <Link key={i} className="legal-inline-link" to="/cookie-policy">
+        <Link key={i} className="terms-inline-link" to="/cookie-policy">
           Cookie Policy
         </Link>
       );
     }
+
     if (p === "[[privacy-policy]]") {
       return (
-        <Link key={i} className="legal-inline-link" to="/privacy-policy">
+        <Link key={i} className="terms-inline-link" to="/privacy-policy">
           Privacy Policy
         </Link>
       );
     }
+
     return <span key={i}>{p}</span>;
   });
 }
@@ -264,33 +268,28 @@ const DOC_EN: Doc = {
 
 function isHeadingLine(line: string) {
   const s = (line || "").trim();
-  // 1. ... / 10. ... / 3.1 ... / 3.2 ...
   return /^\d+(\.\d+)?\.\s+/.test(s) || /^Nutzungsbedingungen\b/i.test(s) || /^Terms of Use\b/i.test(s);
 }
 
 function splitBlockToElements(text: string, keyBase: string) {
   const raw = String(text || "");
   const lines = raw.split("\n");
-
-  // Ako prva linija izgleda kao heading, odvoji je
   const first = (lines[0] || "").trim();
   const rest = lines.slice(1).join("\n").trim();
 
   if (isHeadingLine(first)) {
-    // h2 za "1. ..." / "2. ..." i sl.
-    // h3 za 3.1, 3.2 (da bude vizuelno malo “unutra”)
     const isSub = /^\d+\.\d+\.\s+/.test(first);
 
     return (
-      <div key={keyBase}>
+      <div key={keyBase} className="terms-block">
         {isSub ? (
-          <h3 className="legal-h3">{first}</h3>
+          <h3 className="terms-h3">{first}</h3>
         ) : (
-          <h2 className="publishing-h2 legal-h2">{first}</h2>
+          <h2 className="terms-h2">{first}</h2>
         )}
 
         {rest ? (
-          <p className="legal-p" style={{ whiteSpace: "pre-line" }}>
+          <p className="terms-p" style={{ whiteSpace: "pre-line" }}>
             {renderTextWithLinks(rest)}
           </p>
         ) : null}
@@ -298,16 +297,15 @@ function splitBlockToElements(text: string, keyBase: string) {
     );
   }
 
-  // default paragraf
   return (
-    <p key={keyBase} className="legal-p" style={{ whiteSpace: "pre-line" }}>
+    <p key={keyBase} className="terms-p" style={{ whiteSpace: "pre-line" }}>
       {renderTextWithLinks(raw)}
     </p>
   );
 }
 
-
 export default function TermsPage() {
+  const navigate = useNavigate();
   const [lang, setLang] = useState<Language>("EN");
 
   useEffect(() => setLang(readLang()), []);
@@ -316,62 +314,71 @@ export default function TermsPage() {
   const doc = useMemo(() => (lang === "DE" ? DOC_DE : DOC_EN), [lang]);
 
   return (
-    <section className="publishing-page legal-page terms-page">
-      <div className="publishing-hero legal-hero">
-        <Container>
-          <div className="legal-hero-center">
-            <h1 className="publishing-h1 legal-h1">
-              {doc.heroTitle} <span className="publishing-animated">{doc.heroAccent}</span>
+    <>
+      <section className="terms-page">
+        <div className="terms-page__bg" />
+
+        <Container className="terms-page__container">
+          <div className="terms-page__topbar">
+            <button
+              type="button"
+              className="artists-link artists-link--back terms-back-btn"
+              onClick={() => navigate(-1)}
+            >
+              BACK
+            </button>
+          </div>
+
+          <div className="terms-page__hero">
+            <h1 className="about-title about-title-centered terms-main-title">
+              {doc.heroTitle} <span className="about-us-animated">{doc.heroAccent}</span>
             </h1>
 
-            <div className="legal-subtitle">{doc.subtitle}</div>
+            <div className="terms-subtitle">{doc.subtitle}</div>
 
-            <div className="legal-lang-row legal-lang-row--center">
+            <div className="terms-lang-row">
               <button
                 type="button"
-                className={`legal-lang-btn ${lang === "EN" ? "is-active" : ""}`}
+                className={`terms-lang-btn ${lang === "EN" ? "is-active" : ""}`}
                 onClick={() => setLang("EN")}
               >
                 English
               </button>
               <button
                 type="button"
-                className={`legal-lang-btn ${lang === "DE" ? "is-active" : ""}`}
+                className={`terms-lang-btn ${lang === "DE" ? "is-active" : ""}`}
                 onClick={() => setLang("DE")}
               >
                 Deutsch
               </button>
             </div>
-            <br/>
 
-            <p className="legal-p legal-lead" style={{ whiteSpace: "pre-line" }}>
+            <p className="terms-lead" style={{ whiteSpace: "pre-line" }}>
               {doc.headerText}
             </p>
           </div>
+
+          <div className="terms-content">
+            {doc.blocks.map((b, idx) => {
+              if (b.type === "ul") {
+                return (
+                  <ul key={`ul_${idx}`} className="terms-list">
+                    {b.items.map((it, i) => (
+                      <li key={`ul_${idx}_${i}`}>{it}</li>
+                    ))}
+                  </ul>
+                );
+              }
+
+              return splitBlockToElements(b.text, `p_${idx}`);
+            })}
+
+        
+          </div>
         </Container>
-      </div>
+      </section>
 
-      <Container className="publishing-content legal-content">
-      {doc.blocks.map((b, idx) => {
-        if (b.type === "ul") {
-          return (
-            <ul key={`ul_${idx}`} className="legal-list">
-              {b.items.map((it, i) => (
-                <li key={`ul_${idx}_${i}`}>{it}</li>
-              ))}
-            </ul>
-          );
-        }
-
-        return splitBlockToElements(b.text, `p_${idx}`);
-      })}
-
-      <div className="legal-foot-links">
-        <Link to="/privacy-policy">Privacy Policy</Link>
-        <span className="dot">•</span>
-        <Link to="/cookie-policy">Cookie Policy</Link>
-      </div>
-    </Container>
-        </section>
-      );
+      <Footer />
+    </>
+  );
 }

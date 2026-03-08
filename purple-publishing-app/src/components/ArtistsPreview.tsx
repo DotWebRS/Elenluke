@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
@@ -6,6 +6,7 @@ import Modal from "react-bootstrap/Modal";
 import { Link } from "react-router-dom";
 
 import { API_BASE } from "../config/apiBase";
+import FadeSection from "./FadeSection";
 
 type CmsTrack = { title: string; url: string };
 
@@ -55,16 +56,10 @@ function resolveImg(src: string) {
   const s0 = String(src).trim();
   if (!s0) return DEFAULT_IMG;
 
-  // dataURL (base64)
   if (s0.startsWith("data:")) return s0;
-
-  // absolute
   if (/^https?:\/\//i.test(s0)) return s0;
 
-  // normalize windows backslashes
   const s = s0.replace(/\\/g, "/");
-
-  // relative -> API_BASE
   const withSlash = s.startsWith("/") ? s : `/${s}`;
   return buildUrl(withSlash);
 }
@@ -120,31 +115,6 @@ function toEmbedTrack(url: string) {
   return id ? `https://open.spotify.com/embed/track/${id}` : "https://open.spotify.com/";
 }
 
-function useInViewOnce<T extends HTMLElement>(threshold = 0.2) {
-  const ref = useRef<T | null>(null);
-  const [inView, setInView] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || inView) return;
-
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setInView(true);
-          io.disconnect();
-        }
-      },
-      { threshold }
-    );
-
-    io.observe(el);
-    return () => io.disconnect();
-  }, [inView, threshold]);
-
-  return { ref, inView };
-}
-
 const ArtistsPreview = ({ siteKey = "purple-crunch-publishing" }: { siteKey?: string }) => {
   const [artists, setArtists] = useState<Artist[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -194,7 +164,6 @@ const ArtistsPreview = ({ siteKey = "purple-crunch-publishing" }: { siteKey?: st
 
   const active = useMemo(() => artists.find((a) => a.id === openId) ?? null, [openId, artists]);
   const close = () => setOpenId(null);
-  const { ref: animRef, inView } = useInViewOnce<HTMLDivElement>(0.2);
 
   const shownTracks = useMemo(() => {
     const base =
@@ -207,12 +176,10 @@ const ArtistsPreview = ({ siteKey = "purple-crunch-publishing" }: { siteKey?: st
     return base.slice(0, 5);
   }, [active]);
 
-  const delayIndex = (idx: number) => artists.length - 1 - idx;
-
   return (
-    <section className="artists-section" id="top-tracks">
+    <FadeSection id="top-tracks" className="artists-section">
       <Container>
-        <div ref={animRef} className={`artists-animwrap ${inView ? "is-inview" : ""}`}>
+        <div className="artists-animwrap">
           <div className="artists-head">
             <h2 className="about-title about-title-centered">
               OUR <span className="about-us-animated">TALENTS</span>
@@ -237,7 +204,7 @@ const ArtistsPreview = ({ siteKey = "purple-crunch-publishing" }: { siteKey?: st
                     onClick={() => setOpenId(a.id)}
                     style={
                       {
-                        ["--stagger" as any]: `${delayIndex(idx) * 120}ms`,
+                        ["--artist-stagger" as any]: `${idx * 90}ms`,
                       } as React.CSSProperties
                     }
                   >
@@ -272,7 +239,7 @@ const ArtistsPreview = ({ siteKey = "purple-crunch-publishing" }: { siteKey?: st
         show={!!active}
         onHide={close}
         centered
-        size="lg"
+        size="xl"
         contentClassName="artist-modal"
         backdropClassName="artist-backdrop"
       >
@@ -361,7 +328,7 @@ const ArtistsPreview = ({ siteKey = "purple-crunch-publishing" }: { siteKey?: st
           </div>
         </Modal.Body>
       </Modal>
-    </section>
+    </FadeSection>
   );
 };
 

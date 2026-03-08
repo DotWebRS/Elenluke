@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Container from "react-bootstrap/Container";
 import Modal from "react-bootstrap/Modal";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "../styles/Publishing.css";
+import Footer from "./Footer";
 
 type Language = "EN" | "DE";
 const LS_LANG_KEY = "pcp_lang";
@@ -11,6 +12,7 @@ function readLang(): Language {
   const v = (localStorage.getItem(LS_LANG_KEY) || "").toUpperCase();
   return v === "DE" ? "DE" : "EN";
 }
+
 function writeLang(lang: Language) {
   localStorage.setItem(LS_LANG_KEY, lang);
 }
@@ -25,12 +27,12 @@ const TRACKING_DE = {
   intro: "Wähle deine bevorzugten Tracking-Einstellungen:",
   marketingLabel: "Marketing",
   marketingText:
-    "Ich stimme zu, dass Cookies verwendet werden dürfen, um mir geeignete Produktvorschläge zu machen und mir personalisierte Werbung auf adidas Websites und Apps sowie auf Plattformen ausgewählter Marketingpartner anzuzeigen, z. B. auf sozialen Netzwerken wie Google, Facebook oder Instagram, und zu diesem Zweck Informationen an diese Werbepartner weiterzugeben.",
+    "Ich stimme zu, dass Cookies verwendet werden dürfen, um mir geeignete Produktvorschläge zu machen und mir personalisierte Werbung auf ausgewählten Plattformen von Marketingpartnern zu zeigen, z. B. Google, Facebook oder Instagram, und zu diesem Zweck Informationen an diese Partner weiterzugeben.",
   functionalLabel: "Funktional",
   functionalText:
-    "Ich stimme zu, dass Cookies verwendet werden dürfen, um Analysen zum besseren Verständnis der Nutzung der adidas Websites und Apps durchzuführen, um notwendige und funktionale Leistungs- und Designverbesserungen auf den Websites und Apps vorzunehmen und um ein personalisiertes Surf- und Einkaufserlebnis zu ermöglichen sowie Informationen zu diesen Zwecken an Partner weiterzugeben.",
+    "Ich stimme zu, dass Cookies für Analysen, Performance- und Designverbesserungen sowie für ein personalisiertes Nutzungserlebnis verwendet werden dürfen.",
   note:
-    "Mir ist bekannt, dass ich meine Zustimmung jederzeit über die „Cookie-Einstellungen“ ganz unten auf der adidas Website widerrufen kann. Wenn du nicht möchtest, dass Purple Crunch Publishing Cookies wie oben beschrieben verwendet, dann lass einfach die Kontrollkästchen deaktiviert und klicke auf „ICH AKZEPTIERE DIE AUSGEWÄHLTEN COOKIES“. Wir verwenden dann nur erforderliche Cookies, die für die grundlegende Funktionalität unserer Websites und Apps notwendig sind.",
+    "Mir ist bekannt, dass ich meine Zustimmung jederzeit über die Cookie-Einstellungen widerrufen kann. Wenn du nicht möchtest, dass Purple Crunch Publishing Cookies wie oben beschrieben verwendet, deaktiviere einfach die Kontrollkästchen und bestätige nur die erforderlichen Cookies.",
   accept: "ICH AKZEPTIERE DIE AUSGEWÄHLTEN COOKIES",
   necessaryOnly: "NUR ERFORDERLICHE COOKIES",
   hintBtn: "COOKIE HINWEIS",
@@ -47,12 +49,12 @@ const TRACKING_EN = {
   intro: "Choose your preferred tracking settings:",
   marketingLabel: "Marketing",
   marketingText:
-    "I agree that cookies may be used to show me relevant suggestions and personalized advertising on selected marketing partners’ platforms (e.g., Google, Facebook, or Instagram), and to share information with those advertising partners for this purpose.",
+    "I agree that cookies may be used to show me relevant suggestions and personalized advertising on selected marketing partners’ platforms, such as Google, Facebook, or Instagram, and to share information with those partners for this purpose.",
   functionalLabel: "Functional / Analytics",
   functionalText:
-    "I agree that cookies may be used to run analytics to better understand usage, to make necessary functional performance and design improvements, and to enable a personalized browsing experience, including sharing information with partners for these purposes.",
+    "I agree that cookies may be used to run analytics, improve functionality and performance, and enable a more personalized browsing experience.",
   note:
-    "I understand that I can withdraw my consent at any time via “Cookie Settings” at the bottom of the website. If you do not want Purple Crunch Publishing to use cookies as described above, simply disable the checkboxes and click “ACCEPT SELECTED COOKIES”. In that case, we will only use strictly necessary cookies required for basic functionality.",
+    "I understand that I can withdraw my consent at any time via Cookie Settings. If you do not want Purple Crunch Publishing to use cookies as described above, simply disable the checkboxes and accept only strictly necessary cookies.",
   accept: "ACCEPT SELECTED COOKIES",
   necessaryOnly: "STRICTLY NECESSARY ONLY",
   hintBtn: "COOKIE NOTICE",
@@ -64,148 +66,117 @@ const TRACKING_EN = {
 
 const COOKIE_POLICY_DE = `Cookie Policy
 Stand: 28. Januar 2026
-Diese Cookie-Richtlinie erklärt, wie Purple Media Group („wir“, „uns“) Cookies und ähnliche Technologien auf www.purplecrunchpublishing.com einsetzt.
+
+Diese Cookie-Richtlinie erklärt, wie Purple Crunch Publishing Cookies und ähnliche Technologien verwendet.
 
 1. Was sind Cookies?
-Cookies sind kleine Textdateien, die auf Ihrem Endgerät gespeichert werden. Sie helfen, eine Website bereitzustellen, sicher zu betreiben und Funktionen sowie Analysen zu ermöglichen.
+Cookies sind kleine Textdateien, die auf Ihrem Endgerät gespeichert werden. Sie helfen dabei, eine Website bereitzustellen, sicher zu betreiben und Funktionen sowie Analysen zu ermöglichen.
 
 2. Welche Arten von Cookies verwenden wir?
-Wir setzen je nach Einsatz folgende Kategorien ein:
+a) Essenzielle Cookies
+Erforderlich für den Betrieb der Website.
 
-a) Essenzielle Cookies (notwendig)
-Diese Cookies sind erforderlich, damit die Website funktioniert (z. B. Seitennavigation, Sicherheit, Spracheinstellungen).
-Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einem technisch fehlerfreien Betrieb) und – soweit einschlägig – § 25 Abs. 2 Nr. 2 TTDSG.
+b) Funktionale Cookies
+Ermöglichen Komfortfunktionen und eine verbesserte Nutzererfahrung.
 
-b) Funktionale Cookies (optional)
-Ermöglichen Komfortfunktionen (z. B. bevorzugte Einstellungen).
-Rechtsgrundlage: Einwilligung, Art. 6 Abs. 1 lit. a DSGVO i.V.m. § 25 Abs. 1 TTDSG.
+c) Statistik- / Analyse-Cookies
+Helfen uns zu verstehen, wie Besucher die Website nutzen.
 
-c) Statistik/Analyse Cookies (optional)
-Helfen uns zu verstehen, wie Besucher die Website nutzen (z. B. Seitenaufrufe, Verweildauer).
-Rechtsgrundlage: Einwilligung, Art. 6 Abs. 1 lit. a DSGVO i.V.m. § 25 Abs. 1 TTDSG.
-
-d) Marketing Cookies (optional)
-Dienen dazu, Inhalte/Anzeigen zu personalisieren und Kampagnen zu messen.
-Rechtsgrundlage: Einwilligung, Art. 6 Abs. 1 lit. a DSGVO i.V.m. § 25 Abs. 1 TTDSG.
+d) Marketing-Cookies
+Dienen dazu, Inhalte und Anzeigen zu personalisieren und Kampagnen zu messen.
 
 3. Einwilligung und Widerruf
-Beim ersten Besuch fragen wir Sie (sofern erforderlich) nach Ihrer Einwilligung.
-Sie können Ihre Auswahl jederzeit ändern oder widerrufen über: [Link zu Cookie-Einstellungen].
+Sie können Ihre Auswahl jederzeit ändern oder widerrufen.
 
-4. Cookies von Drittanbietern
-Wenn wir Dienste von Drittanbietern einsetzen (z. B. Analyse- oder Marketingtools), können diese eigene Cookies setzen und Daten verarbeiten. Details finden Sie in den Cookie-Einstellungen und in unserer Datenschutzerklärung.
+4. Drittanbieter
+Wenn wir Dienste von Drittanbietern einsetzen, können diese eigene Cookies setzen und Daten verarbeiten.
 
 5. Speicherdauer
-Cookies werden entweder nur für die Sitzung gespeichert (Session Cookies) oder bleiben für eine definierte Zeit auf Ihrem Gerät (Persistente Cookies). Die jeweilige Dauer sehen Sie in den Cookie-Einstellungen.
+Cookies werden entweder nur für die Sitzung oder für einen definierten Zeitraum gespeichert.
 `;
 
-const COOKIE_POLICY_EN = `Cookie Policy (EN) – Germany/EU aligned
+const COOKIE_POLICY_EN = `Cookie Policy
 Last updated: 28 January 2026
-This Cookie Policy explains how Purple Media Group GmbH (“we”, “us”) uses cookies and similar technologies on www.purplecrunchpublishing.com.
+
+This Cookie Policy explains how Purple Crunch Publishing uses cookies and similar technologies.
 
 1. What are cookies?
-Cookies are small text files stored on your device. They help operate a website, keep it secure, and enable features, analytics, and marketing (where applicable).
+Cookies are small text files stored on your device. They help operate a website, keep it secure, and enable features and analytics.
 
 2. What types of cookies do we use?
-Depending on your choices, we may use:
-
 a) Strictly necessary cookies
-Required to operate the website (e.g., security, basic functions).
-Legal basis: Art. 6(1)(f) GDPR and, where applicable, Sec. 25(2) TTDSG.
+Required to operate the website.
 
-b) Functional cookies (optional)
-Enable enhanced functionality and personalization.
-Legal basis: Consent, Art. 6(1)(a) GDPR + Sec. 25(1) TTDSG.
+b) Functional cookies
+Enable enhanced functionality and a better user experience.
 
-c) Analytics cookies (optional)
+c) Analytics cookies
 Help us understand how visitors use the site.
-Legal basis: Consent, Art. 6(1)(a) GDPR + Sec. 25(1) TTDSG.
 
-d) Marketing cookies (optional)
-Used to deliver and measure personalized advertising.
-Legal basis: Consent, Art. 6(1)(a) GDPR + Sec. 25(1) TTDSG.
+d) Marketing cookies
+Used to personalize content and advertising and measure campaigns.
 
 3. Consent and withdrawal
-Where required, we ask for consent on your first visit. You can change or withdraw consent at any time via: [Cookie settings link].
+You can change or withdraw your consent at any time.
 
 4. Third-party cookies
-If we use third-party services (e.g., analytics/marketing providers), they may set cookies and process data. Details are provided in Cookie Settings and our Privacy Policy.
+If we use third-party services, they may set cookies and process data.
 
 5. Retention
-Cookies may be session-based or stored for a defined period. Exact retention times are shown in Cookie Settings.
+Cookies may be session-based or stored for a defined period.
 `;
 
 export default function CookiePolicyPage() {
+  const navigate = useNavigate();
+
   const [lang, setLang] = useState<Language>("EN");
   const [showPolicy, setShowPolicy] = useState(false);
-  const [toast, setToast] = useState<string>("");
-
-  useEffect(() => setLang(readLang()), []);
-  useEffect(() => writeLang(lang), [lang]);
-
-  const t = useMemo(() => (lang === "DE" ? TRACKING_DE : TRACKING_EN), [lang]);
-
-  const [prefs, setPrefs] = useState<ConsentState>({ marketing: true, functional: true });
+  const [toast, setToast] = useState("");
+  const [prefs, setPrefs] = useState<ConsentState>({
+    marketing: true,
+    functional: true,
+  });
 
   useEffect(() => {
-    const defaults: ConsentState = { marketing: true, functional: true };
+    setLang(readLang());
+  }, []);
+
+  useEffect(() => {
+    writeLang(lang);
+  }, [lang]);
+
+  useEffect(() => {
+    const defaults: ConsentState = {
+      marketing: true,
+      functional: true,
+    };
+
     setPrefs(defaults);
+
     localStorage.setItem(
       CONSENT_KEY,
-      JSON.stringify({ ...defaults, necessary: true, updatedAt: new Date().toISOString() })
+      JSON.stringify({
+        ...defaults,
+        necessary: true,
+        updatedAt: new Date().toISOString(),
+      })
     );
   }, []);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(CONSENT_KEY);
-
-      if (!raw) {
-        const defaults = { marketing: true, functional: true };
-        setPrefs(defaults);
-        localStorage.setItem(
-          CONSENT_KEY,
-          JSON.stringify({ ...defaults, necessary: true, updatedAt: new Date().toISOString() })
-        );
-        return;
-      }
-
-      const parsed = JSON.parse(raw);
-
-      const marketing =
-        typeof parsed?.marketing === "boolean" ? parsed.marketing : true;
-      const functional =
-        typeof parsed?.functional === "boolean" ? parsed.functional : true;
-
-      setPrefs({ marketing, functional });
-
-      // normalize storage if it was missing fields
-      if (marketing !== parsed?.marketing || functional !== parsed?.functional) {
-        localStorage.setItem(
-          CONSENT_KEY,
-          JSON.stringify({ marketing, functional, necessary: true, updatedAt: new Date().toISOString() })
-        );
-      }
-    } catch {
-      const defaults = { marketing: true, functional: true };
-      setPrefs(defaults);
-      localStorage.setItem(
-        CONSENT_KEY,
-        JSON.stringify({ ...defaults, necessary: true, updatedAt: new Date().toISOString() })
-      );
-    }
-  }, []);
+  const t = useMemo(() => (lang === "DE" ? TRACKING_DE : TRACKING_EN), [lang]);
 
   const save = (next: ConsentState, toastMsg: string) => {
     setPrefs(next);
+
     localStorage.setItem(
       CONSENT_KEY,
       JSON.stringify({
         ...next,
-        updatedAt: new Date().toISOString(),
         necessary: true,
+        updatedAt: new Date().toISOString(),
       })
     );
+
     setToast(toastMsg);
     window.setTimeout(() => setToast(""), 2600);
   };
@@ -214,9 +185,19 @@ export default function CookiePolicyPage() {
     <section className="publishing-page legal-page cookie-page">
       <div className="publishing-hero legal-hero">
         <Container>
+          <div className="legal-hero-topbar legal-hero-topbar--center">
+            <button
+              type="button"
+              className="artists-link artists-link--back legal-back-btn"
+              onClick={() => navigate(-1)}
+            >
+              BACK
+            </button>
+          </div>
+
           <div className="legal-hero-center">
-            <h1 className="publishing-h1 legal-h1">
-              {t.heroTitle} <span className="publishing-animated">{t.heroAccent}</span>
+            <h1 className="about-title about-title-centered legal-main-title">
+              {t.heroTitle} <span className="about-us-animated">{t.heroAccent}</span>
             </h1>
 
             <div className="legal-subtitle">{t.updated}</div>
@@ -229,6 +210,7 @@ export default function CookiePolicyPage() {
               >
                 English
               </button>
+
               <button
                 type="button"
                 className={`legal-lang-btn ${lang === "DE" ? "is-active" : ""}`}
@@ -257,8 +239,10 @@ export default function CookiePolicyPage() {
             <label className="cookie-row">
               <input
                 type="checkbox"
-                checked={!!prefs.marketing}
-                onChange={(e) => setPrefs((p) => ({ ...p, marketing: e.target.checked }))}
+                checked={prefs.marketing}
+                onChange={(e) =>
+                  setPrefs((p) => ({ ...p, marketing: e.target.checked }))
+                }
               />
               <div className="cookie-row-body">
                 <div className="cookie-row-title">{t.marketingLabel}</div>
@@ -269,8 +253,10 @@ export default function CookiePolicyPage() {
             <label className="cookie-row">
               <input
                 type="checkbox"
-                checked={!!prefs.functional}
-                onChange={(e) => setPrefs((p) => ({ ...p, functional: e.target.checked }))}
+                checked={prefs.functional}
+                onChange={(e) =>
+                  setPrefs((p) => ({ ...p, functional: e.target.checked }))
+                }
               />
               <div className="cookie-row-body">
                 <div className="cookie-row-title">{t.functionalLabel}</div>
@@ -292,7 +278,9 @@ export default function CookiePolicyPage() {
               <button
                 type="button"
                 className="cookie-btn cookie-btn-ghost"
-                onClick={() => save({ marketing: false, functional: false }, t.toastNecessary)}
+                onClick={() =>
+                  save({ marketing: false, functional: false }, t.toastNecessary)
+                }
               >
                 {t.necessaryOnly}
               </button>
@@ -303,13 +291,8 @@ export default function CookiePolicyPage() {
         </Container>
       </div>
 
-      <Container className="publishing-content legal-content">
-        <div className="legal-foot-links">
-          <Link to="/privacy-policy">Privacy Policy</Link>
-          <span className="dot">•</span>
-          <Link to="/terms">Terms &amp; Conditions</Link>
-        </div>
-      </Container>
+      <Footer/>
+
 
       <Modal
         show={showPolicy}

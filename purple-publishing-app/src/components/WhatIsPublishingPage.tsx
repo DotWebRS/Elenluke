@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Container from "react-bootstrap/Container";
 import BottomNav from "./BottomNav";
+import "../styles/whatis.css"
 
 type Section = {
   id: string;

@@ -1,0 +1,173 @@
+#services{
+  scroll-margin-top: calc(var(--navH) + 12px);
+}
+
+/* ✅ centar + iznad Snow */
+.svc-center{
+  min-height: calc(100vh - var(--navH));
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding: 24px 24px 56px;
+  position: relative;
+  z-index: 6; /* jače iznad Snow */
+  overflow-x: hidden;
+}
+
+/* ✅ povuci malo više gore */
+.svc-inner{
+  width:100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  transform: translateY(-22px);
+}
+
+.svc-title{
+  margin: 0 0 26px;
+}
+
+/* NASLOV: belo + animirani/grad */
+.svc-titleWhite{
+  color: rgba(255,255,255,.96);
+  white-space: nowrap;
+}
+
+/* GRID: kartice iste visine */
+.svc-grid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+
+.svc-card{
+  height: 80%;
+  min-height: 250px; /* ✅ kartice po visini */
+  display:flex;
+  flex-direction: column;
+  align-items: center;       /* ✅ sve u sredini */
+  justify-content: center;   /* ✅ vertikalno centrirano */
+  text-align: center;
+  gap: 12px;
+
+  position: relative;
+  border-radius: 24px;
+  padding: 26px 24px 24px;
+
+  background:
+    radial-gradient(120% 140% at 50% -10%, rgba(168,85,247,.18), transparent 55%),
+    rgba(255,255,255,.06);
+
+  /* ✅ ljubičasti border/shade */
+  border: 1px solid rgba(168,85,247,.22);
+  box-shadow:
+    0 22px 72px rgba(0,0,0,.44),
+    0 0 0 1px rgba(168,85,247,.10),
+    0 0 34px rgba(168,85,247,.12),
+    inset 0 1px 0 rgba(255,255,255,.10);
+
+  transform: translateY(0);
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease, filter 220ms ease;
+  will-change: transform;
+}
+
+.svc-card:hover{
+  transform: translateY(-7px);
+  border-color: rgba(168,85,247,.40);
+  box-shadow:
+    0 30px 92px rgba(0,0,0,.56),
+    0 0 0 1px rgba(168,85,247,.18),
+    0 0 48px rgba(168,85,247,.18),
+    inset 0 1px 0 rgba(255,255,255,.12);
+  filter: drop-shadow(0 16px 34px rgba(0,0,0,.35));
+}
+
+/* ICON: veća i u sredini */
+.svc-icon{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin: 0 0 2px;
+}
+
+.svc-iconRing{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+
+  width: 62px;
+  height: 62px;
+  border-radius: 18px;
+
+  color: rgba(255,255,255,.94);
+  background:
+    radial-gradient(90% 120% at 30% 20%, rgba(168,85,247,.45), rgba(99,102,241,.14)),
+    rgba(255,255,255,.06);
+
+  border: 1px solid rgba(168,85,247,.30);
+  box-shadow:
+    0 14px 34px rgba(0,0,0,.38),
+    0 0 22px rgba(168,85,247,.16),
+    inset 0 1px 0 rgba(255,255,255,.10);
+}
+
+/* ✅ SVG veći */
+.svc-iconRing svg{
+  width: 30px;
+  height: 30px;
+}
+
+.svc-name{
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-weight: 900;
+  font-size: 20px; /* ✅ veći */
+  line-height: 1.18;
+  color: rgba(255,255,255,.98);
+  max-width: 32ch;
+}
+
+.svc-desc{
+  margin: 0;
+  font-family: "GuardianSans", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-weight: 600;           /* ✅ jače */
+  font-size: 17px;            /* ✅ veći */
+  line-height: 1.65;
+  color: rgba(255,255,255,.86);
+  max-width: 60ch;
+}
+
+/* TABLET + MOBILE */
+@media (max-width: 991.98px){
+  .svc-grid{
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .svc-inner{
+    transform: translateY(-16px);
+  }
+  .svc-card{
+    min-height: 230px;
+    padding: 24px 20px 22px;
+  }
+}
+
+@media (max-width: 520px){
+  .svc-center{
+    padding: 18px 18px 48px;
+  }
+  .svc-inner{
+    transform: translateY(-12px);
+  }
+  .svc-card{
+    border-radius: 20px;
+    min-height: 220px;
+  }
+  .svc-name{
+    font-size: 19px;
+  }
+  .svc-desc{
+    font-size: 16px;
+  }
+}

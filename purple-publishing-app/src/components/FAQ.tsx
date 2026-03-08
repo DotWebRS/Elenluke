@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { AdminSiteKey } from "../components/admin/adminSites";
 import { API_BASE } from "../config/apiBase";
+import FadeSection from "./FadeSection";
 
 type FaqItem = { id?: string; q: string; a: string };
 type CmsFaqPayload = { items: FaqItem[] };
@@ -53,15 +54,13 @@ function normalizeFaq(payload: any): FaqItem[] {
   const parsed = safeParseJson<CmsFaqPayload>(payload?.json, { items: [] });
   const items = Array.isArray(parsed?.items) ? parsed.items : [];
 
-  const cleaned = items
+  return items
     .map((x: any, idx: number) => ({
       id: x?.id ? String(x.id) : `faq_${idx}`,
       q: String(x?.q ?? "").trim(),
       a: String(x?.a ?? "").trim(),
     }))
     .filter((x) => x.q && x.a);
-
-  return cleaned;
 }
 
 function ToggleIcon({ open }: { open: boolean }) {
@@ -106,14 +105,11 @@ export function FAQ() {
 
         if (!alive) return;
         setFaqData(next);
-
-        setOpenIndex((prev) => {
-          if (prev == null) return null;
-          if (next.length === 0) return null;
-          return prev >= next.length ? 0 : prev;
-        });
+        setOpenIndex(null);
       } catch {
-        // silent
+        if (!alive) return;
+        setFaqData([]);
+        setOpenIndex(null);
       }
     })();
 
@@ -124,9 +120,8 @@ export function FAQ() {
   }, []);
 
   return (
-    <section className="faq-section" id="faq" style={{ position: "relative" }}>
-      
-      <div className="services-head services-head--center">
+    <FadeSection id="faq" className="faq-section">
+      <div className="faq-head">
         <h2 className="about-title about-title-centered">
           FAQ <span className="about-us-animated">SUPPORT</span>
         </h2>
@@ -144,7 +139,7 @@ export function FAQ() {
                 aria-expanded={isOpen}
                 type="button"
               >
-                <span>{item.q}</span>
+                <span className="faq-question-text">{item.q}</span>
                 <ToggleIcon open={isOpen} />
               </button>
 
@@ -157,12 +152,8 @@ export function FAQ() {
           );
         })}
 
-        {faqData.length === 0 && (
-          <div className="faq-empty" style={{ opacity: 0.75 }}>
-            
-          </div>
-        )}
+        {faqData.length === 0 && <div className="faq-empty" />}
       </div>
-    </section>
+    </FadeSection>
   );
 }

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Container from "react-bootstrap/Container";
-import { Link } from "react-router-dom";
-import "../styles/Publishing.css";
+import { Link, useNavigate } from "react-router-dom";
+import Footer from "./Footer";
+import "../styles/PrivacyPolicyPage.css";
 
 type Language = "EN" | "DE";
 const LS_LANG_KEY = "pcp_lang";
@@ -10,36 +11,39 @@ function readLang(): Language {
   const v = (localStorage.getItem(LS_LANG_KEY) || "").toUpperCase();
   return v === "DE" ? "DE" : "EN";
 }
+
 function writeLang(lang: Language) {
   localStorage.setItem(LS_LANG_KEY, lang);
 }
 
 function renderTextWithLinks(text: string) {
-  // Tokeni koje ubacujemo u tekst bez skraćivanja
   const parts = text.split(/(\[\[cookie-settings\]\]|\[\[cookie-policy\]\]|\[\[privacy-policy\]\])/g);
 
   return parts.map((p, i) => {
     if (p === "[[cookie-settings]]") {
       return (
-        <Link key={i} className="legal-inline-link" to="/cookie-policy">
+        <Link key={i} className="privacy-inline-link" to="/cookie-policy">
           Cookie Settings
         </Link>
       );
     }
+
     if (p === "[[cookie-policy]]") {
       return (
-        <Link key={i} className="legal-inline-link" to="/cookie-policy">
+        <Link key={i} className="privacy-inline-link" to="/cookie-policy">
           Cookie Policy
         </Link>
       );
     }
+
     if (p === "[[privacy-policy]]") {
       return (
-        <Link key={i} className="legal-inline-link" to="/privacy-policy">
+        <Link key={i} className="privacy-inline-link" to="/privacy-policy">
           Privacy Policy
         </Link>
       );
     }
+
     return <span key={i}>{p}</span>;
   });
 }
@@ -113,7 +117,6 @@ const DOC_DE: Doc = {
       title: "6. Cookies und Einwilligungsmanagement",
       paragraphs: [
         "Wir verwenden Cookies und ähnliche Technologien. Soweit diese nicht technisch erforderlich sind (z. B. Analyse-Cookies), setzen wir sie erst nach Ihrer Einwilligung ein.",
-        // link tokeni (bez skraćivanja, samo linkabilno)
         "Cookie-Einstellungen: [[cookie-settings]]\nCookie-Richtlinie: [[cookie-policy]]\nSie können Ihre Einwilligung jederzeit über die Cookie-Einstellungen ändern oder widerrufen.",
       ],
     },
@@ -264,6 +267,7 @@ const DOC_EN: Doc = {
 };
 
 export default function PrivacyPolicyPage() {
+  const navigate = useNavigate();
   const [lang, setLang] = useState<Language>("EN");
 
   useEffect(() => setLang(readLang()), []);
@@ -272,73 +276,79 @@ export default function PrivacyPolicyPage() {
   const doc = useMemo(() => (lang === "DE" ? DOC_DE : DOC_EN), [lang]);
 
   return (
-    <section className="publishing-page legal-page privacy-page">
-      <div className="publishing-hero legal-hero">
-        <Container>
-          <div className="legal-hero-center">
-            <h1 className="publishing-h1 legal-h1">
-              {doc.heroTitle} <span className="publishing-animated">{doc.heroAccent}</span>
+    <>
+      <section className="privacy-page">
+        <div className="privacy-page__bg" />
+
+        <Container className="privacy-page__container">
+          <div className="privacy-page__topbar">
+            <button
+              type="button"
+              className="artists-link artists-link--back privacy-back-btn"
+              onClick={() => navigate(-1)}
+            >
+              BACK
+            </button>
+          </div>
+
+          <div className="privacy-page__hero">
+            <h1 className="about-title about-title-centered privacy-main-title">
+              {doc.heroTitle} <span className="about-us-animated">{doc.heroAccent}</span>
             </h1>
 
-            <div className="legal-subtitle">{doc.subtitle}</div>
+            <div className="privacy-subtitle">{doc.subtitle}</div>
 
-            <div className="legal-lang-row legal-lang-row--center">
+            <div className="privacy-lang-row">
               <button
                 type="button"
-                className={`legal-lang-btn ${lang === "EN" ? "is-active" : ""}`}
+                className={`privacy-lang-btn ${lang === "EN" ? "is-active" : ""}`}
                 onClick={() => setLang("EN")}
               >
                 English
               </button>
               <button
                 type="button"
-                className={`legal-lang-btn ${lang === "DE" ? "is-active" : ""}`}
+                className={`privacy-lang-btn ${lang === "DE" ? "is-active" : ""}`}
                 onClick={() => setLang("DE")}
               >
                 Deutsch
               </button>
             </div>
-            <br/>
 
-            <p className="legal-p legal-lead" style={{ whiteSpace: "pre-line" }}>
+            <p className="privacy-lead" style={{ whiteSpace: "pre-line" }}>
               {doc.lead}
             </p>
           </div>
-        </Container>
 
-      </div>
+          <div className="privacy-content">
+            {doc.sections.map((s, idx) => (
+              <section key={idx} className="privacy-section">
+                <h2 className="privacy-h2">{s.title}</h2>
 
-      <Container className="publishing-content legal-content">
-        <div className="legal-card">
-          {doc.sections.map((s, idx) => (
-            <section key={idx} className="publishing-section legal-section">
-              <h2 className="publishing-h2 legal-h2">{s.title}</h2>
+                {s.paragraphs?.map((p, i) => (
+                  <p key={i} className="privacy-p" style={{ whiteSpace: "pre-line" }}>
+                    {renderTextWithLinks(p)}
+                  </p>
+                ))}
 
-              {s.paragraphs?.map((p, i) => (
-                <p key={i} className="legal-p" style={{ whiteSpace: "pre-line" }}>
-                  {renderTextWithLinks(p)}
-                </p>
-              ))}
+                {s.bullets?.length ? (
+                  <ul className="privacy-list">
+                    {s.bullets.map((b, i) => (
+                      <li key={i}>{b}</li>
+                    ))}
+                  </ul>
+                ) : null}
 
-              {s.bullets?.length ? (
-                <ul className="legal-list">
-                  {s.bullets.map((b, i) => (
-                    <li key={i}>{b}</li>
-                  ))}
-                </ul>
-              ) : null}
+                <div className="privacy-divider" />
+              </section>
+            ))}
 
-              <div className="publishing-divider legal-divider" />
-            </section>
-          ))}
-
-          <div className="legal-foot-links">
-            <Link to="/cookie-policy">Cookie Policy</Link>
-            <span className="dot">•</span>
-            <Link to="/terms">Terms &amp; Conditions</Link>
+       
           </div>
-        </div>
-      </Container>
-    </section>
+        </Container>
+      </section>
+
+      <Footer />
+    </>
   );
 }
