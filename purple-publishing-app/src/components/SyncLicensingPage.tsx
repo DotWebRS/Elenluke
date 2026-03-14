@@ -16,6 +16,17 @@ type CmsSyncPayload = {
   t3: string;
 };
 
+type SyncPartner = {
+  id: string;
+  src: string;
+  name: string;
+  href: string;
+};
+
+type CmsSyncPartnersPayload = {
+  items: SyncPartner[];
+};
+
 const DEFAULT_SYNC: CmsSyncPayload = {
   h1: "Sync Made Simple. Music Made Powerful.",
   t1: "We connect your music to film, TV, ads, games, and digital content with smooth clearance and transparent licensing.",
@@ -25,26 +36,28 @@ const DEFAULT_SYNC: CmsSyncPayload = {
   t3: "From trending digital sounds to bespoke compositions—built for your audience and your brief.",
 };
 
-const PARTNERS = [
-  {
-    name: "Roblox",
-    src: "/branding/PNG/roblox.png",
-    alt: "Roblox",
-    href: "https://www.roblox.com/",
-  },
-  {
-    name: "Amanotes",
-    src: "/branding/PNG/amanotes.avif",
-    alt: "Amanotes",
-    href: "https://amanotes.com/",
-  },
-  {
-    name: "Fortnite",
-    src: "/branding/PNG/fortnite.png",
-    alt: "Fortnite",
-    href: "https://www.fortnite.com/",
-  },
-];
+const DEFAULT_SYNC_PARTNERS: CmsSyncPartnersPayload = {
+  items: [
+    {
+      id: "partner_1",
+      name: "Roblox",
+      src: "/branding/PNG/roblox.png",
+      href: "https://www.roblox.com/",
+    },
+    {
+      id: "partner_2",
+      name: "Amanotes",
+      src: "/branding/PNG/amanotes.avif",
+      href: "https://amanotes.com/",
+    },
+    {
+      id: "partner_3",
+      name: "Fortnite",
+      src: "/branding/PNG/fortnite.png",
+      href: "https://www.fortnite.com/",
+    },
+  ],
+};
 
 function safeParseJson<T>(raw: any, fallback: T): T {
   try {
@@ -72,6 +85,15 @@ function buildUrl(path: string) {
   return base ? `${base}/${p}` : `/${p}`;
 }
 
+function absolutizeSrc(src: string) {
+  const s = (src || "").trim();
+  if (!s) return "";
+  if (s.startsWith("data:")) return s;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith("/uploads/")) return buildUrl(s);
+  return s.startsWith("/") ? buildUrl(s) : buildUrl(`/${s}`);
+}
+
 async function cmsGet(siteKey: string, key: string, signal: AbortSignal) {
   const ts = Date.now();
   const url = buildUrl(
@@ -91,8 +113,8 @@ async function cmsGet(siteKey: string, key: string, signal: AbortSignal) {
 }
 
 const SyncLicensingPage = () => {
-  
   const [syncText, setSyncText] = useState<CmsSyncPayload>(DEFAULT_SYNC);
+  const [syncPartners, setSyncPartners] = useState<CmsSyncPartnersPayload>(DEFAULT_SYNC_PARTNERS);
 
   useEffect(() => {
     let alive = true;
@@ -101,29 +123,48 @@ const SyncLicensingPage = () => {
     (async () => {
       const host = window.location.hostname.toLowerCase().replace(/^www\./, "");
       const siteKey = hostnameToSiteKey(host);
-      const key = "home.syncText";
 
       try {
-        const res = await cmsGet(siteKey, key, controller.signal);
+        const [syncRes, partnersRes] = await Promise.all([
+          cmsGet(siteKey, "home.syncText", controller.signal),
+          cmsGet(siteKey, "sync.partners", controller.signal),
+        ]);
 
-        if (res.status === 404) return;
-        if (!res.ok) return;
+        if (syncRes.status !== 404 && syncRes.ok) {
+          const payload = await syncRes.json().catch(() => null as any);
+          const parsed = safeParseJson<CmsSyncPayload>(payload?.json, DEFAULT_SYNC);
 
-        const payload = await res.json().catch(() => null as any);
-        const parsed = safeParseJson<CmsSyncPayload>(payload?.json, DEFAULT_SYNC);
+          const next: CmsSyncPayload = {
+            h1: parsed?.h1 ?? DEFAULT_SYNC.h1,
+            t1: parsed?.t1 ?? DEFAULT_SYNC.t1,
+            h2: parsed?.h2 ?? DEFAULT_SYNC.h2,
+            t2: parsed?.t2 ?? DEFAULT_SYNC.t2,
+            h3: parsed?.h3 ?? DEFAULT_SYNC.h3,
+            t3: parsed?.t3 ?? DEFAULT_SYNC.t3,
+          };
 
-        const next: CmsSyncPayload = {
-          h1: parsed?.h1 ?? DEFAULT_SYNC.h1,
-          t1: parsed?.t1 ?? DEFAULT_SYNC.t1,
-          h2: parsed?.h2 ?? DEFAULT_SYNC.h2,
-          t2: parsed?.t2 ?? DEFAULT_SYNC.t2,
-          h3: parsed?.h3 ?? DEFAULT_SYNC.h3,
-          t3: parsed?.t3 ?? DEFAULT_SYNC.t3,
-        };
+          if (alive) setSyncText(next);
+        }
 
-        if (!alive) return;
-        setSyncText(next);
+        if (partnersRes.status !== 404 && partnersRes.ok) {
+          const payload = await partnersRes.json().catch(() => null as any);
+          const parsed = safeParseJson<CmsSyncPartnersPayload>(payload?.json, DEFAULT_SYNC_PARTNERS);
+
+          const nextPartners: CmsSyncPartnersPayload = {
+            items: (parsed?.items || [])
+              .map((it: any, i: number) => ({
+                id: it?.id || `sync_partner_${i + 1}`,
+                src: absolutizeSrc(String(it?.src ?? "")),
+                name: String(it?.name ?? "").trim(),
+                href: String(it?.href ?? "").trim(),
+              }))
+              .filter((x) => x.src && x.name && x.href),
+          };
+
+          if (alive) setSyncPartners(nextPartners);
+        }
       } catch {}
+
     })();
 
     return () => {
@@ -180,35 +221,37 @@ const SyncLicensingPage = () => {
             </aside>
           </div>
 
-          <div className="sync-partners-block">
-            <div className="sync-head sync-head--center">
-              <h2 className="about-title about-title-centered">
-                OUR <span className="about-us-animated">PARTNERS</span>
-              </h2>
-            </div>
+          {syncPartners.items.length > 0 && (
+            <div className="sync-partners-block">
+              <div className="sync-head sync-head--center">
+                <h2 className="about-title about-title-centered">
+                  OUR <span className="about-us-animated">PARTNERS</span>
+                </h2>
+              </div>
 
-            <div className="sync-partners-row">
-              {PARTNERS.map((partner) => (
-                <a
-                  key={partner.name}
-                  className="sync-partner-logo"
-                  href={partner.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  title={partner.name}
-                  aria-label={partner.name}
-                >
-                  <img
-                    src={partner.src}
-                    alt={partner.alt}
-                    loading="lazy"
-                    decoding="async"
-                    draggable={false}
-                  />
-                </a>
-              ))}
+              <div className="sync-partners-row">
+                {syncPartners.items.map((partner) => (
+                  <a
+                    key={partner.id}
+                    className="sync-partner-logo"
+                    href={partner.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={partner.name}
+                    aria-label={partner.name}
+                  >
+                    <img
+                      src={partner.src}
+                      alt={partner.name}
+                      loading="lazy"
+                      decoding="async"
+                      draggable={false}
+                    />
+                  </a>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </Container>
       </FadeSection>
 

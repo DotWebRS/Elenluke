@@ -50,6 +50,16 @@ type CmsSyncPayload = {
   t3: string;
 };
 
+type CmsSyncSectionPayload = {
+  titleAccent: string;
+  buttonLabel: string;
+  buttonHref: string;
+  headline: string;
+  paragraph1: string;
+  paragraph2: string;
+  paragraph3: string;
+};
+
 const CMS_KEYS = {
   hero: "home.hero",
   about: "home.about",
@@ -59,6 +69,8 @@ const CMS_KEYS = {
   faq: "home.faq",
   partners: "home.partners",
   syncText: "home.syncText",
+  syncSection: "home.syncSection",
+  syncPartners: "sync.partners",
 };
 
 const DEFAULT_HERO: HeroCms = {
@@ -154,6 +166,24 @@ const DEFAULT_SYNC: CmsSyncPayload = {
   t3: "From trending digital sounds to bespoke compositions—built for your audience and your brief.",
 };
 
+const DEFAULT_SYNC_SECTION: CmsSyncSectionPayload = {
+  titleAccent: "LICENSING",
+  buttonLabel: "LEARN MORE",
+  buttonHref: "/sync-licensing",
+  headline: "Curating Sound. Driving Impact. Leveraging Global IP.",
+  paragraph1: "Purple Crunch Publishing is not just a rights holder, we are a modern IP engine designed for the digital era.",
+  paragraph2: "We provide bespoke one-stop licensing solutions for film, television, advertising, and gaming.",
+  paragraph3: "Our global infrastructure ensures that rights clearance and royalty administration are handled with institutional precision, while our creative team bridges the gap between raw talent and high-value commercial placement.",
+};
+
+const DEFAULT_SYNC_PARTNERS: CmsPartnersPayload = {
+  items: [
+    { id: newId("syncpartner"), src: "/branding/PNG/roblox.png", name: "Roblox", href: "https://www.roblox.com/" },
+    { id: newId("syncpartner"), src: "/branding/PNG/amanotes.avif", name: "Amanotes", href: "https://amanotes.com/" },
+    { id: newId("syncpartner"), src: "/branding/PNG/fortnite.png", name: "Fortnite", href: "https://www.fortnite.com/" },
+  ],
+};
+
 function safeJsonParse<T>(s: any, fallback: T): T {
   try {
     if (!s) return fallback;
@@ -211,7 +241,6 @@ async function readFileAsDataUrl(file: File): Promise<string> {
 function resolvePreviewSrc(src: string) {
   const s = (src || "").trim();
   if (!s) return "";
-
   if (s.startsWith("data:") || s.startsWith("blob:") || /^https?:\/\//i.test(s)) return s;
 
   if (s.startsWith("/")) {
@@ -225,6 +254,7 @@ function resolvePreviewSrc(src: string) {
 function ImagePreview({ src, alt }: { src: string; alt: string }) {
   const s = resolvePreviewSrc(src);
   if (!s) return null;
+
   return (
     <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10 }}>
       <div
@@ -273,9 +303,11 @@ export default function AdminCms() {
   const [faq, setFaq] = useState<CmsFaqPayload>(DEFAULT_FAQ);
   const [partners, setPartners] = useState<CmsPartnersPayload>(DEFAULT_PARTNERS);
   const [syncText, setSyncText] = useState<CmsSyncPayload>(DEFAULT_SYNC);
+  const [syncSection, setSyncSection] = useState<CmsSyncSectionPayload>(DEFAULT_SYNC_SECTION);
+  const [syncPartners, setSyncPartners] = useState<CmsPartnersPayload>(DEFAULT_SYNC_PARTNERS);
 
   const [openSection, setOpenSection] = useState<
-    "hero" | "about" | "artists" | "services" | "sync" | "partners" | "faq" | null
+    "hero" | "about" | "artists" | "services" | "sync" | "syncSection" | "partners" | "syncPartners" | "faq" | null
   >(null);
 
   const [openArtistId, setOpenArtistId] = useState<string | null>(null);
@@ -283,13 +315,14 @@ export default function AdminCms() {
   const [newArtistId, setNewArtistId] = useState<string | null>(null);
   const [newFaqId, setNewFaqId] = useState<string | null>(null);
   const [newPartnerId, setNewPartnerId] = useState<string | null>(null);
+  const [newSyncPartnerId, setNewSyncPartnerId] = useState<string | null>(null);
 
   const scrollRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const [artistPreview, setArtistPreview] = useState<Record<string, string>>({});
   const [partnerPreview, setPartnerPreview] = useState<Record<string, string>>({});
+  const [syncPartnerPreview, setSyncPartnerPreview] = useState<Record<string, string>>({});
 
-  // --- URL/SITE SYNC (fix) ---
   useEffect(() => {
     const fromUrl = params.get("site");
     if (fromUrl) setSite(fromUrl as any);
@@ -306,7 +339,6 @@ export default function AdminCms() {
     setSite(s as AdminSiteKey);
   }, [location.search, setSite]);
 
-  // --- route guard (fix): nikad ne prikazuj AdminCms za PMG/PCR ---
   useEffect(() => {
     if (!site) return;
 
@@ -320,30 +352,29 @@ export default function AdminCms() {
     }
   }, [site, navigate]);
 
-  // --- token guard ---
   useEffect(() => {
     if (!token) navigate("/admin/login");
   }, [token, navigate]);
 
-  // --- toast autoclear ---
   useEffect(() => {
     if (!msg) return;
     const t = window.setTimeout(() => setMsg(null), 1500);
     return () => window.clearTimeout(t);
   }, [msg]);
 
-  // --- revoke previews ---
   useEffect(() => {
     return () => {
       Object.values(artistPreview).forEach((u) => URL.revokeObjectURL(u));
       Object.values(partnerPreview).forEach((u) => URL.revokeObjectURL(u));
+      Object.values(syncPartnerPreview).forEach((u) => URL.revokeObjectURL(u));
     };
-  }, [artistPreview, partnerPreview]);
+  }, [artistPreview, partnerPreview, syncPartnerPreview]);
 
-  const setLocalPreview = (kind: "artist" | "partner", id: string, file: File) => {
+  const setLocalPreview = (kind: "artist" | "partner" | "syncPartner", id: string, file: File) => {
     const url = URL.createObjectURL(file);
     if (kind === "artist") setArtistPreview((p) => ({ ...p, [id]: url }));
-    else setPartnerPreview((p) => ({ ...p, [id]: url }));
+    else if (kind === "partner") setPartnerPreview((p) => ({ ...p, [id]: url }));
+    else setSyncPartnerPreview((p) => ({ ...p, [id]: url }));
   };
 
   const siteLabel = useMemo(() => ADMIN_SITES.find((s) => s.key === site)?.label ?? site, [site]);
@@ -400,11 +431,9 @@ export default function AdminCms() {
     return safeJsonParse<T>(data.json, fallback);
   };
 
-  // --- LOAD CMS ---
   useEffect(() => {
     let alive = true;
 
-    // ako route-guard prebaci PMG/PCR, ne ucitavaj ovde nista
     if (!site || site === "purple-music-group" || site === "purple-crunch-records") {
       setLoading(false);
       return () => {
@@ -417,13 +446,15 @@ export default function AdminCms() {
 
     (async () => {
       try {
-        const [h, a, sv, f, p, s] = await Promise.all([
+        const [h, a, sv, f, p, s, ss, sp] = await Promise.all([
           loadOne<HeroCms>(CMS_KEYS.hero, DEFAULT_HERO),
           loadOne<AboutCms>(CMS_KEYS.about, DEFAULT_ABOUT),
           loadOne<CmsServicesPayload>(CMS_KEYS.services, DEFAULT_SERVICES),
           loadOne<CmsFaqPayload>(CMS_KEYS.faq, DEFAULT_FAQ),
           loadOne<CmsPartnersPayload>(CMS_KEYS.partners, DEFAULT_PARTNERS),
           loadOne<CmsSyncPayload>(CMS_KEYS.syncText, DEFAULT_SYNC),
+          loadOne<CmsSyncSectionPayload>(CMS_KEYS.syncSection, DEFAULT_SYNC_SECTION),
+          loadOne<CmsPartnersPayload>(CMS_KEYS.syncPartners, DEFAULT_SYNC_PARTNERS),
         ]);
 
         const rosterRaw = await loadOne<any>(CMS_KEYS.roster, null as any);
@@ -469,7 +500,19 @@ export default function AdminCms() {
           });
         }
 
+        if (sp) {
+          setSyncPartners({
+            items: (sp.items || []).map((it: any) => ({
+              id: it.id || newId("syncpartner"),
+              src: it.src ?? "",
+              name: it.name ?? "",
+              href: it.href ?? "",
+            })),
+          });
+        }
+
         if (s) setSyncText(s);
+        if (ss) setSyncSection(ss);
 
         setRoster(finalRoster);
         setHomeArtists(nextHomeArtists);
@@ -487,7 +530,6 @@ export default function AdminCms() {
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [site]);
 
   const saveAll = async () => {
@@ -508,6 +550,8 @@ export default function AdminCms() {
         cmsPut(CMS_KEYS.faq, faq),
         cmsPut(CMS_KEYS.partners, partners),
         cmsPut(CMS_KEYS.syncText, syncText),
+        cmsPut(CMS_KEYS.syncSection, syncSection),
+        cmsPut(CMS_KEYS.syncPartners, syncPartners),
       ]);
 
       setHomeArtists(normalizedHomeArtists);
@@ -534,9 +578,7 @@ export default function AdminCms() {
         const data = await res.json().catch(() => null as any);
         return data?.url || data?.path || data?.filePath || data?.publicUrl || "";
       }
-    } catch {
-      //
-    }
+    } catch {}
 
     return readFileAsDataUrl(file);
   };
@@ -690,11 +732,42 @@ export default function AdminCms() {
     setPartners((prev) => ({ items: moveItem(prev.items, from, to) }));
   };
 
+  const updateSyncPartner = (id: string, patch: Partial<PartnerItem>) => {
+    setSyncPartners((prev) => ({
+      items: prev.items.map((x) => (x.id === id ? { ...x, ...patch } : x)),
+    }));
+  };
+
+  const addSyncPartner = () => {
+    const it: PartnerItem = { id: newId("syncpartner"), src: "", name: "New Sync Partner", href: "" };
+    setSyncPartners((prev) => ({ items: [it, ...prev.items] }));
+    setNewSyncPartnerId(it.id);
+
+    setTimeout(() => {
+      const el = scrollRefs.current[it.id];
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+  };
+
+  const removeSyncPartner = (id: string) => {
+    setSyncPartners((prev) => ({ items: prev.items.filter((x) => x.id !== id) }));
+    setSyncPartnerPreview((p) => {
+      const next = { ...p };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const moveSyncPartner = (from: number, to: number) => {
+    setSyncPartners((prev) => ({ items: moveItem(prev.items, from, to) }));
+  };
+
   const toggleSection = (k: typeof openSection) => {
     setOpenSection((prev) => (prev === k ? null : k));
     setNewArtistId(null);
     setNewFaqId(null);
     setNewPartnerId(null);
+    setNewSyncPartnerId(null);
   };
 
   if (loading) {
@@ -762,6 +835,7 @@ export default function AdminCms() {
         </div>
 
         <div className="cms-sections" style={{ marginTop: 0 }}>
+          <br/>
           <AccordionHeader title="Hero" open={openSection === "hero"} onToggle={() => toggleSection("hero")} />
           {openSection === "hero" && (
             <div className="cms-panel">
@@ -1094,6 +1168,69 @@ export default function AdminCms() {
             </div>
           )}
 
+          <AccordionHeader title="Home Sync Section" open={openSection === "syncSection"} onToggle={() => toggleSection("syncSection")} />
+          {openSection === "syncSection" && (
+            <div className="cms-panel">
+              <div className="cms-grid3">
+                <Field label="Accent word in title">
+                  <input
+                    className="cms-input"
+                    value={syncSection.titleAccent}
+                    onChange={(e) => setSyncSection((p) => ({ ...p, titleAccent: e.target.value }))}
+                  />
+                </Field>
+
+                <Field label="Button label">
+                  <input
+                    className="cms-input"
+                    value={syncSection.buttonLabel}
+                    onChange={(e) => setSyncSection((p) => ({ ...p, buttonLabel: e.target.value }))}
+                  />
+                </Field>
+
+                <Field label="Button href">
+                  <input
+                    className="cms-input"
+                    value={syncSection.buttonHref}
+                    onChange={(e) => setSyncSection((p) => ({ ...p, buttonHref: e.target.value }))}
+                  />
+                </Field>
+              </div>
+
+              <Field label="Headline">
+                <input
+                  className="cms-input"
+                  value={syncSection.headline}
+                  onChange={(e) => setSyncSection((p) => ({ ...p, headline: e.target.value }))}
+                />
+              </Field>
+
+              <div className="cms-grid3">
+                <Field label="Paragraph 1">
+                  <textarea
+                    className="cms-textarea"
+                    value={syncSection.paragraph1}
+                    onChange={(e) => setSyncSection((p) => ({ ...p, paragraph1: e.target.value }))}
+                  />
+                </Field>
+                <Field label="Paragraph 2">
+                  <textarea
+                    className="cms-textarea"
+                    value={syncSection.paragraph2}
+                    onChange={(e) => setSyncSection((p) => ({ ...p, paragraph2: e.target.value }))}
+                  />
+                </Field>
+                <Field label="Paragraph 3">
+                  <textarea
+                    className="cms-textarea"
+                    value={syncSection.paragraph3}
+                    onChange={(e) => setSyncSection((p) => ({ ...p, paragraph3: e.target.value }))}
+                  />
+                </Field>
+              </div>
+            </div>
+          )}
+
           <AccordionHeader title="Sync (Shared content for PCP and PCR: edits here update both sites.)" open={openSection === "sync"} onToggle={() => toggleSection("sync")} />
           {openSection === "sync" && (
             <div className="cms-panel">
@@ -1123,12 +1260,12 @@ export default function AdminCms() {
             </div>
           )}
 
-          <AccordionHeader title="Partners (Shared content for PCP and PCR: edits here update both sites.)" open={openSection === "partners"} onToggle={() => toggleSection("partners")} />
+          <AccordionHeader title="Home Partners (existing marquee component)" open={openSection === "partners"} onToggle={() => toggleSection("partners")} />
           {openSection === "partners" && (
             <div className="cms-panel">
               <div className="cms-block__head">
                 <div>
-                  <div className="cms-block__title">Partners list</div>
+                  <div className="cms-block__title">Home partners list</div>
                   <div className="cms-block__desc">Upload logo, edit link, reorder.</div>
                 </div>
                 <button className="cms-btn cms-btn--primary" onClick={addPartner} type="button">
@@ -1209,6 +1346,109 @@ export default function AdminCms() {
                                 if (url) {
                                   updatePartner(p.id, { src: url });
                                   setPartnerPreview((pp) => {
+                                    const next = { ...pp };
+                                    delete next[p.id];
+                                    return next;
+                                  });
+                                }
+                              }}
+                            />
+                          </Field>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <AccordionHeader title="Sync Licensing Partners" open={openSection === "syncPartners"} onToggle={() => toggleSection("syncPartners")} />
+          {openSection === "syncPartners" && (
+            <div className="cms-panel">
+              <div className="cms-block__head">
+                <div>
+                  <div className="cms-block__title">Sync page partners list</div>
+                  <div className="cms-block__desc">These are separate from home partners. Upload logo, edit link, reorder.</div>
+                </div>
+                <button className="cms-btn cms-btn--primary" onClick={addSyncPartner} type="button">
+                  + Add sync partner
+                </button>
+              </div>
+
+              <div className="cms-list">
+                {syncPartners.items.map((p, i) => {
+                  const isNew = newSyncPartnerId === p.id;
+                  const previewSrc = syncPartnerPreview[p.id] || p.src;
+
+                  return (
+                    <div
+                      key={p.id}
+                      ref={(el) => {
+                        scrollRefs.current[p.id] = el;
+                      }}
+                      className={`cms-card ${isNew ? "is-new" : ""}`}
+                      onAnimationEnd={() => {
+                        if (isNew) setNewSyncPartnerId(null);
+                      }}
+                    >
+                      <div className="cms-card__head">
+                        <div className="cms-card__title">
+                          <div className="cms-card__index">#{i + 1}</div>
+                          <div className="cms-card__name">{p.name || "Sync Partner"}</div>
+                        </div>
+
+                        <div className="cms-card__actions">
+                          <button className="cms-iconbtn" disabled={i === 0} onClick={() => moveSyncPartner(i, i - 1)} type="button">
+                            ↑
+                          </button>
+                          <button
+                            className="cms-iconbtn"
+                            disabled={i === syncPartners.items.length - 1}
+                            onClick={() => moveSyncPartner(i, i + 1)}
+                            type="button"
+                          >
+                            ↓
+                          </button>
+                          <button className="cms-btn cms-btn--danger" onClick={() => removeSyncPartner(p.id)} type="button">
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="cms-card__body">
+                        <div className="cms-grid2">
+                          <Field label="Name">
+                            <input className="cms-input" value={p.name} onChange={(e) => updateSyncPartner(p.id, { name: e.target.value })} />
+                          </Field>
+                          <Field label="Href">
+                            <input className="cms-input" value={p.href} onChange={(e) => updateSyncPartner(p.id, { href: e.target.value })} />
+                          </Field>
+                        </div>
+
+                        <div className="cms-grid2">
+                          <Field label="Logo src (URL or dataURL)">
+                            <input className="cms-input" value={p.src} onChange={(e) => updateSyncPartner(p.id, { src: e.target.value })} />
+                            <ImagePreview src={previewSrc} alt={`${p.name} preview`} />
+                          </Field>
+
+                          <Field label="Upload logo">
+                            <input
+                              className="cms-input"
+                              type="file"
+                              accept="image/*"
+                              onChange={async (e) => {
+                                const input = e.target as HTMLInputElement;
+                                const f = input.files?.[0];
+                                if (!f) return;
+
+                                setLocalPreview("syncPartner", p.id, f);
+                                input.value = "";
+
+                                const url = await uploadImage(f);
+                                if (url) {
+                                  updateSyncPartner(p.id, { src: url });
+                                  setSyncPartnerPreview((pp) => {
                                     const next = { ...pp };
                                     delete next[p.id];
                                     return next;
