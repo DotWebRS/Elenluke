@@ -88,29 +88,60 @@ public class SubmissionsController : ControllerBase
             return age;
         }
 
-        // minors checks
         if (type == SubmissionType.SongwriterInformation)
         {
-            var fullLegalName = Get(dict, "fullLegalName");
-            var dob = Get(dict, "dateOfBirth");
+            var firstName = Get(dict, "legalFirstNameSongwriter");
+            var lastName = Get(dict, "legalLastNameSongwriter");
+            var artistName = Get(dict, "artistName");
+            var origin = Get(dict, "origin");
+            var ageText = Get(dict, "age");
+            var yearsMakingMusic = Get(dict, "yearsMakingMusic");
+            var genre = Get(dict, "genre");
+            var biography = Get(dict, "biography");
 
-            if (string.IsNullOrWhiteSpace(fullLegalName) || !LooksLikeFullName(fullLegalName))
-                return BadRequest("Full legal name is required and must look like a full name.");
+            if (string.IsNullOrWhiteSpace(firstName))
+                return BadRequest("First Name is required.");
 
-            if (string.IsNullOrWhiteSpace(dob))
-                return BadRequest("Date of birth is required for SongwriterInformation.");
+            if (string.IsNullOrWhiteSpace(lastName))
+                return BadRequest("Last Name is required.");
 
-            var age = ComputeAgeFromIso(dob);
-            if (age is null)
-                return BadRequest("Date of birth is invalid.");
+            if (string.IsNullOrWhiteSpace(artistName))
+                return BadRequest("Artist Name is required.");
 
-            if (age < 18)
+            if (string.IsNullOrWhiteSpace(origin))
+                return BadRequest("Origin is required.");
+
+            if (string.IsNullOrWhiteSpace(ageText))
+                return BadRequest("Age is required.");
+
+            if (string.IsNullOrWhiteSpace(yearsMakingMusic))
+                return BadRequest("How long have you been making music is required.");
+
+            if (string.IsNullOrWhiteSpace(genre))
+                return BadRequest("Genres are required.");
+
+            if (string.IsNullOrWhiteSpace(biography))
+                return BadRequest("Artist Biography is required.");
+
+            if (form.Files != null && form.Files.Count > 1)
+                return BadRequest("Please upload only one image.");
+
+            if (form.Files != null && form.Files.Count > 0)
             {
-                var guardianName = Get(dict, "guardianName");
-                var guardianEmail = Get(dict, "guardianEmail");
+                static bool IsAllowedImage(IFormFile f)
+                {
+                    var ext = Path.GetExtension(f.FileName ?? "").ToLowerInvariant();
+                    var nameOk = ext is ".png" or ".jpg" or ".jpeg";
+                    var ct = (f.ContentType ?? "").ToLowerInvariant();
+                    var typeOk = ct == "image/png" || ct == "image/jpeg";
+                    return nameOk || typeOk;
+                }
 
-                if (!LooksLikeFullName(guardianName) || guardianEmail.Length == 0)
-                    return BadRequest("For minors, guardianName and guardianEmail are required for SongwriterInformation.");
+                foreach (var f in form.Files)
+                {
+                    if (!IsAllowedImage(f))
+                        return BadRequest("Image must be jpg or png.");
+                }
             }
         }
 
@@ -119,8 +150,6 @@ public class SubmissionsController : ControllerBase
             var fullLegalName = Get(dict, "fullLegalNameArtist");
             var dob = Get(dict, "dateOfBirthArtist");
 
-            if (string.IsNullOrWhiteSpace(fullLegalName) || !LooksLikeFullName(fullLegalName))
-                return BadRequest("Full legal name is required and must look like a full name for ArtistInformation.");
 
             if (string.IsNullOrWhiteSpace(dob))
                 return BadRequest("Date of birth is required for ArtistInformation.");
@@ -139,13 +168,11 @@ public class SubmissionsController : ControllerBase
             }
         }
 
-        // Demo upload checks
         if (type == SubmissionType.DemoUpload)
         {
             if (form.Files == null || form.Files.Count == 0)
                 return BadRequest("At least one demo file must be uploaded.");
 
-            // WAV explicitly NOT allowed anymore
             static bool IsWav(IFormFile f)
             {
                 var ext = Path.GetExtension(f.FileName ?? "").ToLowerInvariant();
@@ -182,12 +209,10 @@ public class SubmissionsController : ControllerBase
                 return nameOk || typeOk;
             }
 
-            // Allow: mp3, mp4, images. Disallow: wav.
             static bool IsAllowedUpload(IFormFile f) => IsMp3(f) || IsMp4(f) || IsAllowedImage(f);
 
             foreach (var f in form.Files)
             {
-                // hard block wav with a clearer message
                 if (IsWav(f))
                     return BadRequest("WAV files are not allowed. Please upload MP3, MP4, or images (png/jpg/jpeg).");
 
@@ -228,7 +253,6 @@ public class SubmissionsController : ControllerBase
         if (fieldsToInsert.Count > 0)
             _db.SubmissionFields.AddRange(fieldsToInsert);
 
-        // sanitize file names for Windows
         static string SanitizeFileName(string name)
         {
             name ??= "";
@@ -301,7 +325,6 @@ public class SubmissionsController : ControllerBase
         }
         catch
         {
-            // ignore notification failures
         }
 
         return Ok(new { submission.Id, submission.Type, submission.Status });
@@ -360,32 +383,17 @@ public class SubmissionsController : ControllerBase
             q = q.Where(x => x.CreatedAt < toDate);
         }
 
-        if (hasFile.HasValue)
-        {
-            var submitIdsWithFiles = _db.SubmissionFiles.AsNoTracking()
-                .GroupBy(f => f.SubmissionId)
-                .Select(g => new { g.Key, Count = g.Count() });
-
-            if (hasFile.Value)
-            {
-                q = q.Join(submitIdsWithFiles.Where(x => x.Count > 0),
-                    s => s.Id, f => f.Key, (s, _) => s);
-            }
-            else
-            {
-                q = q.GroupJoin(submitIdsWithFiles,
-                        s => s.Id, f => f.Key,
-                        (s, gj) => new { s, gj })
-                    .SelectMany(x => x.gj.DefaultIfEmpty(), (x, f) => new { x.s, f })
-                    .Where(x => x.f == null || x.f.Count == 0)
-                    .Select(x => x.s);
-            }
-        }
-
-        // archived filter:
         if (archived.HasValue)
         {
             q = q.Where(x => x.IsArchived == archived.Value);
+        }
+
+        if (hasFile.HasValue)
+        {
+            if (hasFile.Value)
+                q = q.Where(x => _db.SubmissionFiles.Any(f => f.SubmissionId == x.Id));
+            else
+                q = q.Where(x => !_db.SubmissionFiles.Any(f => f.SubmissionId == x.Id));
         }
 
         var total = await q.CountAsync();
@@ -522,6 +530,19 @@ public class SubmissionsController : ControllerBase
             .Select(r => new { r.Id, r.ToEmail, r.Subject, r.Body, r.SentAt, r.SentBy })
             .ToListAsync();
 
+        var changes = await _db.AuditLogs.AsNoTracking()
+            .Where(a => a.EntityType == "Submission" && a.EntityId == id.ToString())
+            .OrderByDescending(a => a.CreatedAtUtc)
+            .Select(a => new
+            {
+                a.Id,
+                a.CreatedAtUtc,
+                a.UserEmail,
+                a.Action,
+                a.Details
+            })
+            .ToListAsync();
+
         return Ok(new
         {
             s.Id,
@@ -537,8 +558,32 @@ public class SubmissionsController : ControllerBase
             archivedAtUtc = s.ArchivedAtUtc,
             fields,
             files,
-            replies
+            replies,
+            changes
         });
+    }
+
+    [HttpGet("{id:guid}/changes")]
+    [Authorize(Roles = "Admin,Inbox")]
+    public async Task<IActionResult> GetChanges([FromRoute] Guid id)
+    {
+        var exists = await _db.Submissions.AsNoTracking().AnyAsync(x => x.Id == id);
+        if (!exists) return NotFound();
+
+        var changes = await _db.AuditLogs.AsNoTracking()
+            .Where(a => a.EntityType == "Submission" && a.EntityId == id.ToString())
+            .OrderByDescending(a => a.CreatedAtUtc)
+            .Select(a => new
+            {
+                a.Id,
+                a.CreatedAtUtc,
+                a.UserEmail,
+                a.Action,
+                a.Details
+            })
+            .ToListAsync();
+
+        return Ok(new { items = changes });
     }
 
     [HttpGet("{id:guid}/export")]
@@ -613,7 +658,6 @@ public class SubmissionsController : ControllerBase
         var utf8WithBom = new UTF8Encoding(true);
         var bytes = utf8WithBom.GetBytes(sb.ToString());
 
-        // FIX: filename (guid is guid, not date)
         return File(bytes, "text/csv", $"submission_{id}_{DateTime.UtcNow:yyyyMMddHHmmss}.csv");
     }
 
@@ -891,7 +935,6 @@ Your Purple Crunch Records Team";
         return Ok(new { body });
     }
 
-    // keeping this endpoint even if you said "skip exporting"
     [HttpGet("export")]
     [Authorize(Roles = "Admin,Inbox")]
     public async Task<IActionResult> Export(
@@ -940,24 +983,10 @@ Your Purple Crunch Records Team";
 
         if (hasFile.HasValue)
         {
-            var submitIdsWithFiles = _db.SubmissionFiles.AsNoTracking()
-                .GroupBy(f => f.SubmissionId)
-                .Select(g => new { g.Key, Count = g.Count() });
-
             if (hasFile.Value)
-            {
-                q = q.Join(submitIdsWithFiles.Where(x => x.Count > 0),
-                    s => s.Id, f => f.Key, (s, _) => s);
-            }
+                q = q.Where(x => _db.SubmissionFiles.Any(f => f.SubmissionId == x.Id));
             else
-            {
-                q = q.GroupJoin(submitIdsWithFiles,
-                        s => s.Id, f => f.Key,
-                        (s, gj) => new { s, gj })
-                    .SelectMany(x => x.gj.DefaultIfEmpty(), (x, f) => new { x.s, f })
-                    .Where(x => x.f == null || x.f.Count == 0)
-                    .Select(x => x.s);
-            }
+                q = q.Where(x => !_db.SubmissionFiles.Any(f => f.SubmissionId == x.Id));
         }
 
         var list = await q.OrderByDescending(x => x.CreatedAt).ToListAsync();
@@ -1037,9 +1066,6 @@ Your Purple Crunch Records Team";
             SubmissionType.LegalRequest => legal,
             _ => ""
         };
-
-        /*if (type == SubmissionType.PlaylistPitch && !string.IsNullOrWhiteSpace(info))
-            list.Add(info);*/
 
         if (type == SubmissionType.SyncRequest && !string.IsNullOrWhiteSpace(legal))
             list.Add(legal);

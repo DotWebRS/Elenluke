@@ -4,6 +4,7 @@ import { useAdminSite } from "./useAdminSite";
 import { API_BASE } from "../../config/apiBase";
 import "../../styles/AdminSubmissionsModal.css";
 import * as XLSX from "xlsx";
+import AdminSubmissionAudit from "./AdminSubmissionAudit";
 
 // -------------------- ENUM-LIKE KONSTANTE --------------------
 
@@ -22,7 +23,7 @@ const SubmissionStatusId = {
   Read: 2,
   InProgress: 3,
   Done: 4,
-  UnderReview: 7, 
+  UnderReview: 7,
   Accepted: 5,
   Rejected: 6,
 } as const;
@@ -44,12 +45,11 @@ const STATUS_FILTER_VALUES: SubmissionStatusId[] = [
   SubmissionStatusId.Unread,
   SubmissionStatusId.Read,
   SubmissionStatusId.InProgress,
-  SubmissionStatusId.UnderReview, // <-- dodaj
+  SubmissionStatusId.UnderReview,
   SubmissionStatusId.Done,
   SubmissionStatusId.Accepted,
   SubmissionStatusId.Rejected,
 ];
-
 
 // -------------------- TIPOVI PODATAKA --------------------
 
@@ -78,8 +78,6 @@ type SubmissionListItem = {
   repliesCount: number;
   fields: SubmissionField[];
   files: SubmissionFile[];
-
-  // dodato (backend vec vraca)
   isArchived?: boolean;
   archivedAtUtc?: string | null;
 };
@@ -105,8 +103,6 @@ type SubmissionDetail = {
   fields: SubmissionField[];
   files: SubmissionFile[];
   replies: SubmissionReply[];
-
-  // dodato (backend vec vraca)
   isArchived?: boolean;
   archivedAtUtc?: string | null;
 };
@@ -118,6 +114,7 @@ type ListResponse = {
 
 type FilterHasFile = "all" | "yes" | "no";
 type ArchiveTab = "active" | "archived";
+type SubmissionView = "inbox" | "audit";
 
 // -------------------- POMOĆNE FUNKCIJE --------------------
 
@@ -261,6 +258,7 @@ export function AdminSubmissions() {
   const authHeaders = useAuthHeaders();
   const { site } = useAdminSite();
 
+  const [subView, setSubView] = useState<SubmissionView>("inbox");
   const [archiveTab, setArchiveTab] = useState<ArchiveTab>("active");
 
   const [page, setPage] = useState(1);
@@ -291,7 +289,6 @@ export function AdminSubmissions() {
   const [replySubject, setReplySubject] = useState("");
   const [replyBody, setReplyBody] = useState("");
 
-  // INLINE PREVIEW (u okviru modala)
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const previewUrlsRef = useRef<Record<string, string>>({});
   const [activePreviewFileId, setActivePreviewFileId] = useState<string | null>(null);
@@ -303,6 +300,7 @@ export function AdminSubmissions() {
   useEffect(() => {
     setPage(1);
     setArchiveTab("active");
+    setSubView("inbox");
   }, [site]);
 
   useEffect(() => {
@@ -321,9 +319,8 @@ export function AdminSubmissions() {
     const qs = new URLSearchParams();
     qs.set("page", String(page));
     qs.set("pageSize", String(pageSize));
-    if (site) qs.set("site", site);
 
-    // ključ: backend param "archived"
+    if (site) qs.set("site", site);
     qs.set("archived", archiveTab === "archived" ? "true" : "false");
 
     if (search.trim()) qs.set("search", search.trim());
@@ -332,6 +329,7 @@ export function AdminSubmissions() {
     if (hasFile !== "all") qs.set("hasFile", hasFile === "yes" ? "true" : "false");
     if (fromDate) qs.set("from", `${fromDate}T00:00:00`);
     if (toDate) qs.set("to", `${toDate}T23:59:59`);
+
     return qs.toString();
   };
 
@@ -359,6 +357,7 @@ export function AdminSubmissions() {
       }
 
       const json = await res.json().catch(() => null);
+
       setData({
         total: Number(json?.totalCount ?? json?.total ?? 0),
         items: Array.isArray(json?.items) ? json.items : [],
@@ -373,10 +372,12 @@ export function AdminSubmissions() {
   };
 
   useEffect(() => {
+    if (subView !== "inbox") return;
+
     fetchList();
     return () => listAbortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, typeFilter, statusFilter, hasFile, fromDate, toDate, search, site, archiveTab]);
+  }, [page, typeFilter, statusFilter, hasFile, fromDate, toDate, search, site, archiveTab, subView]);
 
   const openSubmission = async (id: string) => {
     setOpenId(id);
@@ -392,8 +393,11 @@ export function AdminSubmissions() {
 
       setDetail(d);
 
-      if (d.type === SubmissionTypeId.DemoUpload) setRejectionBody(buildDemoRejectionTemplate(d));
-      else setRejectionBody("");
+      if (d.type === SubmissionTypeId.DemoUpload) {
+        setRejectionBody(buildDemoRejectionTemplate(d));
+      } else {
+        setRejectionBody("");
+      }
 
       setReplyTo(d.email || "");
       setReplySubject("");
@@ -434,6 +438,7 @@ export function AdminSubmissions() {
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
+
       patchStatusLocal(id, newStatus);
     } catch (e: any) {
       setError(e?.message || "Status update error");
@@ -476,19 +481,22 @@ export function AdminSubmissions() {
     }
   };
 
-  // ---------- ARCHIVE / UNARCHIVE (novo) ----------
-
   const patchArchiveLocal = (id: string, isArchived: boolean, archivedAtUtc?: string | null) => {
     setData((prev) => ({
       ...prev,
-      items: (prev.items || []).map((s) => (s.id === id ? { ...s, isArchived, archivedAtUtc: archivedAtUtc ?? s.archivedAtUtc } : s)),
+      items: (prev.items || []).map((s) =>
+        s.id === id ? { ...s, isArchived, archivedAtUtc: archivedAtUtc ?? s.archivedAtUtc } : s
+      ),
     }));
-    setDetail((prev) => (prev && prev.id === id ? { ...prev, isArchived, archivedAtUtc: archivedAtUtc ?? prev.archivedAtUtc } : prev));
+    setDetail((prev) =>
+      prev && prev.id === id ? { ...prev, isArchived, archivedAtUtc: archivedAtUtc ?? prev.archivedAtUtc } : prev
+    );
   };
 
   const archiveSubmission = async (id: string) => {
     setError(null);
     setBusyRow(id);
+
     try {
       const res = await fetch(buildUrl(`/api/submissions/${id}/archive`), {
         method: "PUT",
@@ -504,7 +512,6 @@ export function AdminSubmissions() {
       const json = await res.json().catch(() => null);
       const archivedAt = json?.archivedAtUtc ?? null;
 
-      // Ako si u Active tabu, ukloni iz liste (jer je sad arhivirano)
       if (archiveTab === "active") {
         setData((prev) => ({
           ...prev,
@@ -528,6 +535,7 @@ export function AdminSubmissions() {
   const unarchiveSubmission = async (id: string) => {
     setError(null);
     setBusyRow(id);
+
     try {
       const res = await fetch(buildUrl(`/api/submissions/${id}/unarchive`), {
         method: "PUT",
@@ -540,7 +548,6 @@ export function AdminSubmissions() {
         return;
       }
 
-      // Ako si u Archived tabu, ukloni iz liste (jer je sad aktivno)
       if (archiveTab === "archived") {
         setData((prev) => ({
           ...prev,
@@ -591,6 +598,7 @@ export function AdminSubmissions() {
 
   const downloadFile = async (file: SubmissionFile) => {
     if (!detail) return;
+
     try {
       const blob = await fetchFileBlob(detail.id, file.id);
       const url = URL.createObjectURL(blob);
@@ -611,7 +619,6 @@ export function AdminSubmissions() {
 
     const safeId = (detail.id || "submission").replace(/[^\w\-]+/g, "_");
 
-    // 1) Overview sheet (jedan red)
     const overviewRow = {
       Id: detail.id,
       Type: typeLabel(detail.type),
@@ -663,7 +670,9 @@ export function AdminSubmissions() {
       Body: r.body,
     }));
     const wsReplies = XLSX.utils.json_to_sheet(
-      repliesRows.length ? repliesRows : [{ SubmissionId: detail.id, ReplyId: "", ToEmail: "", Subject: "", SentAt: "", Body: "" }]
+      repliesRows.length
+        ? repliesRows
+        : [{ SubmissionId: detail.id, ReplyId: "", ToEmail: "", Subject: "", SentAt: "", Body: "" }]
     );
 
     const wb = XLSX.utils.book_new();
@@ -680,6 +689,7 @@ export function AdminSubmissions() {
     if (detail.type !== SubmissionTypeId.DemoUpload) return;
 
     setError(null);
+
     try {
       const res = await fetch(buildUrl(`/api/submissions/${detail.id}/accept`), {
         method: "PUT",
@@ -704,6 +714,7 @@ export function AdminSubmissions() {
     if (detail.type !== SubmissionTypeId.DemoUpload) return;
 
     setError(null);
+
     try {
       const res = await fetch(buildUrl(`/api/submissions/${detail.id}/reject`), {
         method: "PUT",
@@ -726,6 +737,7 @@ export function AdminSubmissions() {
 
   const sendReply = async () => {
     if (!detail) return;
+
     const toEmail = replyTo.trim();
     if (!toEmail) {
       alert("Recipient email is required.");
@@ -733,6 +745,7 @@ export function AdminSubmissions() {
     }
 
     setError(null);
+
     try {
       await fetchJson<void>(buildUrl(`/api/submissions/${detail.id}/reply`), {
         method: "POST",
@@ -754,523 +767,591 @@ export function AdminSubmissions() {
   const canPrev = page > 1;
   const canNext = page < totalPages;
 
-
-
   return (
     <AdminShell title="Admin Inbox" active="submissions">
       <div className="admin-root">
-        <div className="admin-header">
-          <div className="admin-header-main">
-            <h1>Inbox</h1>
-            <p className="sub">Unified submissions across all forms. Filter, search and manage decisions.</p>
-          </div>
-        </div>
-
-        {error ? (
-          <div className="admin-alert admin-alert-error">
-            <strong>Error:</strong> {error}
-          </div>
-        ) : null}
-
         <div className="admin-filters-row" style={{ marginBottom: 10 }}>
           <div className="admin-filters-main" style={{ gap: 10 }}>
-            <div className="admin-table-actions" style={{ display: "flex", gap: 8 }}>
-              <div className="admin-tabs">
-  <button
-    className={`admin-tab-btn ${archiveTab === "active" ? "is-active" : ""}`}
-    onClick={() => { setPage(1); setArchiveTab("active"); }}
-  >
-    Active
-  </button>
-
-  <button
-    className={`admin-tab-btn ${archiveTab === "archived" ? "is-active" : ""}`}
-    onClick={() => { setPage(1); setArchiveTab("archived"); }}
-  >
-    Archived
-  </button>
-</div>
-
-            </div>
-
-            <div style={{ opacity: 0.75, fontSize: 13 }}>
-              Showing: <strong>{archiveTab === "archived" ? "Archived" : "Active"}</strong>
-            </div>
-          </div>
-        </div>
-
-        {/* FILTER BAR */}
-        <div className="admin-filters-row">
-          <div className="admin-filters-main">
-            <input
-              ref={searchInputRef}
-              className="admin-input admin-input--search"
-              placeholder="Search by name, email, domain or message…"
-              value={search}
-              onChange={(e) => {
-                setPage(1);
-                setSearch(e.target.value);
-              }}
-            />
-
-            <select
-              className="admin-select"
-              value={typeFilter === "all" ? "all" : String(typeFilter)}
-              onChange={(e) => {
-                const v = e.target.value;
-                setPage(1);
-                setTypeFilter(v === "all" ? "all" : (Number(v) as SubmissionTypeId));
-              }}
-            >
-              <option value="all">All types</option>
-              {SUBMISSION_TYPE_VALUES.map((v) => (
-                <option key={String(v)} value={String(v)}>
-                  {typeLabel(v)}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="admin-select"
-              value={statusFilter === "all" ? "all" : String(statusFilter)}
-              onChange={(e) => {
-                const v = e.target.value;
-                setPage(1);
-                setStatusFilter(v === "all" ? "all" : (Number(v) as SubmissionStatusId));
-              }}
-            >
-              <option value="all">All statuses</option>
-              {STATUS_FILTER_VALUES.map((v) => (
-                <option key={String(v)} value={String(v)}>
-                  {statusLabel(v)}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="admin-select"
-              value={hasFile}
-              onChange={(e) => {
-                setPage(1);
-                setHasFile(e.target.value as FilterHasFile);
-              }}
-            >
-              <option value="all">Files: All</option>
-              <option value="yes">Files: Has file</option>
-              <option value="no">Files: No file</option>
-            </select>
-
-            <input
-              className="admin-input admin-input--date"
-              type="date"
-              value={fromDate}
-              onChange={(e) => {
-                setPage(1);
-                setFromDate(e.target.value);
-              }}
-            />
-            <input
-              className="admin-input admin-input--date"
-              type="date"
-              value={toDate}
-              onChange={(e) => {
-                setPage(1);
-                setToDate(e.target.value);
-              }}
-            />
-          </div>
-        </div>
-
-        {/* TABELA */}
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Created</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Files</th>
-                <th>Domain</th>
-                <th>Replies</th>
-                <th className="th-actions">Actions</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={9} className="admin-table-empty">
-                    Loading…
-                  </td>
-                </tr>
-              ) : null}
-
-              {!loading && (visibleItems ?? []).length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="admin-table-empty">
-                    There are no applications.
-                  </td>
-                </tr>
-              ) : null}
-
-              {(visibleItems ?? []).map((s) => (
-                <tr key={s.id} className="admin-row" onClick={() => openSubmission(s.id)}>
-                  <td>{new Date(s.createdAt).toLocaleString()}</td>
-                  <td>
-                    <span className="subm-type">
-                      {typeLabel(s.type)}
-                      {showUnderReview(s.type, s.status) ? <span className="subm-tag subm-tag--review">Under review</span> : null}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`admin-badge ${statusBadgeClass(s.status)}`}>{statusLabel(s.status)}</span>
-                  </td>
-                  <td>{s.name}</td>
-                  <td>{s.email}</td>
-                  <td>{(s.files || []).length}</td>
-                  <td>{s.domain}</td>
-                  <td>{s.repliesCount}</td>
-                  <td>
-                    <div className="admin-table-actions" onClick={(e) => e.stopPropagation()}>
-                      <select
-                        className="admin-select admin-select--compact"
-                        value={String(s.status)}
-                        disabled={savingStatus && busyRow === s.id}
-                        onChange={(e) => updateStatus(s.id, Number(e.target.value) as SubmissionStatusId)}
-                      >
-                        {STATUS_FILTER_VALUES.map((st) => (
-                          <option key={String(st)} value={String(st)}>
-                            {statusLabel(st)}
-                          </option>
-                        ))}
-                      </select>
-
-                      {/* NOVO: archive/unarchive dugme */}
-                      {archiveTab === "archived" ? (
-                        <button
-                          className="admin-btn admin-btn-secondary admin-btn--xs"
-                          disabled={busyRow === s.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            unarchiveSubmission(s.id);
-                          }}
-                          title="Unarchive"
-                        >
-                          <i className="fa fa-undo" aria-hidden="true"></i>
-                        </button>
-                      ) : (
-                        <button
-                          className="admin-btn admin-btn-secondary admin-btn--xs"
-                          disabled={busyRow === s.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            archiveSubmission(s.id);
-                          }}
-                          title="Archive"
-                        >
-                          <i className="fa fa-archive" aria-hidden="true"></i>
-                        </button>
-                      )}
-
-                      <button
-                        className="admin-btn admin-btn-danger admin-btn--xs"
-                        disabled={savingStatus && busyRow === s.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteSubmissionById(s.id);
-                        }}
-                      >
-                        <i className="fa fa-trash" aria-hidden="true"></i>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* PAGINACIJA */}
-          <div className="admin-footer">
-            <div className="admin-footer-left">
-              <span>
-                Page {page} of {totalPages} — {data.total} total
-              </span>
-            </div>
-            <div className="admin-footer-right">
-              <button className="admin-btn admin-btn-secondary" disabled={!canPrev} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-                Prev
+            <div className="admin-tabs">
+              <button
+                className={`admin-tab-btn ${subView === "inbox" ? "is-active" : ""}`}
+                onClick={() => setSubView("inbox")}
+              >
+                Inbox
               </button>
-              <button className="admin-btn admin-btn-secondary" disabled={!canNext} onClick={() => setPage((p) => p + 1)}>
-                Next
+
+              <button
+                className={`admin-tab-btn ${subView === "audit" ? "is-active" : ""}`}
+                onClick={() => setSubView("audit")}
+              >
+                Audit changes
               </button>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* MODAL (BELI, ORGANIZOVAN) */}
-      {openId ? (
-        <div className="subm-modal-overlay" onMouseDown={(e) => (e.target === e.currentTarget ? closeModal() : null)}>
-          <div className="subm-modal" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="subm-modal-top">
-              <div className="subm-modal-title">
-                <div className="subm-h">Submission</div>
-                <div className="subm-sub">{openId}</div>
+        {subView === "audit" ? (
+          <AdminSubmissionAudit />
+        ) : (
+          <>
+            {error ? (
+              <div className="admin-alert admin-alert-error">
+                <strong>Error:</strong> {error}
               </div>
+            ) : null}
 
-              <div className="subm-modal-actions">
-                {/* NOVO: archive/unarchive u modalu */}
-                {detail && !detailLoading ? (
-                  detail.isArchived ? (
+            <div className="admin-filters-row" style={{ marginBottom: 10 }}>
+              <div className="admin-filters-main" style={{ gap: 10 }}>
+                <div className="admin-table-actions" style={{ display: "flex", gap: 8 }}>
+                  <div className="admin-tabs">
                     <button
-                      className="subm-btn subm-btn-soft"
-                      onClick={() => unarchiveSubmission(detail.id)}
-                      disabled={busyRow === detail.id}
-                      title="Unarchive"
+                      className={`admin-tab-btn ${archiveTab === "active" ? "is-active" : ""}`}
+                      onClick={() => {
+                        setPage(1);
+                        setArchiveTab("active");
+                      }}
                     >
-                      Unarchive
+                      Active
                     </button>
-                  ) : (
+
                     <button
-                      className="subm-btn subm-btn-soft"
-                      onClick={() => archiveSubmission(detail.id)}
-                      disabled={busyRow === detail.id}
-                      title="Archive"
+                      className={`admin-tab-btn ${archiveTab === "archived" ? "is-active" : ""}`}
+                      onClick={() => {
+                        setPage(1);
+                        setArchiveTab("archived");
+                      }}
                     >
-                      Archive
+                      Archived
                     </button>
-                  )
-                ) : null}
-
-                <button className="subm-btn subm-btn-soft" onClick={exportOneExcel} disabled={!detail || detailLoading}>
-                  Export
-                </button>
-                <button className="subm-btn subm-btn-close" onClick={closeModal} aria-label="Close">
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            {!detail || detailLoading ? (
-              <div className="subm-loading">Loading details…</div>
-            ) : (
-              <div className="subm-modal-body">
-                <div className="subm-grid">
-                  {/* LEFT COLUMN */}
-                  <div className="subm-col">
-                    <div className="subm-card">
-                      <div className="subm-card-h">
-                        <span>Overview</span>
-                        <span className={`subm-pill ${statusBadgeClass(detail.status)}`}>{statusLabel(detail.status)}</span>
-                      </div>
-
-                      <div className="subm-kv">
-                        <div className="subm-kv-row">
-                          <div className="subm-k">Type</div>
-                          <div className="subm-v">
-                            <span className="subm-type">
-                              {typeLabel(detail.type)}
-                              {showUnderReview(detail.type, detail.status) ? <span className="subm-tag subm-tag--review">Under review</span> : null}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="subm-kv-row">
-                          <div className="subm-k">Created</div>
-                          <div className="subm-v">{new Date(detail.createdAt).toLocaleString()}</div>
-                        </div>
-
-                        {/* NOVO: archived info */}
-                        <div className="subm-kv-row">
-                          <div className="subm-k">Archived</div>
-                          <div className="subm-v">{detail.isArchived ? "Yes" : "No"}</div>
-                        </div>
-                        {detail.isArchived && detail.archivedAtUtc ? (
-                          <div className="subm-kv-row">
-                            <div className="subm-k">Archived at</div>
-                            <div className="subm-v">{new Date(detail.archivedAtUtc).toLocaleString()}</div>
-                          </div>
-                        ) : null}
-
-                        <div className="subm-kv-row">
-                          <div className="subm-k">Domain</div>
-                          <div className="subm-v">{detail.domain}</div>
-                        </div>
-                        <div className="subm-kv-row">
-                          <div className="subm-k">Name</div>
-                          <div className="subm-v">{detail.name}</div>
-                        </div>
-                        <div className="subm-kv-row">
-                          <div className="subm-k">Email</div>
-                          <div className="subm-v">{detail.email}</div>
-                        </div>
-                        <div className="subm-kv-row">
-                          <div className="subm-k">Uploaded by</div>
-                          <div className="subm-v">{detail.uploadedBy || "-"}</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="subm-card">
-                      <div className="subm-card-h">Message</div>
-                      {detail.message ? <pre className="subm-pre">{detail.message}</pre> : <div className="subm-empty">No message provided.</div>}
-                    </div>
-
-                    <div className="subm-card">
-                      <div className="subm-card-h">Fields</div>
-                      {(detail.fields || []).length === 0 ? (
-                        <div className="subm-empty">No extra fields.</div>
-                      ) : (
-                        <div className="subm-fields">
-                          {(detail.fields || []).map((f, idx) => (
-                            <div key={`${f.name}-${idx}`} className="subm-field-row">
-                              <div className="subm-field-k">{f.name}</div>
-                              <div className="subm-field-v">{f.value}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {detail.type === SubmissionTypeId.DemoUpload ? (
-                      <div className="subm-card">
-                        <div className="subm-card-h subm-between">
-                          <span>Demo decision</span>
-                          <div className="subm-inline-actions">
-                            <button className="subm-btn subm-btn-ok" onClick={acceptDemo} disabled={detail.status === SubmissionStatusId.Accepted}>
-                              Accept
-                            </button>
-                            <button className="subm-btn subm-btn-bad" onClick={rejectDemo} disabled={detail.status === SubmissionStatusId.Rejected}>
-                              Reject
-                            </button>
-                          </div>
-                        </div>
-                        <div className="subm-help">Rejection email body (editable)</div>
-                        <textarea className="subm-textarea" value={rejectionBody} onChange={(e) => setRejectionBody(e.target.value)} rows={10} />
-                      </div>
-                    ) : null}
-
-                    <div className="subm-card">
-                      <div className="subm-card-h">Replies history</div>
-                      {(detail.replies || []).length === 0 ? (
-                        <div className="subm-empty">No replies yet.</div>
-                      ) : (
-                        <div className="subm-replies">
-                          {(detail.replies || []).map((r) => (
-                            <div key={r.id} className="subm-reply">
-                              <div className="subm-reply-top">
-                                <span className="subm-chip">{new Date(r.sentAt).toLocaleString()}</span>
-                                <span className="subm-chip">{r.toEmail}</span>
-                                <span className="subm-chip">{r.subject}</span>
-                              </div>
-                              <pre className="subm-pre subm-pre--small">{r.body}</pre>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="subm-card">
-                      <div className="subm-card-h">Reply</div>
-
-                      <div className="subm-form">
-                        <div className="subm-form-row">
-                          <label>To</label>
-                          <input className="subm-input" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} placeholder="Recipient email" />
-                        </div>
-                        <div className="subm-form-row">
-                          <label>Subject</label>
-                          <input className="subm-input" value={replySubject} onChange={(e) => setReplySubject(e.target.value)} placeholder="Subject" />
-                        </div>
-                        <div className="subm-form-row subm-form-row--top">
-                          <label>Body</label>
-                          <textarea className="subm-textarea" rows={8} value={replyBody} onChange={(e) => setReplyBody(e.target.value)} placeholder="Write your reply…" />
-                        </div>
-                        <div className="subm-form-row subm-form-row--end">
-                          <span />
-                          <button className="subm-btn subm-btn-main" onClick={sendReply}>
-                            Send reply
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* RIGHT COLUMN: FILES + PREVIEW */}
-                  <div className="subm-col">
-                    <div className="subm-card">
-                      <div className="subm-card-h">Files</div>
-
-                      {(detail.files || []).length === 0 ? (
-                        <div className="subm-empty">No files uploaded.</div>
-                      ) : (
-                        <div className="subm-files-wrap">
-                          <div className="subm-files-list">
-                            {(detail.files || []).map((f) => (
-                              <div key={f.id} className={`subm-file ${activePreviewFileId === f.id ? "is-active" : ""}`}>
-                                <div className="subm-file-info">
-                                  <div className="subm-file-name">{f.fileName}</div>
-                                  <div className="subm-file-meta">
-                                    {f.contentType || "file"} — {(f.size / 1024 / 1024).toFixed(2)} MB
-                                  </div>
-                                </div>
-
-                                <div className="subm-file-actions">
-                                  <button className="subm-btn subm-btn-soft" onClick={() => previewInline(f)}>
-                                    Preview
-                                  </button>
-                                  <button className="subm-btn subm-btn-soft" onClick={() => downloadFile(f)}>
-                                    Download
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          <div className="subm-preview-box">
-                            {activePreviewFileId && previewUrls[activePreviewFileId] ? (
-                              (() => {
-                                const f = (detail.files || []).find((x) => x.id === activePreviewFileId);
-                                const url = previewUrls[activePreviewFileId];
-                                const ct = (f?.contentType || "").toLowerCase();
-
-                                if (ct.startsWith("image/")) {
-                                  return <img className="subm-preview-img" src={url} alt={f?.fileName || "preview"} />;
-                                }
-                                if (ct === "application/pdf") {
-                                  return <iframe className="subm-preview-iframe" src={url} title={f?.fileName || "preview"} />;
-                                }
-                                if (ct.startsWith("audio/")) {
-                                  return <audio className="subm-preview-audio" controls src={url} />;
-                                }
-                                if (ct.startsWith("video/")) {
-                                  return <video className="subm-preview-video" controls src={url} />;
-                                }
-
-                                return (
-                                  <div className="subm-preview-fallback">
-                                    <div className="subm-file-name">No inline preview</div>
-                                    <div className="subm-file-meta">{f?.contentType || "unknown"}</div>
-                                  </div>
-                                );
-                              })()
-                            ) : (
-                              <div className="subm-preview-empty">Select a file to preview.</div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="subm-card subm-card-note"></div>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-        </div>
-      ) : null}
+            </div>
+
+            <div className="admin-filters-row">
+              <div className="admin-filters-main">
+                <input
+                  ref={searchInputRef}
+                  className="admin-input admin-input--search"
+                  placeholder="Search by name, email, domain or message…"
+                  value={search}
+                  onChange={(e) => {
+                    setPage(1);
+                    setSearch(e.target.value);
+                  }}
+                />
+
+                <select
+                  className="admin-select"
+                  value={typeFilter === "all" ? "all" : String(typeFilter)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setPage(1);
+                    setTypeFilter(v === "all" ? "all" : (Number(v) as SubmissionTypeId));
+                  }}
+                >
+                  <option value="all">All types</option>
+                  {SUBMISSION_TYPE_VALUES.map((v) => (
+                    <option key={String(v)} value={String(v)}>
+                      {typeLabel(v)}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  className="admin-select"
+                  value={statusFilter === "all" ? "all" : String(statusFilter)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setPage(1);
+                    setStatusFilter(v === "all" ? "all" : (Number(v) as SubmissionStatusId));
+                  }}
+                >
+                  <option value="all">All statuses</option>
+                  {STATUS_FILTER_VALUES.map((v) => (
+                    <option key={String(v)} value={String(v)}>
+                      {statusLabel(v)}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  className="admin-select"
+                  value={hasFile}
+                  onChange={(e) => {
+                    setPage(1);
+                    setHasFile(e.target.value as FilterHasFile);
+                  }}
+                >
+                  <option value="all">Files: All</option>
+                  <option value="yes">Files: Has file</option>
+                  <option value="no">Files: No file</option>
+                </select>
+
+                <input
+                  className="admin-input admin-input--date"
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => {
+                    setPage(1);
+                    setFromDate(e.target.value);
+                  }}
+                />
+
+                <input
+                  className="admin-input admin-input--date"
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => {
+                    setPage(1);
+                    setToDate(e.target.value);
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="admin-table-wrap">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Created</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Files</th>
+                    <th>Domain</th>
+                    <th>Replies</th>
+                    <th className="th-actions">Actions</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={9} className="admin-table-empty">
+                        Loading…
+                      </td>
+                    </tr>
+                  ) : null}
+
+                  {!loading && visibleItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="admin-table-empty">
+                        There are no applications.
+                      </td>
+                    </tr>
+                  ) : null}
+
+                  {visibleItems.map((s) => (
+                    <tr key={s.id} className="admin-row" onClick={() => openSubmission(s.id)}>
+                      <td>{new Date(s.createdAt).toLocaleString()}</td>
+                      <td>
+                        <span className="subm-type">
+                          {typeLabel(s.type)}
+                          {showUnderReview(s.type, s.status) ? (
+                            <span className="subm-tag subm-tag--review">Under review</span>
+                          ) : null}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`admin-badge ${statusBadgeClass(s.status)}`}>{statusLabel(s.status)}</span>
+                      </td>
+                      <td>{s.name}</td>
+                      <td>{s.email}</td>
+                      <td>{(s.files || []).length}</td>
+                      <td>{s.domain}</td>
+                      <td>{s.repliesCount}</td>
+                      <td>
+                        <div className="admin-table-actions" onClick={(e) => e.stopPropagation()}>
+                          <select
+                            className="admin-select admin-select--compact"
+                            value={String(s.status)}
+                            disabled={savingStatus && busyRow === s.id}
+                            onChange={(e) => updateStatus(s.id, Number(e.target.value) as SubmissionStatusId)}
+                          >
+                            {STATUS_FILTER_VALUES.map((st) => (
+                              <option key={String(st)} value={String(st)}>
+                                {statusLabel(st)}
+                              </option>
+                            ))}
+                          </select>
+
+                          {archiveTab === "archived" ? (
+                            <button
+                              className="admin-btn admin-btn-secondary admin-btn--xs"
+                              disabled={busyRow === s.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                unarchiveSubmission(s.id);
+                              }}
+                              title="Unarchive"
+                            >
+                              <i className="fa fa-undo" aria-hidden="true"></i>
+                            </button>
+                          ) : (
+                            <button
+                              className="admin-btn admin-btn-secondary admin-btn--xs"
+                              disabled={busyRow === s.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                archiveSubmission(s.id);
+                              }}
+                              title="Archive"
+                            >
+                              <i className="fa fa-archive" aria-hidden="true"></i>
+                            </button>
+                          )}
+
+                          <button
+                            className="admin-btn admin-btn-danger admin-btn--xs"
+                            disabled={savingStatus && busyRow === s.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteSubmissionById(s.id);
+                            }}
+                          >
+                            <i className="fa fa-trash" aria-hidden="true"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="admin-footer">
+                <div className="admin-footer-left">
+                  <span>
+                    Page {page} of {totalPages} — {data.total} total
+                  </span>
+                </div>
+
+                <div className="admin-footer-right">
+                  <button
+                    className="admin-btn admin-btn-secondary"
+                    disabled={!canPrev}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    Prev
+                  </button>
+
+                  <button
+                    className="admin-btn admin-btn-secondary"
+                    disabled={!canNext}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {openId ? (
+              <div className="subm-modal-overlay" onMouseDown={(e) => (e.target === e.currentTarget ? closeModal() : null)}>
+                <div className="subm-modal" onMouseDown={(e) => e.stopPropagation()}>
+                  <div className="subm-modal-top">
+                    <div className="subm-modal-title">
+                      <div className="subm-h">Submission</div>
+                      <div className="subm-sub">{openId}</div>
+                    </div>
+
+                    <div className="subm-modal-actions">
+                      {detail && !detailLoading ? (
+                        detail.isArchived ? (
+                          <button
+                            className="subm-btn subm-btn-soft"
+                            onClick={() => unarchiveSubmission(detail.id)}
+                            disabled={busyRow === detail.id}
+                            title="Unarchive"
+                          >
+                            Unarchive
+                          </button>
+                        ) : (
+                          <button
+                            className="subm-btn subm-btn-soft"
+                            onClick={() => archiveSubmission(detail.id)}
+                            disabled={busyRow === detail.id}
+                            title="Archive"
+                          >
+                            Archive
+                          </button>
+                        )
+                      ) : null}
+
+                      <button className="subm-btn subm-btn-soft" onClick={exportOneExcel} disabled={!detail || detailLoading}>
+                        Export
+                      </button>
+
+                      <button className="subm-btn subm-btn-close" onClick={closeModal} aria-label="Close">
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+
+                  {!detail || detailLoading ? (
+                    <div className="subm-loading">Loading details…</div>
+                  ) : (
+                    <div className="subm-modal-body">
+                      <div className="subm-grid">
+                        <div className="subm-col">
+                          <div className="subm-card">
+                            <div className="subm-card-h">
+                              <span>Overview</span>
+                              <span className={`subm-pill ${statusBadgeClass(detail.status)}`}>{statusLabel(detail.status)}</span>
+                            </div>
+
+                            <div className="subm-kv">
+                              <div className="subm-kv-row">
+                                <div className="subm-k">Type</div>
+                                <div className="subm-v">
+                                  <span className="subm-type">
+                                    {typeLabel(detail.type)}
+                                    {showUnderReview(detail.type, detail.status) ? (
+                                      <span className="subm-tag subm-tag--review">Under review</span>
+                                    ) : null}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="subm-kv-row">
+                                <div className="subm-k">Created</div>
+                                <div className="subm-v">{new Date(detail.createdAt).toLocaleString()}</div>
+                              </div>
+
+                              <div className="subm-kv-row">
+                                <div className="subm-k">Archived</div>
+                                <div className="subm-v">{detail.isArchived ? "Yes" : "No"}</div>
+                              </div>
+
+                              {detail.isArchived && detail.archivedAtUtc ? (
+                                <div className="subm-kv-row">
+                                  <div className="subm-k">Archived at</div>
+                                  <div className="subm-v">{new Date(detail.archivedAtUtc).toLocaleString()}</div>
+                                </div>
+                              ) : null}
+
+                              <div className="subm-kv-row">
+                                <div className="subm-k">Domain</div>
+                                <div className="subm-v">{detail.domain}</div>
+                              </div>
+
+                              <div className="subm-kv-row">
+                                <div className="subm-k">Name</div>
+                                <div className="subm-v">{detail.name}</div>
+                              </div>
+
+                              <div className="subm-kv-row">
+                                <div className="subm-k">Email</div>
+                                <div className="subm-v">{detail.email}</div>
+                              </div>
+
+                              <div className="subm-kv-row">
+                                <div className="subm-k">Uploaded by</div>
+                                <div className="subm-v">{detail.uploadedBy || "-"}</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="subm-card">
+                            <div className="subm-card-h">Message</div>
+                            {detail.message ? (
+                              <pre className="subm-pre">{detail.message}</pre>
+                            ) : (
+                              <div className="subm-empty">No message provided.</div>
+                            )}
+                          </div>
+
+                          <div className="subm-card">
+                            <div className="subm-card-h">Fields</div>
+                            {(detail.fields || []).length === 0 ? (
+                              <div className="subm-empty">No extra fields.</div>
+                            ) : (
+                              <div className="subm-fields">
+                                {(detail.fields || []).map((f, idx) => (
+                                  <div key={`${f.name}-${idx}`} className="subm-field-row">
+                                    <div className="subm-field-k">{f.name}</div>
+                                    <div className="subm-field-v">{f.value}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {detail.type === SubmissionTypeId.DemoUpload ? (
+                            <div className="subm-card">
+                              <div className="subm-card-h subm-between">
+                                <span>Demo decision</span>
+                                <div className="subm-inline-actions">
+                                  <button
+                                    className="subm-btn subm-btn-ok"
+                                    onClick={acceptDemo}
+                                    disabled={detail.status === SubmissionStatusId.Accepted}
+                                  >
+                                    Accept
+                                  </button>
+                                  <button
+                                    className="subm-btn subm-btn-bad"
+                                    onClick={rejectDemo}
+                                    disabled={detail.status === SubmissionStatusId.Rejected}
+                                  >
+                                    Reject
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="subm-help">Rejection email body (editable)</div>
+                              <textarea
+                                className="subm-textarea"
+                                value={rejectionBody}
+                                onChange={(e) => setRejectionBody(e.target.value)}
+                                rows={10}
+                              />
+                            </div>
+                          ) : null}
+
+                          <div className="subm-card">
+                            <div className="subm-card-h">Replies history</div>
+
+                            {(detail.replies || []).length === 0 ? (
+                              <div className="subm-empty">No replies yet.</div>
+                            ) : (
+                              <div className="subm-replies">
+                                {(detail.replies || []).map((r) => (
+                                  <div key={r.id} className="subm-reply">
+                                    <div className="subm-reply-top">
+                                      <span className="subm-chip">{new Date(r.sentAt).toLocaleString()}</span>
+                                      <span className="subm-chip">{r.toEmail}</span>
+                                      <span className="subm-chip">{r.subject}</span>
+                                    </div>
+                                    <pre className="subm-pre subm-pre--small">{r.body}</pre>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="subm-card">
+                            <div className="subm-card-h">Reply</div>
+
+                            <div className="subm-form">
+                              <div className="subm-form-row">
+                                <label>To</label>
+                                <input
+                                  className="subm-input"
+                                  value={replyTo}
+                                  onChange={(e) => setReplyTo(e.target.value)}
+                                  placeholder="Recipient email"
+                                />
+                              </div>
+
+                              <div className="subm-form-row">
+                                <label>Subject</label>
+                                <input
+                                  className="subm-input"
+                                  value={replySubject}
+                                  onChange={(e) => setReplySubject(e.target.value)}
+                                  placeholder="Subject"
+                                />
+                              </div>
+
+                              <div className="subm-form-row subm-form-row--top">
+                                <label>Body</label>
+                                <textarea
+                                  className="subm-textarea"
+                                  rows={8}
+                                  value={replyBody}
+                                  onChange={(e) => setReplyBody(e.target.value)}
+                                  placeholder="Write your reply…"
+                                />
+                              </div>
+
+                              <div className="subm-form-row subm-form-row--end">
+                                <span />
+                                <button className="subm-btn subm-btn-main" onClick={sendReply}>
+                                  Send reply
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="subm-col">
+                          <div className="subm-card">
+                            <div className="subm-card-h">Files</div>
+
+                            {(detail.files || []).length === 0 ? (
+                              <div className="subm-empty">No files uploaded.</div>
+                            ) : (
+                              <div className="subm-files-wrap">
+                                <div className="subm-files-list">
+                                  {(detail.files || []).map((f) => (
+                                    <div key={f.id} className={`subm-file ${activePreviewFileId === f.id ? "is-active" : ""}`}>
+                                      <div className="subm-file-info">
+                                        <div className="subm-file-name">{f.fileName}</div>
+                                        <div className="subm-file-meta">
+                                          {f.contentType || "file"} — {(f.size / 1024 / 1024).toFixed(2)} MB
+                                        </div>
+                                      </div>
+
+                                      <div className="subm-file-actions">
+                                        <button className="subm-btn subm-btn-soft" onClick={() => previewInline(f)}>
+                                          Preview
+                                        </button>
+                                        <button className="subm-btn subm-btn-soft" onClick={() => downloadFile(f)}>
+                                          Download
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <div className="subm-preview-box">
+                                  {activePreviewFileId && previewUrls[activePreviewFileId] ? (
+                                    (() => {
+                                      const f = (detail.files || []).find((x) => x.id === activePreviewFileId);
+                                      const url = previewUrls[activePreviewFileId];
+                                      const ct = (f?.contentType || "").toLowerCase();
+
+                                      if (ct.startsWith("image/")) {
+                                        return <img className="subm-preview-img" src={url} alt={f?.fileName || "preview"} />;
+                                      }
+                                      if (ct === "application/pdf") {
+                                        return <iframe className="subm-preview-iframe" src={url} title={f?.fileName || "preview"} />;
+                                      }
+                                      if (ct.startsWith("audio/")) {
+                                        return <audio className="subm-preview-audio" controls src={url} />;
+                                      }
+                                      if (ct.startsWith("video/")) {
+                                        return <video className="subm-preview-video" controls src={url} />;
+                                      }
+
+                                      return (
+                                        <div className="subm-preview-fallback">
+                                          <div className="subm-file-name">No inline preview</div>
+                                          <div className="subm-file-meta">{f?.contentType || "unknown"}</div>
+                                        </div>
+                                      );
+                                    })()
+                                  ) : (
+                                    <div className="subm-preview-empty">Select a file to preview.</div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="subm-card subm-card-note"></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </>
+        )}
+      </div>
     </AdminShell>
   );
 }

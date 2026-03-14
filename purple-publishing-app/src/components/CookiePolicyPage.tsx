@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Container from "react-bootstrap/Container";
 import Modal from "react-bootstrap/Modal";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import "../styles/Publishing.css";
 import Footer from "./Footer";
 

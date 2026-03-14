@@ -16,15 +16,20 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
+var appDataDir = Path.Combine(builder.Environment.ContentRootPath, "App_Data");
+Directory.CreateDirectory(appDataDir);
+
+var tempRoot = Path.Combine(appDataDir, "Temp");
+Directory.CreateDirectory(tempRoot);
+Environment.SetEnvironmentVariable("ASPNETCORE_TEMP", tempRoot);
+
 builder.Services.Configure<FormOptions>(o =>
 {
     o.MultipartBodyLengthLimit = 20 * 1024 * 1024;
+    o.MemoryBufferThreshold = 20 * 1024 * 1024;
 });
 
-var dbDir = Path.Combine(builder.Environment.ContentRootPath, "App_Data");
-Directory.CreateDirectory(dbDir);
-var dbPath = Path.Combine(dbDir, "PurpleMedia.db");
-
+var dbPath = Path.Combine(appDataDir, "PurpleMedia.db");
 builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlite($"Data Source={dbPath}"));
 
 builder.Services.AddEndpointsApiExplorer();
@@ -34,7 +39,6 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-
             .AllowAnyOrigin()
             .AllowAnyHeader()
             .AllowAnyMethod();
@@ -99,7 +103,7 @@ builder.Services.AddSwaggerGen(c =>
                     Id = "Bearer"
                 }
             },
-            new string[] { }
+            Array.Empty<string>()
         }
     });
 });
@@ -113,24 +117,17 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 var app = builder.Build();
 
-
 app.UseForwardedHeaders();
-
 app.UseHttpsRedirection();
-
 app.UseStaticFiles();
-
 app.UseRouting();
-
 app.UseCors("AllowFrontend");
-
 app.UseAuthentication();
 app.UseAuthorization();
 
-
 Directory.CreateDirectory(Path.Combine(app.Environment.WebRootPath ?? app.Environment.ContentRootPath, "uploads"));
 Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "uploads_private"));
-
+Directory.CreateDirectory(Path.Combine(app.Environment.ContentRootPath, "App_Data", "Temp"));
 
 using (var scope = app.Services.CreateScope())
 {

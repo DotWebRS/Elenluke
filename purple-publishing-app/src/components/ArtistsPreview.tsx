@@ -240,6 +240,7 @@ const ArtistsPreview = ({ siteKey = "purple-crunch-publishing" }: { siteKey?: st
         onHide={close}
         centered
         size="xl"
+        dialogClassName="artist-modal-dialog"
         contentClassName="artist-modal"
         backdropClassName="artist-backdrop"
       >

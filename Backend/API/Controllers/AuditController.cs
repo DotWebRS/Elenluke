@@ -27,7 +27,7 @@ public class AuditController : ControllerBase
         [FromQuery] int take = 200)
     {
         if (take < 1) take = 50;
-        if (take > 1000) take = 1000;
+        if (take > 200) take = 200;
 
         IQueryable<AuditLog> q = _db.AuditLogs.AsNoTracking();
 
@@ -46,8 +46,47 @@ public class AuditController : ControllerBase
         var items = await q
             .OrderByDescending(x => x.CreatedAtUtc)
             .Take(take)
+            .Select(x => new
+            {
+                x.Id,
+                x.Action,
+                x.CreatedAtUtc,
+                x.EntityId,
+                x.EntityType,
+                x.UserEmail,
+                DetailsPreview = x.Details == null
+                    ? null
+                    : (x.Details.Length > 300
+                        ? x.Details.Substring(0, 300) + "..."
+                        : x.Details),
+                DetailsLength = x.Details == null ? 0 : x.Details.Length
+            })
             .ToListAsync();
 
         return Ok(items);
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id)
+    {
+        var item = await _db.AuditLogs
+            .AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new
+            {
+                x.Id,
+                x.Action,
+                x.CreatedAtUtc,
+                x.EntityId,
+                x.EntityType,
+                x.UserEmail,
+                x.Details
+            })
+            .FirstOrDefaultAsync();
+
+        if (item == null)
+            return NotFound();
+
+        return Ok(item);
     }
 }

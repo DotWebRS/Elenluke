@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Container from "react-bootstrap/Container";
-import { useNavigate } from "react-router-dom";
+
 import type { AdminSiteKey } from "../components/admin/adminSites";
 
 import { API_BASE } from "../config/apiBase";
@@ -91,7 +91,7 @@ async function cmsGet(siteKey: string, key: string, signal: AbortSignal) {
 }
 
 const SyncLicensingPage = () => {
-  const navigate = useNavigate();
+  
   const [syncText, setSyncText] = useState<CmsSyncPayload>(DEFAULT_SYNC);
 
   useEffect(() => {

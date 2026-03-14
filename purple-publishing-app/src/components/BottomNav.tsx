@@ -168,10 +168,10 @@ const BottomNav = () => {
             </Nav.Link>
 
             <Nav.Link
-              href="/sync-licensing"
+              href="#sync"
               onClick={(e) => {
                 e.preventDefault();
-                goToPathTop("/sync-licensing");
+                goHomeAndScroll("sync");
               }}
             >
               SYNC

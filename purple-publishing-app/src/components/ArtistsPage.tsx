@@ -265,8 +265,9 @@ const ArtistPage = () => {
         onHide={close}
         centered
         size="xl"
-        contentClassName="artist-modal"
         backdropClassName="artist-backdrop"
+        dialogClassName="artist-modal-dialog artist-modal-dialog--roster"
+        contentClassName="artist-modal artist-modal--roster"
       >
         <div className="artist-modal-hero">
           <div
