@@ -43,7 +43,21 @@ export const AdminLogin = () => {
       }
 
       localStorage.setItem("token", data.token);
-      navigate("/admin/submissions");
+      localStorage.setItem("role", data.role || "");
+      localStorage.setItem("email", data.email || "");
+      localStorage.setItem("userId", data.userId || "");
+
+      if (data.role === "PortalUser") {
+        navigate("/portal/chat", { replace: true });
+        return;
+      }
+
+      if (data.role === "Admin" || data.role === "Editor") {
+        navigate("/admin/submissions", { replace: true });
+        return;
+      }
+
+      navigate("/admin/login", { replace: true });
     } catch {
       setError("Server error. Please try again.");
     } finally {

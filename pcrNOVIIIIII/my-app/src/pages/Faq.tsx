@@ -1,14 +1,11 @@
-// src/pages/FAQ.tsx
 import { useEffect, useState } from "react";
-import { buildApiUrl } from "../config/apiBase";
-import "../style/Faq.css"
-
-type Props = { isActive?: boolean };
+import { API_BASE } from "../config/apiBase";
+import FadeSection from "../components/FadeSection";
 
 type FaqItem = { id?: string; q: string; a: string };
 type CmsFaqPayload = { items: FaqItem[] };
 
-const CMS_SITE_KEY = "purple-crunch-records";
+const CMS_SITE_KEY = "purple-crunch-publishing";
 const CMS_KEY = "home.faq";
 
 function safeParseJson<T>(raw: any, fallback: T): T {
@@ -19,6 +16,28 @@ function safeParseJson<T>(raw: any, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function buildUrl(path: string) {
+  const base = String(API_BASE || "").replace(/\/+$/, "");
+  const p = String(path || "").replace(/^\/+/, "");
+  return base ? `${base}/${p}` : `/${p}`;
+}
+
+async function cmsGet(siteKey: string, key: string, signal: AbortSignal) {
+  const ts = Date.now();
+  const url = buildUrl(
+    `/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(key)}&ts=${ts}`
+  );
+
+  return fetch(url, {
+    signal,
+    cache: "no-store",
+    headers: {
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      Pragma: "no-cache",
+    },
+  });
 }
 
 function normalizeFaq(payload: any): FaqItem[] {
@@ -34,32 +53,20 @@ function normalizeFaq(payload: any): FaqItem[] {
     .filter((x) => x.q && x.a);
 }
 
-function getTikTokLikeCms(siteKey: string, key: string, signal: AbortSignal) {
-  const url = buildApiUrl(
-    `/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(key)}&ts=${Date.now()}`
-  );
-
-  return fetch(url, {
-    signal,
-    cache: "no-store",
-    headers: {
-      "Cache-Control": "no-cache, no-store, must-revalidate",
-      Pragma: "no-cache",
-      Accept: "application/json",
-    },
-  });
-}
-
-function XToggle({ open }: { open: boolean }) {
+function ToggleIcon({ open }: { open: boolean }) {
   return (
-    <span className={["faq-x", open ? "is-open" : ""].join(" ")} aria-hidden="true">
-      <span className="faq-x__line faq-x__line--a" />
-      <span className="faq-x__line faq-x__line--b" />
+    <span className={`faq-icon ${open ? "is-open" : ""}`} aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <path d="M6 12h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        {!open && (
+          <path d="M12 6v12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        )}
+      </svg>
     </span>
   );
 }
 
-export default function FAQ({ isActive = true }: Props) {
+export default function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const [faqData, setFaqData] = useState<FaqItem[]>([]);
 
@@ -69,7 +76,7 @@ export default function FAQ({ isActive = true }: Props) {
 
     (async () => {
       try {
-        const res = await getTikTokLikeCms(CMS_SITE_KEY, CMS_KEY, controller.signal);
+        const res = await cmsGet(CMS_SITE_KEY, CMS_KEY, controller.signal);
 
         if (!alive) return;
 
@@ -86,9 +93,11 @@ export default function FAQ({ isActive = true }: Props) {
 
         if (!alive) return;
         setFaqData(next);
-        setOpenIndex(null); // sve zatvoreno default
+        setOpenIndex(null);
       } catch {
-        // silent
+        if (!alive) return;
+        setFaqData([]);
+        setOpenIndex(null);
       }
     })();
 
@@ -99,41 +108,44 @@ export default function FAQ({ isActive = true }: Props) {
   }, []);
 
   return (
-    <section id="faq" className="faq-section" aria-hidden={!isActive}>
-      <div className="faq-shell">
+    <FadeSection id="faq" className="faq-section">
+      <div className="faq-head faq-fade-head">
         <h2 className="faq-title">
-          <span className="faq-titleLight">FAQ</span>{" "}
-          <span className="faq-titleGrad type-gradient">SUPPORT</span>
+          <span className="faq-title-light">FAQ </span>
+          <span className="faq-title-grad">SUPPORT</span>
         </h2>
-
-        <div className="faq-wrapper">
-          {faqData.map((item, i) => {
-            const isOpen = openIndex === i;
-
-            return (
-              <article key={item.id ?? i} className={["faq-item", isOpen ? "is-open" : ""].join(" ")}>
-                <button
-                  className="faq-question"
-                  onClick={() => setOpenIndex(isOpen ? null : i)}
-                  aria-expanded={isOpen}
-                  type="button"
-                >
-                  <span className="faq-qText">{item.q}</span>
-                  <XToggle open={isOpen} />
-                </button>
-
-                <div className={["faq-answer", isOpen ? "open" : ""].join(" ")}>
-                  <div className="faq-answer-inner">
-                    <p>{item.a}</p>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-
-          {faqData.length === 0 && <div className="faq-empty" />}
-        </div>
       </div>
-    </section>
+
+      <div className="faq-wrapper faq-fade-wrap">
+        {faqData.map((item, i) => {
+          const isOpen = openIndex === i;
+
+          return (
+            <div
+              key={item.id ?? i}
+              className={`faq-item faq-fade-item ${isOpen ? "is-open" : ""}`}
+            >
+              <button
+                className="faq-question"
+                onClick={() => setOpenIndex(isOpen ? null : i)}
+                aria-expanded={isOpen}
+                type="button"
+              >
+                <span className="faq-question-text">{item.q}</span>
+                <ToggleIcon open={isOpen} />
+              </button>
+
+              <div className={`faq-answer ${isOpen ? "open" : ""}`}>
+                <div className="faq-answer-inner">
+                  <p>{item.a}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {faqData.length === 0 && <div className="faq-empty" />}
+      </div>
+    </FadeSection>
   );
 }

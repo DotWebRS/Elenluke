@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import Container from "react-bootstrap/Container";
-
+import { useNavigate } from "react-router-dom";
 import type { AdminSiteKey } from "../components/admin/adminSites";
-
 import { API_BASE } from "../config/apiBase";
 import FadeSection from "./FadeSection";
 import Footer from "./Footer";
@@ -79,7 +78,7 @@ function hostnameToSiteKey(hostname: string): AdminSiteKey {
   return "purple-crunch-publishing";
 }
 
-function buildUrl(path: string) {
+function buildApiUrl(path: string) {
   const base = String(API_BASE || "").replace(/\/+$/, "");
   const p = String(path || "").replace(/^\/+/, "");
   return base ? `${base}/${p}` : `/${p}`;
@@ -89,18 +88,27 @@ function absolutizeSrc(src: string) {
   const s = (src || "").trim();
   if (!s) return "";
   if (s.startsWith("data:")) return s;
+  if (s.startsWith("blob:")) return s;
   if (/^https?:\/\//i.test(s)) return s;
-  if (s.startsWith("/uploads/")) return buildUrl(s);
-  return s.startsWith("/") ? buildUrl(s) : buildUrl(`/${s}`);
+
+  if (s.startsWith("/uploads/")) {
+    return buildApiUrl(s);
+  }
+
+  if (s.startsWith("/")) {
+    return s;
+  }
+
+  return s;
 }
 
 async function cmsGet(siteKey: string, key: string, signal: AbortSignal) {
   const ts = Date.now();
-  const url = buildUrl(
+  const url = buildApiUrl(
     `/api/cms?siteKey=${encodeURIComponent(siteKey)}&key=${encodeURIComponent(key)}&ts=${ts}`
   );
 
-  const res = await fetch(url, {
+  return fetch(url, {
     signal,
     cache: "no-store",
     headers: {
@@ -108,13 +116,27 @@ async function cmsGet(siteKey: string, key: string, signal: AbortSignal) {
       Pragma: "no-cache",
     },
   });
+}
 
-  return res;
+function normalizePartners(raw: CmsSyncPartnersPayload | null | undefined): CmsSyncPartnersPayload {
+  const items = (raw?.items || [])
+    .map((it: any, i: number) => ({
+      id: String(it?.id || `sync_partner_${i + 1}`),
+      src: absolutizeSrc(String(it?.src ?? "")),
+      name: String(it?.name ?? "").trim(),
+      href: String(it?.href ?? "").trim(),
+    }))
+    .filter((x) => x.src && x.name);
+
+  return { items };
 }
 
 const SyncLicensingPage = () => {
+  const navigate = useNavigate();
   const [syncText, setSyncText] = useState<CmsSyncPayload>(DEFAULT_SYNC);
-  const [syncPartners, setSyncPartners] = useState<CmsSyncPartnersPayload>(DEFAULT_SYNC_PARTNERS);
+  const [syncPartners, setSyncPartners] = useState<CmsSyncPartnersPayload>(
+    normalizePartners(DEFAULT_SYNC_PARTNERS)
+  );
 
   useEffect(() => {
     let alive = true;
@@ -149,22 +171,29 @@ const SyncLicensingPage = () => {
         if (partnersRes.status !== 404 && partnersRes.ok) {
           const payload = await partnersRes.json().catch(() => null as any);
           const parsed = safeParseJson<CmsSyncPartnersPayload>(payload?.json, DEFAULT_SYNC_PARTNERS);
+          const nextPartners = normalizePartners(parsed);
 
-          const nextPartners: CmsSyncPartnersPayload = {
-            items: (parsed?.items || [])
-              .map((it: any, i: number) => ({
-                id: it?.id || `sync_partner_${i + 1}`,
-                src: absolutizeSrc(String(it?.src ?? "")),
-                name: String(it?.name ?? "").trim(),
-                href: String(it?.href ?? "").trim(),
-              }))
-              .filter((x) => x.src && x.name && x.href),
-          };
+          console.log("sync.partners payload:", payload);
+          console.log("sync.partners parsed:", parsed);
+          console.log("sync.partners normalized:", nextPartners);
 
-          if (alive) setSyncPartners(nextPartners);
+          if (alive) {
+            setSyncPartners(
+              nextPartners.items.length ? nextPartners : normalizePartners(DEFAULT_SYNC_PARTNERS)
+            );
+          }
+        } else {
+          if (alive) {
+            setSyncPartners(normalizePartners(DEFAULT_SYNC_PARTNERS));
+          }
         }
-      } catch {}
-
+      } catch (err) {
+        console.error("Failed to load Sync Licensing CMS:", err);
+        if (alive) {
+          setSyncText(DEFAULT_SYNC);
+          setSyncPartners(normalizePartners(DEFAULT_SYNC_PARTNERS));
+        }
+      }
     })();
 
     return () => {
@@ -185,9 +214,7 @@ const SyncLicensingPage = () => {
             <button
               type="button"
               className="artists-link artists-link--back sync-link-btn"
-              onClick={() => {
-                window.location.href = "/#sync";
-              }}
+              onClick={() => navigate("/#sync")}
             >
               BACK
             </button>
@@ -230,25 +257,36 @@ const SyncLicensingPage = () => {
               </div>
 
               <div className="sync-partners-row">
-                {syncPartners.items.map((partner) => (
-                  <a
-                    key={partner.id}
-                    className="sync-partner-logo"
-                    href={partner.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    title={partner.name}
-                    aria-label={partner.name}
-                  >
-                    <img
-                      src={partner.src}
-                      alt={partner.name}
-                      loading="lazy"
-                      decoding="async"
-                      draggable={false}
-                    />
-                  </a>
-                ))}
+                {syncPartners.items.map((partner) => {
+                  const href = partner.href || "#";
+
+                  return (
+                    <a
+                      key={partner.id}
+                      className="sync-partner-logo"
+                      href={href}
+                      target={href === "#" ? undefined : "_blank"}
+                      rel={href === "#" ? undefined : "noreferrer"}
+                      title={partner.name}
+                      aria-label={partner.name}
+                      onClick={(e) => {
+                        if (href === "#") e.preventDefault();
+                      }}
+                    >
+                      <img
+                        src={partner.src}
+                        alt={partner.name}
+                        loading="lazy"
+                        decoding="async"
+                        draggable={false}
+                        onError={(e) => {
+                          console.error("Partner image failed:", partner.name, partner.src);
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    </a>
+                  );
+                })}
               </div>
             </div>
           )}

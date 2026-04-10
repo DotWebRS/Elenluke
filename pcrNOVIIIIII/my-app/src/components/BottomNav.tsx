@@ -1,80 +1,110 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import Container from "react-bootstrap/Container";
+import Nav from "react-bootstrap/Nav";
+import Navbar from "react-bootstrap/Navbar";
 
-type NavItem = { id: string; label: string };
+type NavChild = {
+  id: string;
+  label: string;
+  route: string;
+};
+
+type NavItem = {
+  id: string;
+  label: string;
+  route?: string;
+  children?: NavChild[];
+};
+
+const NAV_HEIGHT = 84;
 
 export default function BottomNav() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [expanded, setExpanded] = useState(false);
+
   const items: NavItem[] = useMemo(
     () => [
       { id: "home", label: "HOME" },
-      { id: "about", label: "ABOUT US" }, // ✅ promenjeno (bilo about-us)
-      { id: "releases-trends", label: "RELEASES & TRENDS" },
-      { id: "tiktok-trends", label: "TIKTOK TRENDS" },
-      { id: "partners", label: "PARTNERS" },
-      { id: "sync", label: "SYNC" },
+      { id: "about", label: "ABOUT US" },
+      {
+        id: "releases-trends",
+        label: "RELEASES",
+        children: [
+          { id: "releases-hub", label: "RELEASES HUB", route: "/releases-hub" },
+        ],
+      },
       { id: "services", label: "SERVICES" },
-      { id: "team", label: "TEAM" },
-      { id: "faq", label: "FAQ" },
-      { id: "contact-us", label: "CONTACT US" },
+      { id: "contact", label: "CONTACT", route: "/contact" },
     ],
     []
   );
 
-  const [expanded, setExpanded] = useState(false);
+  const closeAll = () => {
+    setExpanded(false);
+  };
 
-  const closeAll = () => setExpanded(false);
+  const scrollToSection = (id: string) => {
+    if (id === "home") {
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: "smooth",
+      });
+      return;
+    }
 
-  const scrollToId = (id: string) => {
     const el = document.getElementById(id);
     if (!el) return;
 
-    const navH = document.querySelector(".bottom-nav")?.clientHeight ?? 82;
-    const y = el.getBoundingClientRect().top + window.scrollY - navH - 8;
+    const y = el.getBoundingClientRect().top + window.scrollY - NAV_HEIGHT;
 
-    window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+    window.scrollTo({
+      top: y,
+      left: 0,
+      behavior: "smooth",
+    });
   };
 
-  const goHomeTop = () => {
+  const handleNavClick = (item: NavItem) => {
     closeAll();
-    window.history.replaceState(null, "", "/");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    if (item.route) {
+      navigate(item.route);
+      return;
+    }
+
+    if (location.pathname === "/") {
+      scrollToSection(item.id);
+      const nextUrl = item.id === "home" ? "/" : `/#${item.id}`;
+      window.history.replaceState(null, "", nextUrl);
+      return;
+    }
+
+    if (item.id === "home") {
+      navigate("/");
+    } else {
+      navigate(`/#${item.id}`);
+    }
   };
-
-  const goAndScroll = (id: string) => {
-    closeAll();
-    window.history.replaceState(null, "", `/#${id}`);
-    window.setTimeout(() => scrollToId(id), 0);
-  };
-
-  useEffect(() => {
-    const onHash = () => {
-      const hash = (window.location.hash || "").replace("#", "").trim();
-      if (hash) window.setTimeout(() => scrollToId(hash), 0);
-    };
-
-    onHash();
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
-  }, []);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 992px)");
-    const onChange = () => {
-      if (mq.matches) setExpanded(false);
-    };
-    onChange();
-    mq.addEventListener?.("change", onChange);
-    return () => mq.removeEventListener?.("change", onChange);
-  }, []);
 
   return (
-    <header className="bottom-nav nav-fade-in" role="banner">
-      <div className="nav-wrap">
-        <a
-          className="nav-brand"
+    <Navbar
+      fixed="top"
+      expand="lg"
+      expanded={expanded}
+      onToggle={(v) => setExpanded(!!v)}
+      className="bottom-nav"
+    >
+      <Container fluid className="nav-wrap">
+        <Navbar.Brand
           href="/"
+          className="nav-brand"
           onClick={(e) => {
             e.preventDefault();
-            goHomeTop();
+            navigate("/");
+            closeAll();
           }}
         >
           <img
@@ -83,13 +113,12 @@ export default function BottomNav() {
             className="nav-logo"
             draggable={false}
           />
-        </a>
+        </Navbar.Brand>
 
         <button
-          className={`custom-toggler d-lg-none ${expanded ? "is-open" : ""}`}
+          className={`navbar-toggler custom-toggler ${expanded ? "is-open" : ""}`}
           type="button"
           aria-label="Toggle navigation"
-          aria-expanded={expanded}
           onClick={() => setExpanded((p) => !p)}
         >
           <span className="bar bar1" />
@@ -97,35 +126,54 @@ export default function BottomNav() {
           <span className="bar bar3" />
         </button>
 
-        <nav className={`nav-center ${expanded ? "is-open" : ""}`} aria-label="Primary">
-          <a
-            className="nav-link"
-            href="/"
-            onClick={(e) => {
-              e.preventDefault();
-              goHomeTop();
-            }}
-          >
-            HOME
-          </a>
+        <Navbar.Collapse className="justify-content-center">
+          <Nav className="nav-center nav-center--new">
+            {items.map((item) =>
+              item.children ? (
+                <div key={item.id} className="nav-item-with-menu">
+                  <Nav.Link
+                    href={item.id === "home" ? "/" : `/#${item.id}`}
+                    className="nav-link nav-link-with-menu"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleNavClick(item);
+                    }}
+                  >
+                    {item.label}
+                  </Nav.Link>
 
-          {items
-            .filter((x) => x.id !== "home")
-            .map((x) => (
-              <a
-                key={x.id}
-                className="nav-link"
-                href={`#${x.id}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  goAndScroll(x.id);
-                }}
-              >
-                {x.label}
-              </a>
-            ))}
-        </nav>
-      </div>
-    </header>
+                  <div className="nav-hover-menu">
+                    {item.children.map((child) => (
+                      <button
+                        key={child.id}
+                        type="button"
+                        className="nav-hover-menu__item"
+                        onClick={() => {
+                          closeAll();
+                          navigate(child.route);
+                        }}
+                      >
+                        {child.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <Nav.Link
+                  key={item.id}
+                  href={item.route ? item.route : item.id === "home" ? "/" : `/#${item.id}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleNavClick(item);
+                  }}
+                >
+                  {item.label}
+                </Nav.Link>
+              )
+            )}
+          </Nav>
+        </Navbar.Collapse>
+      </Container>
+    </Navbar>
   );
 }

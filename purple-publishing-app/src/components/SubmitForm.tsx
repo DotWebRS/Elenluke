@@ -27,8 +27,7 @@ function buildUrl(path: string) {
   return base ? `${base}/${p}` : `/${p}`;
 }
 
-const DISCLAIMER =
-  "";
+const DISCLAIMER = "";
 
 const DRAFT_KEY = "submit_form_draft_v6";
 
@@ -111,6 +110,9 @@ const DEFAULT_FIELDS: ExtraFields = {
   guardianLastNameArtist: "",
   guardianEmailArtist: "",
   instagram: "",
+  tiktokAccountUrl: "",
+  telephoneNumber: "",
+  canUseRealNameForPublicPosting: "",
   spotifyUri: "",
   appleArtistId: "",
   pro: "",
@@ -252,6 +254,8 @@ const SubmitForm = () => {
       "city",
       "country",
       "dateOfBirthArtist",
+      "telephoneNumber",
+      "canUseRealNameForPublicPosting",
       "spotifyUri",
       "appleArtistId",
     ];
@@ -358,6 +362,9 @@ const SubmitForm = () => {
       put("dateOfBirthArtist", fields.dateOfBirthArtist);
 
       put("instagram", fields.instagram);
+      put("tiktokAccountUrl", fields.tiktokAccountUrl);
+      put("telephoneNumber", fields.telephoneNumber);
+      put("canUseRealNameForPublicPosting", fields.canUseRealNameForPublicPosting);
       put("spotifyUri", fields.spotifyUri);
       put("appleArtistId", fields.appleArtistId);
 
@@ -771,6 +778,41 @@ const SubmitForm = () => {
                 </label>
 
                 <label className="submitform-field">
+                  <span className="submitform-label">TIKTOK ACCOUNT URL</span>
+                  <input
+                    className="submitform-control"
+                    value={fields.tiktokAccountUrl}
+                    onChange={(ev) => setField("tiktokAccountUrl", ev.target.value)}
+                    placeholder="https://www.tiktok.com/@..."
+                  />
+                </label>
+
+                <label className="submitform-field">
+                  <span className="submitform-label">TELEPHONE NUMBER*</span>
+                  <input
+                    className="submitform-control"
+                    value={fields.telephoneNumber}
+                    onChange={(ev) => setField("telephoneNumber", ev.target.value)}
+                    placeholder="Telephone number"
+                  />
+                </label>
+
+                <label className="submitform-field">
+                  <span className="submitform-label">CAN WE USE YOUR REAL NAME FOR ANY PUBLIC POSTING?*</span>
+                  <div className="submitform-select">
+                    <select
+                      className="submitform-control"
+                      value={fields.canUseRealNameForPublicPosting}
+                      onChange={(ev) => setField("canUseRealNameForPublicPosting", ev.target.value)}
+                    >
+                      <option value="">Select…</option>
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                    </select>
+                  </div>
+                </label>
+
+                <label className="submitform-field">
                   <span className="submitform-label">SPOTIFY URI*</span>
                   <input
                     className="submitform-control"
@@ -877,8 +919,6 @@ const SubmitForm = () => {
                     placeholder="Last name"
                   />
                 </label>
-
-               
 
                 <label className="submitform-field">
                   <span className="submitform-label">ORIGIN*</span>
@@ -1050,6 +1090,8 @@ function labelFor(k: string) {
     city: "City",
     country: "Country",
     dateOfBirthArtist: "Day of Birth",
+    telephoneNumber: "Telephone Number",
+    canUseRealNameForPublicPosting: "Can we use your real name for any public posting?",
     spotifyUri: "Spotify URI",
     appleArtistId: "Apple ID",
     origin: "Origin",

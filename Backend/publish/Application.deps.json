@@ -10,7 +10,7 @@
       "Application/1.0.0": {
         "dependencies": {
           "Domain": "1.0.0",
-          "Microsoft.AspNetCore.Authentication.JwtBearer": "8.0.24",
+          "Microsoft.AspNetCore.Authentication.JwtBearer": "8.0.25",
           "Microsoft.IdentityModel.Protocols": "8.0.2",
           "Microsoft.IdentityModel.Protocols.OpenIdConnect": "8.0.2",
           "Persistence": "1.0.0",
@@ -1346,14 +1346,14 @@
           }
         }
       },
-      "Microsoft.AspNetCore.Authentication.JwtBearer/8.0.24": {
+      "Microsoft.AspNetCore.Authentication.JwtBearer/8.0.25": {
         "dependencies": {
           "Microsoft.IdentityModel.Protocols.OpenIdConnect": "8.0.2"
         },
         "runtime": {
           "lib/net8.0/Microsoft.AspNetCore.Authentication.JwtBearer.dll": {
-            "assemblyVersion": "8.0.24.0",
-            "fileVersion": "8.0.2426.7207"
+            "assemblyVersion": "8.0.25.0",
+            "fileVersion": "8.0.2526.11225"
           }
         }
       },
@@ -1925,7 +1925,7 @@
       "Persistence/1.0.0": {
         "dependencies": {
           "Domain": "1.0.0",
-          "Microsoft.AspNetCore.Authentication.JwtBearer": "8.0.24",
+          "Microsoft.AspNetCore.Authentication.JwtBearer": "8.0.25",
           "Microsoft.EntityFrameworkCore": "8.0.12",
           "Microsoft.EntityFrameworkCore.SqlServer": "8.0.12",
           "Microsoft.EntityFrameworkCore.Sqlite": "8.0.12",
@@ -1972,12 +1972,12 @@
       "path": "azure.identity/1.11.4",
       "hashPath": "azure.identity.1.11.4.nupkg.sha512"
     },
-    "Microsoft.AspNetCore.Authentication.JwtBearer/8.0.24": {
+    "Microsoft.AspNetCore.Authentication.JwtBearer/8.0.25": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-Uwr3m28coB7AIYn4CN/qlTh4FZTGMs51oSyXUyYKYHJTH1xCfnZOeaNe0T3qCKzYc8gvZJPZ9KzKLpJlAZ7mlQ==",
-      "path": "microsoft.aspnetcore.authentication.jwtbearer/8.0.24",
-      "hashPath": "microsoft.aspnetcore.authentication.jwtbearer.8.0.24.nupkg.sha512"
+      "sha512": "sha512-nb6jCyxh5eP9bsXkHmGcDxUiVIl5wJSombl3LN2L+sjGEVXzcMKbdRe0fp8LQtuBM2hKXcXFxMAYdnohdYJF8Q==",
+      "path": "microsoft.aspnetcore.authentication.jwtbearer/8.0.25",
+      "hashPath": "microsoft.aspnetcore.authentication.jwtbearer.8.0.25.nupkg.sha512"
     },
     "Microsoft.Bcl.AsyncInterfaces/1.1.1": {
       "type": "package",

@@ -9,19 +9,29 @@ public class UploadsController : ControllerBase
 {
     private readonly IWebHostEnvironment _env;
 
+    private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg",
+        ".mp3", ".wav"
+    };
+
     public UploadsController(IWebHostEnvironment env)
     {
         _env = env;
     }
 
     [HttpPost("file")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Editor")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(20 * 1024 * 1024)]
     public async Task<IActionResult> Upload([FromForm] UploadFileForm form)
     {
         if (form.File == null || form.File.Length == 0)
             return BadRequest("file is required.");
+
+        var ext = Path.GetExtension(form.File.FileName);
+        if (string.IsNullOrWhiteSpace(ext) || !AllowedExtensions.Contains(ext))
+            return BadRequest("File type is not allowed.");
 
         var folder = string.IsNullOrWhiteSpace(form.Folder) ? "cms" : form.Folder.Trim();
         folder = folder.Replace("..", "").Replace("\\", "/").Replace("//", "/");
@@ -30,7 +40,6 @@ public class UploadsController : ControllerBase
         var dir = Path.Combine(webRoot, "uploads", folder);
         Directory.CreateDirectory(dir);
 
-        var ext = Path.GetExtension(form.File.FileName);
         var safeName = $"{Guid.NewGuid():N}{ext}";
         var fullPath = Path.Combine(dir, safeName);
 

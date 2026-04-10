@@ -1,11 +1,6 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { buildApiUrl } from "../config/apiBase";
-import "../style/About.css";
-
-type Props = {
-  refEl?: React.RefObject<HTMLElement | null>;
-  isActive?: boolean;
-};
+import FadeSection from "../components/FadeSection";
 
 const CMS_SITE_KEY = "purple-crunch-records";
 const CMS_KEY_ABOUT = "pcr.about.text";
@@ -53,13 +48,8 @@ function extractText(payload: any): string {
   return String(payload);
 }
 
-export default function About({ isActive = true }: Props) {
-  const [phase, setPhase] = useState<"in" | "out">("in");
+export default function About() {
   const [aboutText, setAboutText] = useState<string>("");
-
-  useEffect(() => {
-    setPhase(isActive ? "in" : "out");
-  }, [isActive]);
 
   useEffect(() => {
     let alive = true;
@@ -83,7 +73,7 @@ export default function About({ isActive = true }: Props) {
 
         if (!alive) return;
 
-        if (res.status === 404 || !res.ok) {
+        if (!res.ok) {
           setAboutText("");
           return;
         }
@@ -108,33 +98,28 @@ export default function About({ isActive = true }: Props) {
     };
   }, []);
 
-  const cls =
-    "page " +
-    (phase === "in"
-      ? "animate__animated animate__slideInRight"
-      : "animate__animated animate__slideOutLeft");
-
   const paragraphs = splitToParagraphs(normalizeEscapes(aboutText));
 
   return (
-    <section className={cls} style={{ animationDuration: "650ms" }} >
-      <div className="about-bg" aria-hidden="true" />
+    <FadeSection id="about" className="about-section">
+      <div className="" aria-hidden="true" />
 
       <div className="about-content">
         <div className="about-inner">
-            <h2 className="about-title">
-            <span className="about-title-light">ABOUT</span>
-            <span className="about-title-grad type-gradient">US</span>
-            </h2>
+          <h2 className="about-title">
+            <span className="about-title-light">ABOUT</span>{" "}
+            <span className="about-title-grad">US</span>
+          </h2>
 
-            {paragraphs.length > 0 && (
-            <div className="about-body">
-                {paragraphs.map((p, i) => <p key={i}>{p}</p>)}
+          {paragraphs.length > 0 && (
+            <div className="about-text">
+              {paragraphs.map((p, i) => (
+                <p key={i}>{p}</p>
+              ))}
             </div>
-            )}
+          )}
         </div>
-        </div>
-    
-    </section>
+      </div>
+    </FadeSection>
   );
 }

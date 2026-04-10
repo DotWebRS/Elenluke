@@ -1,12 +1,52 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import * as XLSX from "xlsx";
 import { AdminShell } from "./AdminShell";
 import { useAdminSite } from "./useAdminSite";
+import AdminSubmissionAudit from "./AdminSubmissionAudit";
 import { API_BASE } from "../../config/apiBase";
 import "../../styles/AdminSubmissionsModal.css";
-import * as XLSX from "xlsx";
-import AdminSubmissionAudit from "./AdminSubmissionAudit";
+import { useLocation } from "react-router-dom";
+import { useAdminNotifications } from "./AdminNotificationsProvider";
 
-// -------------------- ENUM-LIKE KONSTANTE --------------------
+type DetailTab = "overview" | "chat" | "files";
+
+type ChatMessage = {
+  id: string;
+  submissionId: string;
+  senderType: string;
+  senderEmail: string;
+  body: string;
+  isInternal: boolean;
+  createdAtUtc: string;
+};
+
+type ChatListResponse = {
+  items: ChatMessage[];
+};
+
+type ChatThreadItem = {
+  id: string;
+  type: number | string;
+  status: number | string;
+  name: string;
+  email: string;
+  createdAt: string;
+  lastMessage?: {
+    body: string;
+    createdAtUtc: string;
+    senderType: string;
+    isInternal: boolean;
+  } | null;
+};
+
+type PortalUserOption = {
+  id: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
+};
 
 const SubmissionTypeId = {
   DemoUpload: 1,
@@ -23,35 +63,13 @@ const SubmissionStatusId = {
   Read: 2,
   InProgress: 3,
   Done: 4,
-  UnderReview: 7,
   Accepted: 5,
   Rejected: 6,
+  UnderReview: 7,
 } as const;
 
 type SubmissionTypeId = (typeof SubmissionTypeId)[keyof typeof SubmissionTypeId];
 type SubmissionStatusId = (typeof SubmissionStatusId)[keyof typeof SubmissionStatusId];
-
-const SUBMISSION_TYPE_VALUES: SubmissionTypeId[] = [
-  SubmissionTypeId.DemoUpload,
-  SubmissionTypeId.ArtistInformation,
-  SubmissionTypeId.SongwriterInformation,
-  SubmissionTypeId.SyncRequest,
-  SubmissionTypeId.GeneralContactInquiry,
-  SubmissionTypeId.SupportForm,
-  SubmissionTypeId.LegalRequest,
-];
-
-const STATUS_FILTER_VALUES: SubmissionStatusId[] = [
-  SubmissionStatusId.Unread,
-  SubmissionStatusId.Read,
-  SubmissionStatusId.InProgress,
-  SubmissionStatusId.UnderReview,
-  SubmissionStatusId.Done,
-  SubmissionStatusId.Accepted,
-  SubmissionStatusId.Rejected,
-];
-
-// -------------------- TIPOVI PODATAKA --------------------
 
 type SubmissionFile = {
   id: string;
@@ -63,6 +81,14 @@ type SubmissionFile = {
 type SubmissionField = {
   name: string;
   value: string;
+};
+
+type SubmissionReply = {
+  id: string;
+  toEmail: string;
+  subject: string;
+  body: string;
+  sentAt: string;
 };
 
 type SubmissionListItem = {
@@ -80,14 +106,6 @@ type SubmissionListItem = {
   files: SubmissionFile[];
   isArchived?: boolean;
   archivedAtUtc?: string | null;
-};
-
-type SubmissionReply = {
-  id: string;
-  toEmail: string;
-  subject: string;
-  body: string;
-  sentAt: string;
 };
 
 type SubmissionDetail = {
@@ -114,12 +132,30 @@ type ListResponse = {
 
 type FilterHasFile = "all" | "yes" | "no";
 type ArchiveTab = "active" | "archived";
-type SubmissionView = "inbox" | "audit";
+type SubmissionView = "inbox" | "audit" | "chats";
 
-// -------------------- POMOĆNE FUNKCIJE --------------------
+const SUBMISSION_TYPE_VALUES: SubmissionTypeId[] = [
+  SubmissionTypeId.DemoUpload,
+  SubmissionTypeId.ArtistInformation,
+  SubmissionTypeId.SongwriterInformation,
+  SubmissionTypeId.SyncRequest,
+  SubmissionTypeId.GeneralContactInquiry,
+  SubmissionTypeId.SupportForm,
+  SubmissionTypeId.LegalRequest,
+];
 
-function typeLabel(t: SubmissionTypeId) {
-  switch (t) {
+const STATUS_FILTER_VALUES: SubmissionStatusId[] = [
+  SubmissionStatusId.Unread,
+  SubmissionStatusId.Read,
+  SubmissionStatusId.InProgress,
+  SubmissionStatusId.UnderReview,
+  SubmissionStatusId.Done,
+  SubmissionStatusId.Accepted,
+  SubmissionStatusId.Rejected,
+];
+
+function typeLabel(t: SubmissionTypeId | number | string) {
+  switch (Number(t)) {
     case SubmissionTypeId.DemoUpload:
       return "Demo";
     case SubmissionTypeId.ArtistInformation:
@@ -139,8 +175,8 @@ function typeLabel(t: SubmissionTypeId) {
   }
 }
 
-function statusLabel(s: SubmissionStatusId) {
-  switch (s) {
+function statusLabel(s: SubmissionStatusId | number | string) {
+  switch (Number(s)) {
     case SubmissionStatusId.Unread:
       return "Unread";
     case SubmissionStatusId.Read:
@@ -160,8 +196,8 @@ function statusLabel(s: SubmissionStatusId) {
   }
 }
 
-function statusBadgeClass(s: SubmissionStatusId) {
-  switch (s) {
+function statusBadgeClass(s: SubmissionStatusId | number | string) {
+  switch (Number(s)) {
     case SubmissionStatusId.Unread:
       return "badge-unread";
     case SubmissionStatusId.Read:
@@ -187,7 +223,11 @@ function isDemoOrSync(t: SubmissionTypeId) {
 
 function showUnderReview(t: SubmissionTypeId, s: SubmissionStatusId) {
   if (!isDemoOrSync(t)) return false;
-  return s === SubmissionStatusId.Unread || s === SubmissionStatusId.Read || s === SubmissionStatusId.InProgress;
+  return (
+    s === SubmissionStatusId.Unread ||
+    s === SubmissionStatusId.Read ||
+    s === SubmissionStatusId.InProgress
+  );
 }
 
 function buildUrl(path: string) {
@@ -230,17 +270,28 @@ function getFieldValue(fields: SubmissionField[] | null | undefined, candidates:
     const hit = arr.find((f) => norm(f.name) === norm(c));
     if (hit?.value) return hit.value;
   }
+
   for (const c of candidates) {
     const cn = norm(c);
     const hit = arr.find((f) => norm(f.name).includes(cn));
     if (hit?.value) return hit.value;
   }
+
   return "";
 }
 
 function buildDemoRejectionTemplate(detail: SubmissionDetail) {
   const name = detail.name || "";
-  const trackTitle = getFieldValue(detail.fields, ["Track Title", "Song Title", "Title", "Track", "trackTitle"]);
+  const trackTitle = getFieldValue(detail.fields, [
+    "releaseTitle",
+    "Release Title",
+    "songTitle",
+    "Song Title",
+    "trackTitle",
+    "Track Title",
+    "Title",
+    "Track",
+  ]);
   const trackPart = trackTitle ? ` ${trackTitle}` : " your track";
 
   return (
@@ -252,11 +303,32 @@ function buildDemoRejectionTemplate(detail: SubmissionDetail) {
   );
 }
 
-// --------------------------- KOMPONENTA ---------------------------
-
 export function AdminSubmissions() {
+  const navigate = useNavigate();
+  const role = localStorage.getItem("role") || "";
+  const myEmail = localStorage.getItem("email") || "";
   const authHeaders = useAuthHeaders();
   const { site } = useAdminSite();
+
+  const [detailTab, setDetailTab] = useState<DetailTab>("overview");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatSending, setChatSending] = useState(false);
+  const [chatBody, setChatBody] = useState("");
+  const [chatInternal, setChatInternal] = useState(false);
+
+  const [allChats, setAllChats] = useState<ChatThreadItem[]>([]);
+  const [allChatsLoading, setAllChatsLoading] = useState(false);
+  const [activeChatId, setActiveChatId] = useState("");
+  const [allChatMessages, setAllChatMessages] = useState<ChatMessage[]>([]);
+  const [allChatMessagesLoading, setAllChatMessagesLoading] = useState(false);
+
+  const [portalUsers, setPortalUsers] = useState<PortalUserOption[]>([]);
+  const [portalUsersLoading, setPortalUsersLoading] = useState(false);
+  const [selectedPortalUserId, setSelectedPortalUserId] = useState("");
+  const [assigningPortalUser, setAssigningPortalUser] = useState(false);
+  const [assignedPortalUserIds, setAssignedPortalUserIds] = useState<string[]>([]);
+  const [assignSuccessMessage, setAssignSuccessMessage] = useState("");
 
   const [subView, setSubView] = useState<SubmissionView>("inbox");
   const [archiveTab, setArchiveTab] = useState<ArchiveTab>("active");
@@ -271,8 +343,8 @@ export function AdminSubmissions() {
   const [typeFilter, setTypeFilter] = useState<SubmissionTypeId | "all">("all");
   const [statusFilter, setStatusFilter] = useState<SubmissionStatusId | "all">("all");
   const [hasFile, setHasFile] = useState<FilterHasFile>("all");
-  const [fromDate, setFromDate] = useState<string>("");
-  const [toDate, setToDate] = useState<string>("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   const [search, setSearch] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -292,6 +364,65 @@ export function AdminSubmissions() {
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const previewUrlsRef = useRef<Record<string, string>>({});
   const [activePreviewFileId, setActivePreviewFileId] = useState<string | null>(null);
+
+  const [allChatBody, setAllChatBody] = useState("");
+  const [allChatInternal, setAllChatInternal] = useState(false);
+  const [allChatSending, setAllChatSending] = useState(false);
+
+  const location = useLocation();
+  const { markEventsForSubmissionRead } = useAdminNotifications();
+  const { events } = useAdminNotifications();
+
+  useEffect(() => {
+    if (role === "PortalUser") return;
+    if (events.length === 0) return;
+
+    const latest = events[0];
+    if (!latest) return;
+
+    if (subView === "inbox") {
+      if (
+        latest.type === "submission_created" ||
+        latest.type === "submission_updated" ||
+        latest.type === "message_received" ||
+        latest.type === "submission_assigned"
+      ) {
+        fetchList();
+      }
+    }
+
+    if (subView === "chats") {
+      if (
+        latest.type === "message_received" ||
+        latest.type === "submission_assigned" ||
+        latest.type === "submission_created"
+      ) {
+        fetchAllChats();
+
+        if (activeChatId) {
+          fetchAllChatMessages(activeChatId);
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events, subView, role, activeChatId]);
+
+  useEffect(() => {
+    if (role === "PortalUser") {
+      navigate("/portal/chat", { replace: true });
+    }
+  }, [role, navigate]);
+
+  useEffect(() => {
+    const submissionId = (location.state as any)?.openSubmissionId;
+    if (!submissionId) return;
+
+    openSubmission(submissionId);
+    markEventsForSubmissionRead(submissionId);
+
+    navigate(location.pathname, { replace: true, state: {} });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   useEffect(() => {
     previewUrlsRef.current = previewUrls;
@@ -333,6 +464,34 @@ export function AdminSubmissions() {
     return qs.toString();
   };
 
+  const sendAllChatMessage = async () => {
+  if (!activeChatId || !allChatBody.trim()) return;
+
+  setAllChatSending(true);
+  setError(null);
+
+  try {
+    await fetchJson(buildUrl(`/api/chat/${activeChatId}/messages`), {
+      method: "POST",
+      headers: { ...authHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        body: allChatBody.trim(),
+        isInternal: allChatInternal,
+        sendEmailToContact: false,
+      }),
+    });
+
+    setAllChatBody("");
+    setAllChatInternal(false);
+    await fetchAllChatMessages(activeChatId);
+    await fetchAllChats();
+  } catch (e: any) {
+    setError(e?.message || "All chat send error");
+  } finally {
+    setAllChatSending(false);
+  }
+};
+
   const listAbortRef = useRef<AbortController | null>(null);
 
   const fetchList = async () => {
@@ -371,15 +530,90 @@ export function AdminSubmissions() {
     }
   };
 
+  const fetchAllChats = async () => {
+  setAllChatsLoading(true);
+  setError(null);
+
+  try {
+    const json = await fetchJson<ChatThreadItem[]>(buildUrl("/api/chat/my"), {
+      headers: { ...authHeaders },
+    });
+
+    const arr = Array.isArray(json) ? json : [];
+
+
+    const filtered = arr.filter((x) => x.lastMessage);
+
+    setAllChats(filtered);
+
+    if (filtered.length > 0) {
+      setActiveChatId((prev) => prev || filtered[0].id);
+    } else {
+      setActiveChatId("");
+      setAllChatMessages([]);
+    }
+  } catch (e: any) {
+    setError(e?.message || "All chats load error");
+    setAllChats([]);
+  } finally {
+    setAllChatsLoading(false);
+  }
+};
+
+  const fetchAllChatMessages = async (submissionId: string) => {
+    if (!submissionId) return;
+
+    setAllChatMessagesLoading(true);
+    setError(null);
+
+    try {
+      const json = await fetchJson<ChatListResponse>(buildUrl(`/api/chat/${submissionId}/messages`), {
+        headers: { ...authHeaders },
+      });
+
+      setAllChatMessages(Array.isArray(json?.items) ? json.items : []);
+    } catch (e: any) {
+      setError(e?.message || "All chat messages load error");
+      setAllChatMessages([]);
+    } finally {
+      setAllChatMessagesLoading(false);
+    }
+  };
+
   useEffect(() => {
+    if (role === "PortalUser") return;
     if (subView !== "inbox") return;
 
     fetchList();
     return () => listAbortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, typeFilter, statusFilter, hasFile, fromDate, toDate, search, site, archiveTab, subView]);
+  }, [page, typeFilter, statusFilter, hasFile, fromDate, toDate, search, site, archiveTab, subView, role]);
+
+  useEffect(() => {
+    if (role === "PortalUser") return;
+    if (subView !== "chats") return;
+    fetchAllChats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subView, role]);
+
+  useEffect(() => {
+    if (role === "PortalUser") return;
+    if (subView !== "chats") return;
+    if (!activeChatId) return;
+    fetchAllChatMessages(activeChatId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChatId, subView, role]);
 
   const openSubmission = async (id: string) => {
+    markEventsForSubmissionRead(id);
+    setDetailTab("overview");
+    setChatMessages([]);
+    setChatBody("");
+    setChatInternal(false);
+    setPortalUsers([]);
+    setSelectedPortalUserId("");
+    setAssignedPortalUserIds([]);
+    setAssignSuccessMessage("");
     setOpenId(id);
     setDetail(null);
     setDetailLoading(true);
@@ -409,6 +643,125 @@ export function AdminSubmissions() {
     }
   };
 
+  const fetchPortalUsers = async () => {
+    setPortalUsersLoading(true);
+    setError(null);
+    setAssignSuccessMessage("");
+
+    try {
+      const json = await fetchJson<PortalUserOption[]>(buildUrl("/api/users"), {
+        headers: { ...authHeaders },
+      });
+
+      const onlyPortalUsers = (Array.isArray(json) ? json : []).filter(
+        (u) => u.role === "PortalUser" && u.isActive
+      );
+
+      setPortalUsers(onlyPortalUsers);
+      setSelectedPortalUserId("");
+    } catch (e: any) {
+      setError(e?.message || "Portal users load error");
+      setPortalUsers([]);
+    } finally {
+      setPortalUsersLoading(false);
+    }
+  };
+
+  const assignPortalUserToChat = async () => {
+    if (!detail || !selectedPortalUserId) return;
+
+    setAssigningPortalUser(true);
+    setError(null);
+    setAssignSuccessMessage("");
+
+    try {
+      await fetchJson(buildUrl(`/api/chat/${detail.id}/participants`), {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: selectedPortalUserId,
+        }),
+      });
+
+      const assignedUser = portalUsers.find((u) => u.id === selectedPortalUserId);
+
+      setAssignedPortalUserIds((prev) =>
+        prev.includes(selectedPortalUserId) ? prev : [...prev, selectedPortalUserId]
+      );
+
+      setAssignSuccessMessage(
+        assignedUser?.email
+          ? `${assignedUser.email} is now assigned to this chat.`
+          : "Portal user assigned to this chat."
+      );
+    } catch (e: any) {
+      setError(e?.message || "Assign portal user error");
+    } finally {
+      setAssigningPortalUser(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!openId || !detail) return;
+    fetchPortalUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId, detail?.id]);
+
+  const fetchChatMessages = async (submissionId: string) => {
+    setChatLoading(true);
+    setError(null);
+
+    try {
+      const json = await fetchJson<ChatListResponse>(buildUrl(`/api/chat/${submissionId}/messages`), {
+        headers: { ...authHeaders },
+      });
+
+      setChatMessages(Array.isArray(json?.items) ? json.items : []);
+    } catch (e: any) {
+      setError(e?.message || "Chat load error");
+      setChatMessages([]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const sendChatMessage = async () => {
+    if (!detail || !chatBody.trim()) return;
+
+    setChatSending(true);
+    setError(null);
+
+    try {
+      await fetchJson(buildUrl(`/api/chat/${detail.id}/messages`), {
+        method: "POST",
+        headers: { ...authHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          body: chatBody.trim(),
+          isInternal: chatInternal,
+          sendEmailToContact: false,
+          subject: `Re: ${typeLabel(detail.type)} - ${detail.name || detail.email || "Submission"}`,
+        }),
+      });
+
+      setChatBody("");
+      setChatInternal(false);
+      await fetchChatMessages(detail.id);
+      if (subView === "chats") await fetchAllChats();
+    } catch (e: any) {
+      setError(e?.message || "Chat send error");
+    } finally {
+      setChatSending(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!detail || !openId) return;
+    if (detailTab !== "chat") return;
+
+    fetchChatMessages(detail.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailTab, detail?.id, openId]);
+
   const closeModal = () => {
     setOpenId(null);
     setDetail(null);
@@ -417,6 +770,14 @@ export function AdminSubmissions() {
     setReplySubject("");
     setReplyBody("");
     setActivePreviewFileId(null);
+    setDetailTab("overview");
+    setChatMessages([]);
+    setChatBody("");
+    setChatInternal(false);
+    setPortalUsers([]);
+    setSelectedPortalUserId("");
+    setAssignedPortalUserIds([]);
+    setAssignSuccessMessage("");
   };
 
   const patchStatusLocal = (id: string, newStatus: SubmissionStatusId) => {
@@ -522,9 +883,7 @@ export function AdminSubmissions() {
         patchArchiveLocal(id, true, archivedAt);
       }
 
-      if (detail?.id === id) {
-        patchArchiveLocal(id, true, archivedAt);
-      }
+      if (detail?.id === id) patchArchiveLocal(id, true, archivedAt);
     } catch (e: any) {
       setError(e?.message || "Archive error");
     } finally {
@@ -558,9 +917,7 @@ export function AdminSubmissions() {
         patchArchiveLocal(id, false, null);
       }
 
-      if (detail?.id === id) {
-        patchArchiveLocal(id, false, null);
-      }
+      if (detail?.id === id) patchArchiveLocal(id, false, null);
     } catch (e: any) {
       setError(e?.message || "Unarchive error");
     } finally {
@@ -685,8 +1042,7 @@ export function AdminSubmissions() {
   };
 
   const acceptDemo = async () => {
-    if (!detail) return;
-    if (detail.type !== SubmissionTypeId.DemoUpload) return;
+    if (!detail || detail.type !== SubmissionTypeId.DemoUpload) return;
 
     setError(null);
 
@@ -710,8 +1066,7 @@ export function AdminSubmissions() {
   };
 
   const rejectDemo = async () => {
-    if (!detail) return;
-    if (detail.type !== SubmissionTypeId.DemoUpload) return;
+    if (!detail || detail.type !== SubmissionTypeId.DemoUpload) return;
 
     setError(null);
 
@@ -767,6 +1122,8 @@ export function AdminSubmissions() {
   const canPrev = page > 1;
   const canNext = page < totalPages;
 
+  if (role === "PortalUser") return null;
+
   return (
     <AdminShell title="Admin Inbox" active="submissions">
       <div className="admin-root">
@@ -781,6 +1138,13 @@ export function AdminSubmissions() {
               </button>
 
               <button
+                className={`admin-tab-btn ${subView === "chats" ? "is-active" : ""}`}
+                onClick={() => setSubView("chats")}
+              >
+                All chats
+              </button>
+
+              <button
                 className={`admin-tab-btn ${subView === "audit" ? "is-active" : ""}`}
                 onClick={() => setSubView("audit")}
               >
@@ -790,9 +1154,128 @@ export function AdminSubmissions() {
           </div>
         </div>
 
-        {subView === "audit" ? (
-          <AdminSubmissionAudit />
+       {subView === "audit" ? (
+  <AdminSubmissionAudit />
+) : subView === "chats" ? (
+  <>
+    {error ? (
+      <div className="admin-alert admin-alert-error">
+        <strong>Error:</strong> {error}
+      </div>
+    ) : null}
+
+    <div className="subm-chat-wrap">
+      <div className="subm-chat-thread">
+        {allChatsLoading ? (
+          <div className="subm-loading">Loading chats…</div>
+        ) : allChats.length === 0 ? (
+          <div className="subm-empty">No active assigned chats.</div>
         ) : (
+          allChats.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setActiveChatId(c.id)}
+              style={{
+                width: "100%",
+                textAlign: "left",
+                border: "1px solid #e5e7eb",
+                background: activeChatId === c.id ? "#ede9fe" : "#fff",
+                borderRadius: 12,
+                padding: 12,
+                cursor: "pointer",
+              }}
+            >
+              <div style={{ fontWeight: 700, color: "#111827" }}>
+                {c.name || c.email || "Conversation"}
+              </div>
+              <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+                {typeLabel(c.type)} · {statusLabel(c.status)}
+              </div>
+              <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
+                {c.lastMessage?.body || "No messages yet"}
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+
+      <div className="subm-chat-side" style={{ maxWidth: "none" }}>
+        <div className="subm-card">
+          <div className="subm-card-title">Conversation</div>
+
+          <div className="subm-chat-thread" style={{ maxHeight: "52vh" }}>
+            {allChatMessagesLoading ? (
+              <div className="subm-loading">Loading messages…</div>
+            ) : !activeChatId ? (
+              <div className="subm-empty">Select a chat.</div>
+            ) : allChatMessages.length === 0 ? (
+              <div className="subm-empty">No messages.</div>
+            ) : (
+              allChatMessages.map((m) => {
+                const mine = m.senderEmail?.toLowerCase() === myEmail.toLowerCase();
+
+                return (
+                  <div
+                    key={m.id}
+                    className={[
+                      "subm-chat-msg",
+                      mine ? "subm-chat-msg--mine" : "",
+                      m.isInternal ? "subm-chat-msg--internal" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    <div className="subm-chat-meta">
+                      {m.senderType} · {m.senderEmail} · {new Date(m.createdAtUtc).toLocaleString()}
+                      {m.isInternal ? " · Internal" : ""}
+                    </div>
+                    <div className="subm-chat-body">{m.body}</div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        <div className="subm-card">
+          <div className="subm-card-title">Send message</div>
+
+          <div className="subm-chat-composer">
+            <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                type="checkbox"
+                checked={allChatInternal}
+                onChange={(e) => setAllChatInternal(e.target.checked)}
+              />
+              Internal note
+            </label>
+
+            <textarea
+              className="admin-input"
+              placeholder={
+                allChatInternal
+                  ? "Write an internal note..."
+                  : "Write a reply in this conversation..."
+              }
+              value={allChatBody}
+              onChange={(e) => setAllChatBody(e.target.value)}
+            />
+
+            <button
+              className="subm-btn subm-btn-soft"
+              type="button"
+              onClick={sendAllChatMessage}
+              disabled={allChatSending || !activeChatId || !allChatBody.trim()}
+            >
+              {allChatSending ? "Sending..." : "Send"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </>
+) : (
           <>
             {error ? (
               <div className="admin-alert admin-alert-error">
@@ -955,7 +1438,9 @@ export function AdminSubmissions() {
                         </span>
                       </td>
                       <td>
-                        <span className={`admin-badge ${statusBadgeClass(s.status)}`}>{statusLabel(s.status)}</span>
+                        <span className={`admin-badge ${statusBadgeClass(s.status)}`}>
+                          {statusLabel(s.status)}
+                        </span>
                       </td>
                       <td>{s.name}</td>
                       <td>{s.email}</td>
@@ -1048,7 +1533,10 @@ export function AdminSubmissions() {
             </div>
 
             {openId ? (
-              <div className="subm-modal-overlay" onMouseDown={(e) => (e.target === e.currentTarget ? closeModal() : null)}>
+              <div
+                className="subm-modal-overlay"
+                onMouseDown={(e) => (e.target === e.currentTarget ? closeModal() : null)}
+              >
                 <div className="subm-modal" onMouseDown={(e) => e.stopPropagation()}>
                   <div className="subm-modal-top">
                     <div className="subm-modal-title">
@@ -1057,240 +1545,396 @@ export function AdminSubmissions() {
                     </div>
 
                     <div className="subm-modal-actions">
-                      {detail && !detailLoading ? (
-                        detail.isArchived ? (
-                          <button
-                            className="subm-btn subm-btn-soft"
-                            onClick={() => unarchiveSubmission(detail.id)}
-                            disabled={busyRow === detail.id}
-                            title="Unarchive"
-                          >
-                            Unarchive
-                          </button>
-                        ) : (
-                          <button
-                            className="subm-btn subm-btn-soft"
-                            onClick={() => archiveSubmission(detail.id)}
-                            disabled={busyRow === detail.id}
-                            title="Archive"
-                          >
-                            Archive
-                          </button>
-                        )
-                      ) : null}
+                      <div className="subm-tabs">
+                        <button
+                          className={`subm-tab ${detailTab === "overview" ? "is-active" : ""}`}
+                          onClick={() => setDetailTab("overview")}
+                          type="button"
+                        >
+                          Overview
+                        </button>
 
-                      <button className="subm-btn subm-btn-soft" onClick={exportOneExcel} disabled={!detail || detailLoading}>
-                        Export
-                      </button>
+                        <button
+                          className={`subm-tab ${detailTab === "chat" ? "is-active" : ""}`}
+                          onClick={() => setDetailTab("chat")}
+                          type="button"
+                        >
+                          Chat
+                        </button>
 
-                      <button className="subm-btn subm-btn-close" onClick={closeModal} aria-label="Close">
-                        ✕
+                        <button
+                          className={`subm-tab ${detailTab === "files" ? "is-active" : ""}`}
+                          onClick={() => setDetailTab("files")}
+                          type="button"
+                        >
+                          Files
+                        </button>
+                      </div>
+
+                      <button className="subm-btn subm-btn-soft" onClick={closeModal}>
+                        Close
                       </button>
                     </div>
                   </div>
 
-                  {!detail || detailLoading ? (
-                    <div className="subm-loading">Loading details…</div>
-                  ) : (
-                    <div className="subm-modal-body">
-                      <div className="subm-grid">
-                        <div className="subm-col">
+                  {detailLoading ? (
+                    <div className="subm-body">
+                      <div className="subm-loading">Loading…</div>
+                    </div>
+                  ) : detail ? (
+                    <div className="subm-body">
+                      {detailTab === "overview" ? (
+                        <div className="subm-stack">
                           <div className="subm-card">
-                            <div className="subm-card-h">
-                              <span>Overview</span>
-                              <span className={`subm-pill ${statusBadgeClass(detail.status)}`}>{statusLabel(detail.status)}</span>
+                            <div className="subm-card-title">Overview</div>
+
+                            <div className="subm-overview-list">
+                              <div className="subm-overview-row">
+                                <span className="subm-overview-label">Type</span>
+                                <span className="subm-overview-value">{typeLabel(detail.type)}</span>
+                              </div>
+
+                              <div className="subm-overview-row">
+                                <span className="subm-overview-label">Status</span>
+                                <span className={`admin-badge ${statusBadgeClass(detail.status)}`}>
+                                  {statusLabel(detail.status)}
+                                </span>
+                              </div>
+
+                              <div className="subm-overview-row">
+                                <span className="subm-overview-label">Name</span>
+                                <span className="subm-overview-value">{detail.name || "-"}</span>
+                              </div>
+
+                              <div className="subm-overview-row">
+                                <span className="subm-overview-label">Email</span>
+                                <span className="subm-overview-value">{detail.email || "-"}</span>
+                              </div>
+
+                              <div className="subm-overview-row">
+                                <span className="subm-overview-label">Domain</span>
+                                <span className="subm-overview-value">{detail.domain || "-"}</span>
+                              </div>
+
+                              <div className="subm-overview-row">
+                                <span className="subm-overview-label">Uploaded by</span>
+                                <span className="subm-overview-value">{detail.uploadedBy || "-"}</span>
+                              </div>
+
+                              <div className="subm-overview-row">
+                                <span className="subm-overview-label">Created</span>
+                                <span className="subm-overview-value">
+                                  {new Date(detail.createdAt).toLocaleString()}
+                                </span>
+                              </div>
+
+                              <div className="subm-overview-row">
+                                <span className="subm-overview-label">Archived</span>
+                                <span className="subm-overview-value">{detail.isArchived ? "Yes" : "No"}</span>
+                              </div>
                             </div>
 
-                            <div className="subm-kv">
-                              <div className="subm-kv-row">
-                                <div className="subm-k">Type</div>
-                                <div className="subm-v">
-                                  <span className="subm-type">
-                                    {typeLabel(detail.type)}
-                                    {showUnderReview(detail.type, detail.status) ? (
-                                      <span className="subm-tag subm-tag--review">Under review</span>
-                                    ) : null}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="subm-kv-row">
-                                <div className="subm-k">Created</div>
-                                <div className="subm-v">{new Date(detail.createdAt).toLocaleString()}</div>
-                              </div>
-
-                              <div className="subm-kv-row">
-                                <div className="subm-k">Archived</div>
-                                <div className="subm-v">{detail.isArchived ? "Yes" : "No"}</div>
-                              </div>
-
-                              {detail.isArchived && detail.archivedAtUtc ? (
-                                <div className="subm-kv-row">
-                                  <div className="subm-k">Archived at</div>
-                                  <div className="subm-v">{new Date(detail.archivedAtUtc).toLocaleString()}</div>
-                                </div>
-                              ) : null}
-
-                              <div className="subm-kv-row">
-                                <div className="subm-k">Domain</div>
-                                <div className="subm-v">{detail.domain}</div>
-                              </div>
-
-                              <div className="subm-kv-row">
-                                <div className="subm-k">Name</div>
-                                <div className="subm-v">{detail.name}</div>
-                              </div>
-
-                              <div className="subm-kv-row">
-                                <div className="subm-k">Email</div>
-                                <div className="subm-v">{detail.email}</div>
-                              </div>
-
-                              <div className="subm-kv-row">
-                                <div className="subm-k">Uploaded by</div>
-                                <div className="subm-v">{detail.uploadedBy || "-"}</div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="subm-card">
-                            <div className="subm-card-h">Message</div>
                             {detail.message ? (
-                              <pre className="subm-pre">{detail.message}</pre>
-                            ) : (
-                              <div className="subm-empty">No message provided.</div>
-                            )}
+                              <div className="subm-section-block">
+                                <div className="subm-section-title">Message</div>
+                                <div className="subm-message-pretty">{detail.message}</div>
+                              </div>
+                            ) : null}
                           </div>
 
                           <div className="subm-card">
-                            <div className="subm-card-h">Fields</div>
+                            <div className="subm-card-title">Fields</div>
+
                             {(detail.fields || []).length === 0 ? (
-                              <div className="subm-empty">No extra fields.</div>
+                              <div className="subm-empty">No fields.</div>
                             ) : (
-                              <div className="subm-fields">
+                              <div className="subm-fields-list">
                                 {(detail.fields || []).map((f, idx) => (
                                   <div key={`${f.name}-${idx}`} className="subm-field-row">
-                                    <div className="subm-field-k">{f.name}</div>
-                                    <div className="subm-field-v">{f.value}</div>
+                                    <div className="subm-field-name">{f.name}</div>
+                                    <div className="subm-field-value">{f.value}</div>
                                   </div>
                                 ))}
                               </div>
                             )}
                           </div>
 
-                          {detail.type === SubmissionTypeId.DemoUpload ? (
-                            <div className="subm-card">
-                              <div className="subm-card-h subm-between">
-                                <span>Demo decision</span>
-                                <div className="subm-inline-actions">
-                                  <button
-                                    className="subm-btn subm-btn-ok"
-                                    onClick={acceptDemo}
-                                    disabled={detail.status === SubmissionStatusId.Accepted}
-                                  >
-                                    Accept
+                          <div className="subm-card">
+                            <div className="subm-card-title">Actions</div>
+
+                            <div className="subm-actions-pretty">
+                              <div className="subm-action-group">
+                                <label className="subm-input-label">Status</label>
+                                <select
+                                  className="admin-select"
+                                  value={String(detail.status)}
+                                  onChange={(e) =>
+                                    updateStatus(detail.id, Number(e.target.value) as SubmissionStatusId)
+                                  }
+                                >
+                                  {STATUS_FILTER_VALUES.map((st) => (
+                                    <option key={String(st)} value={String(st)}>
+                                      {statusLabel(st)}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div className="subm-action-buttons">
+                                {detail.isArchived ? (
+                                  <button className="subm-btn subm-btn-soft" onClick={() => unarchiveSubmission(detail.id)}>
+                                    Unarchive
                                   </button>
-                                  <button
-                                    className="subm-btn subm-btn-bad"
-                                    onClick={rejectDemo}
-                                    disabled={detail.status === SubmissionStatusId.Rejected}
-                                  >
-                                    Reject
+                                ) : (
+                                  <button className="subm-btn subm-btn-soft" onClick={() => archiveSubmission(detail.id)}>
+                                    Archive
                                   </button>
+                                )}
+
+                                <button className="subm-btn subm-btn-soft" onClick={exportOneExcel}>
+                                  Export xlsx
+                                </button>
+
+                                {detail.type === SubmissionTypeId.DemoUpload ? (
+                                  <>
+                                    <button className="subm-btn subm-btn-accept" onClick={acceptDemo}>
+                                      Accept
+                                    </button>
+                                    <button className="subm-btn subm-btn-danger" onClick={rejectDemo}>
+                                      Reject
+                                    </button>
+                                  </>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="subm-card">
+                            <div className="subm-card-title">Assign portal user</div>
+
+                            <div className="subm-actions-pretty">
+                              <div className="subm-action-group">
+                                <label className="subm-input-label">Portal user</label>
+
+                                <select
+                                  className="admin-select"
+                                  value={selectedPortalUserId}
+                                  onChange={(e) => {
+                                    setSelectedPortalUserId(e.target.value);
+                                    setAssignSuccessMessage("");
+                                  }}
+                                  disabled={portalUsersLoading || assigningPortalUser}
+                                >
+                                  <option value="">Select portal user...</option>
+                                  {portalUsers.map((u) => (
+                                    <option key={u.id} value={u.id}>
+                                      {u.email}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              {assignSuccessMessage ? (
+                                <div className="subm-assign-success">{assignSuccessMessage}</div>
+                              ) : null}
+
+                              <div className="subm-action-buttons">
+                                <button
+                                  className="subm-btn subm-btn-soft"
+                                  onClick={assignPortalUserToChat}
+                                  disabled={
+                                    portalUsersLoading ||
+                                    assigningPortalUser ||
+                                    !selectedPortalUserId ||
+                                    assignedPortalUserIds.includes(selectedPortalUserId)
+                                  }
+                                >
+                                  {assigningPortalUser
+                                    ? "Assigning..."
+                                    : assignedPortalUserIds.includes(selectedPortalUserId)
+                                    ? "Already assigned"
+                                    : "Assign to chat"}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="subm-card">
+                            <div className="subm-card-title">Reply</div>
+
+                            <div className="subm-reply-pretty">
+                              <div className="subm-reply-grid">
+                                <div className="subm-input-group">
+                                  <label className="subm-input-label">To</label>
+                                  <input
+                                    className="admin-input"
+                                    placeholder="Recipient email"
+                                    value={replyTo}
+                                    onChange={(e) => setReplyTo(e.target.value)}
+                                  />
+                                </div>
+
+                                <div className="subm-input-group">
+                                  <label className="subm-input-label">Subject</label>
+                                  <input
+                                    className="admin-input"
+                                    placeholder="Email subject"
+                                    value={replySubject}
+                                    onChange={(e) => setReplySubject(e.target.value)}
+                                  />
                                 </div>
                               </div>
 
-                              <div className="subm-help">Rejection email body (editable)</div>
-                              <textarea
-                                className="subm-textarea"
-                                value={rejectionBody}
-                                onChange={(e) => setRejectionBody(e.target.value)}
-                                rows={10}
-                              />
-                            </div>
-                          ) : null}
-
-                          <div className="subm-card">
-                            <div className="subm-card-h">Replies history</div>
-
-                            {(detail.replies || []).length === 0 ? (
-                              <div className="subm-empty">No replies yet.</div>
-                            ) : (
-                              <div className="subm-replies">
-                                {(detail.replies || []).map((r) => (
-                                  <div key={r.id} className="subm-reply">
-                                    <div className="subm-reply-top">
-                                      <span className="subm-chip">{new Date(r.sentAt).toLocaleString()}</span>
-                                      <span className="subm-chip">{r.toEmail}</span>
-                                      <span className="subm-chip">{r.subject}</span>
-                                    </div>
-                                    <pre className="subm-pre subm-pre--small">{r.body}</pre>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="subm-card">
-                            <div className="subm-card-h">Reply</div>
-
-                            <div className="subm-form">
-                              <div className="subm-form-row">
-                                <label>To</label>
-                                <input
-                                  className="subm-input"
-                                  value={replyTo}
-                                  onChange={(e) => setReplyTo(e.target.value)}
-                                  placeholder="Recipient email"
-                                />
-                              </div>
-
-                              <div className="subm-form-row">
-                                <label>Subject</label>
-                                <input
-                                  className="subm-input"
-                                  value={replySubject}
-                                  onChange={(e) => setReplySubject(e.target.value)}
-                                  placeholder="Subject"
-                                />
-                              </div>
-
-                              <div className="subm-form-row subm-form-row--top">
-                                <label>Body</label>
+                              <div className="subm-input-group">
+                                <label className="subm-input-label">Message</label>
                                 <textarea
-                                  className="subm-textarea"
-                                  rows={8}
+                                  className="admin-input subm-reply-textarea"
+                                  placeholder="Write your reply..."
                                   value={replyBody}
                                   onChange={(e) => setReplyBody(e.target.value)}
-                                  placeholder="Write your reply…"
                                 />
                               </div>
 
-                              <div className="subm-form-row subm-form-row--end">
-                                <span />
-                                <button className="subm-btn subm-btn-main" onClick={sendReply}>
+                              <div className="subm-reply-footer">
+                                <button className="subm-btn subm-btn-soft" onClick={sendReply}>
                                   Send reply
                                 </button>
                               </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div className="subm-col">
+                          {detail.type === SubmissionTypeId.DemoUpload ? (
+                            <div className="subm-card">
+                              <div className="subm-card-title">Demo rejection template</div>
+                              <textarea
+                                className="admin-input subm-reply-textarea"
+                                value={rejectionBody}
+                                onChange={(e) => setRejectionBody(e.target.value)}
+                              />
+                            </div>
+                          ) : null}
+
                           <div className="subm-card">
-                            <div className="subm-card-h">Files</div>
+                            <div className="subm-card-title">Reply history</div>
 
-                            {(detail.files || []).length === 0 ? (
-                              <div className="subm-empty">No files uploaded.</div>
+                            {(detail.replies || []).length === 0 ? (
+                              <div className="subm-empty">No replies.</div>
                             ) : (
-                              <div className="subm-files-wrap">
+                              <div className="subm-history-list">
+                                {detail.replies.map((r) => (
+                                  <div key={r.id} className="subm-history-item">
+                                    <div className="subm-history-head">
+                                      <div className="subm-history-subject">{r.subject}</div>
+                                      <div className="subm-history-date">
+                                        {new Date(r.sentAt).toLocaleString()}
+                                      </div>
+                                    </div>
+
+                                    <div className="subm-history-to">To: {r.toEmail}</div>
+                                    <div className="subm-history-body">{r.body}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {detailTab === "chat" ? (
+                        <div className="subm-chat-wrap">
+                          <div className="subm-chat-thread">
+                            {chatLoading ? (
+                              <div className="subm-loading">Loading chat…</div>
+                            ) : chatMessages.length === 0 ? (
+                              <div className="subm-empty">No chat messages yet.</div>
+                            ) : (
+                              chatMessages.map((m) => {
+                                const mine = m.senderEmail?.toLowerCase() === myEmail.toLowerCase();
+
+                                return (
+                                  <div
+                                    key={m.id}
+                                    className={[
+                                      "subm-chat-msg",
+                                      mine ? "subm-chat-msg--mine" : "",
+                                      m.isInternal ? "subm-chat-msg--internal" : "",
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" ")}
+                                  >
+                                    <div className="subm-chat-meta">
+                                      {m.senderType} · {m.senderEmail} · {new Date(m.createdAtUtc).toLocaleString()}
+                                      {m.isInternal ? " · Internal" : ""}
+                                    </div>
+                                    <div className="subm-chat-body">{m.body}</div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+
+                          <div className="subm-chat-side">
+                            <div className="subm-card">
+                              <div className="subm-card-title">Send message</div>
+
+                              <div className="subm-chat-composer">
+                                <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={chatInternal}
+                                    onChange={(e) => setChatInternal(e.target.checked)}
+                                  />
+                                  Internal note
+                                </label>
+
+                                <textarea
+                                  className="admin-input"
+                                  placeholder={
+                                    chatInternal
+                                      ? "Write an internal note..."
+                                      : "Write a message to this contact..."
+                                  }
+                                  value={chatBody}
+                                  onChange={(e) => setChatBody(e.target.value)}
+                                />
+
+                                <button
+                                  className="subm-btn subm-btn-soft"
+                                  type="button"
+                                  onClick={sendChatMessage}
+                                  disabled={chatSending || !chatBody.trim()}
+                                >
+                                  {chatSending ? "Sending..." : "Send"}
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="subm-card">
+                              <div className="subm-card-title">Contact</div>
+                              <div><strong>Name:</strong> {detail.name || "-"}</div>
+                              <div><strong>Email:</strong> {detail.email || "-"}</div>
+                              <div><strong>Type:</strong> {typeLabel(detail.type)}</div>
+                              <div><strong>Status:</strong> {statusLabel(detail.status)}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {detailTab === "files" ? (
+                        <div className="subm-grid">
+                          <div className="subm-card">
+                            <div className="subm-card-title">Files</div>
+                            {(detail.files || []).length === 0 ? (
+                              <div className="subm-empty">No files.</div>
+                            ) : (
+                              <div className="subm-files-grid">
                                 <div className="subm-files-list">
                                   {(detail.files || []).map((f) => (
-                                    <div key={f.id} className={`subm-file ${activePreviewFileId === f.id ? "is-active" : ""}`}>
-                                      <div className="subm-file-info">
+                                    <div key={f.id} className="subm-file-row">
+                                      <div className="subm-file-meta">
                                         <div className="subm-file-name">{f.fileName}</div>
-                                        <div className="subm-file-meta">
-                                          {f.contentType || "file"} — {(f.size / 1024 / 1024).toFixed(2)} MB
+                                        <div className="subm-file-size">
+                                          {f.contentType} · {(f.size / 1024 / 1024).toFixed(2)} MB
                                         </div>
                                       </div>
 
@@ -1314,14 +1958,29 @@ export function AdminSubmissions() {
                                       const ct = (f?.contentType || "").toLowerCase();
 
                                       if (ct.startsWith("image/")) {
-                                        return <img className="subm-preview-img" src={url} alt={f?.fileName || "preview"} />;
+                                        return (
+                                          <img
+                                            className="subm-preview-img"
+                                            src={url}
+                                            alt={f?.fileName || "preview"}
+                                          />
+                                        );
                                       }
+
                                       if (ct === "application/pdf") {
-                                        return <iframe className="subm-preview-iframe" src={url} title={f?.fileName || "preview"} />;
+                                        return (
+                                          <iframe
+                                            className="subm-preview-iframe"
+                                            src={url}
+                                            title={f?.fileName || "preview"}
+                                          />
+                                        );
                                       }
+
                                       if (ct.startsWith("audio/")) {
                                         return <audio className="subm-preview-audio" controls src={url} />;
                                       }
+
                                       if (ct.startsWith("video/")) {
                                         return <video className="subm-preview-video" controls src={url} />;
                                       }
@@ -1340,12 +1999,10 @@ export function AdminSubmissions() {
                               </div>
                             )}
                           </div>
-
-                          <div className="subm-card subm-card-note"></div>
                         </div>
-                      </div>
+                      ) : null}
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
             ) : null}

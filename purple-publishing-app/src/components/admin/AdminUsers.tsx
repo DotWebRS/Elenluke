@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { AdminShell } from "./AdminShell";
 import { API_BASE } from "../../config/apiBase";
 
+type UserRole = "Admin" | "Editor" | "PortalUser" | string;
+
 type UserRow = {
   id: string;
   email: string;
-  role: "Admin" | "Editor" | "Inbox" | string;
+  role: UserRole;
   isActive: boolean;
   createdAt: string;
 };
@@ -32,21 +34,26 @@ export default function AdminUsers() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"Admin" | "Editor" | "Inbox">("Inbox");
+  const [role, setRole] = useState<UserRole>("PortalUser");
 
   const canCreate = email.trim() && password.trim();
 
   const fetchUsers = async () => {
     setLoading(true);
     setError(null);
+
     try {
-      const res = await fetch(buildUrl(`/api/users`), { headers: { ...authHeaders } });
+      const res = await fetch(buildUrl(`/api/users`), {
+        headers: { ...authHeaders },
+      });
+
       if (!res.ok) {
         const t = await res.text().catch(() => "");
         setError(`Users error: ${res.status}${t ? ` — ${t}` : ""}`);
         setUsers([]);
         return;
       }
+
       const json = await res.json().catch(() => null as any);
       setUsers(Array.isArray(json) ? json : []);
     } catch (e: any) {
@@ -67,13 +74,14 @@ export default function AdminUsers() {
 
     setError(null);
     setBusyId("create");
+
     try {
       const res = await fetch(buildUrl(`/api/users`), {
         method: "POST",
         headers: { ...authHeaders, "Content-Type": "application/json" },
         body: JSON.stringify({
           email: email.trim(),
-          password: password,
+          password,
           role,
           isActive: true,
         }),
@@ -90,7 +98,7 @@ export default function AdminUsers() {
 
       setEmail("");
       setPassword("");
-      setRole("Inbox");
+      setRole("PortalUser");
     } catch (e: any) {
       setError(e?.message || "Create error");
     } finally {
@@ -101,6 +109,7 @@ export default function AdminUsers() {
   const updateUser = async (id: string, patch: Partial<{ role: string; isActive: boolean }>) => {
     setError(null);
     setBusyId(id);
+
     try {
       const res = await fetch(buildUrl(`/api/users/${id}`), {
         method: "PUT",
@@ -115,7 +124,9 @@ export default function AdminUsers() {
       }
 
       const updated: UserRow = await res.json().catch(() => null as any);
-      if (updated) setUsers((prev) => prev.map((u) => (u.id === id ? updated : u)));
+      if (updated) {
+        setUsers((prev) => prev.map((u) => (u.id === id ? updated : u)));
+      }
     } catch (e: any) {
       setError(e?.message || "Update error");
     } finally {
@@ -124,11 +135,12 @@ export default function AdminUsers() {
   };
 
   const hardDeleteUser = async (id: string) => {
-    const ok = window.confirm("Delete user PERMANENTLY? (no return)");
+    const ok = window.confirm("Delete user permanently?");
     if (!ok) return;
 
     setError(null);
     setBusyId(id);
+
     try {
       const res = await fetch(buildUrl(`/api/users/${id}`), {
         method: "DELETE",
@@ -155,12 +167,15 @@ export default function AdminUsers() {
         <div className="admin-header">
           <div className="admin-header-main">
             <h1>Users</h1>
-            <p className="sub">Create and manage admin accounts and permissions.</p>
+            <p className="sub">Create and manage platform users and permissions.</p>
           </div>
         </div>
 
         {error ? (
-          <div className="admin-alert" style={{ background: "#fff", border: "1px solid #e5e7eb", color: "#111827" }}>
+          <div
+            className="admin-alert"
+            style={{ background: "#fff", border: "1px solid #e5e7eb", color: "#111827" }}
+          >
             <strong style={{ color: "#111827" }}>Error:</strong> {error}
           </div>
         ) : null}
@@ -184,10 +199,14 @@ export default function AdminUsers() {
               autoComplete="new-password"
             />
 
-            <select className="admin-select" value={role} onChange={(e) => setRole(e.target.value as any)}>
+            <select
+              className="admin-select"
+              value={role}
+              onChange={(e) => setRole(e.target.value as UserRole)}
+            >
               <option value="Admin">Admin</option>
               <option value="Editor">Editor</option>
-              <option value="Inbox">Inbox</option>
+              <option value="PortalUser">Portal User</option>
             </select>
 
             <button
@@ -195,7 +214,7 @@ export default function AdminUsers() {
               onClick={createUser}
               disabled={!canCreate || busyId === "create"}
             >
-              Create (auto enable)
+              Create user
             </button>
           </div>
         </div>
@@ -241,7 +260,7 @@ export default function AdminUsers() {
                     <td>
                       <select
                         className="admin-select admin-select--compact"
-                        style={{ width: 160 }}
+                        style={{ width: 180 }}
                         value={u.role}
                         disabled={busy}
                         onChange={(e) => updateUser(u.id, { role: e.target.value })}
@@ -249,7 +268,7 @@ export default function AdminUsers() {
                       >
                         <option value="Admin">Admin</option>
                         <option value="Editor">Editor</option>
-                        <option value="Inbox">Inbox</option>
+                        <option value="PortalUser">Portal User</option>
                       </select>
                     </td>
 

@@ -1,0 +1,14 @@
+{
+  "BackupId": "20260410_235355",
+  "CreatedAtUtc": "2026-04-10T23:53:55.3731522Z",
+  "EnvironmentName": "Development",
+  "AppName": "Purple Backend",
+  "DatabaseFile": "PurpleMedia.db",
+  "DatabaseSizeBytes": 811008,
+  "UploadsZip": "uploads.zip",
+  "UploadsZipSizeBytes": 7789175,
+  "PrivateUploadsZip": "uploads_private.zip",
+  "PrivateUploadsZipSizeBytes": 78935,
+  "PublicAssetsZip": null,
+  "PublicAssetsZipSizeBytes": null
+}

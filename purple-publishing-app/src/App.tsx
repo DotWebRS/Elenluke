@@ -7,34 +7,32 @@ import AdminCms from "./components/admin/AdminCms";
 import AdminUsers from "./components/admin/AdminUsers";
 import AdminPMG from "./components/admin/AdminPMG";
 import AdminPCR from "./components/admin/AdminPCR";
-
+import PortalChat from "./components/admin/PortalChat";
+import AdminBackups from "./components/admin/AdminBackups";
 
 import "./styles/admin.css";
 import "animate.css";
-import "./NewStyle.css";
+import "./NewStyle_clean.css";
 
 import BottomNav from "./components/BottomNav";
 import Hero from "./components/Hero";
 import About from "./components/About";
 import Partners from "./components/Partners";
-
 import ArtistsPreview from "./components/ArtistsPreview";
 import ArtistsPage from "./components/ArtistsPage";
 import Services from "./components/Services";
 import SyncSection from "./components/SyncSection";
 import { FAQ } from "./components/FAQ";
 import Footer from "./components/Footer";
-
 import WhatIsPublishingPage from "./components/WhatIsPublishingPage";
 import SyncLicensingPage from "./components/SyncLicensingPage";
 import SubmitForm from "./components/SubmitForm";
-
 import PrivacyPolicyPage from "./components/PrivacyPolicyPage";
 import TermsPage from "./components/TermsPage";
 import CookiePolicyPage from "./components/CookiePolicyPage";
-
 import ScrollToTop from "./components/ScrollToTop";
 import ImpressumPage from "./components/ImpressumPage";
+import { AdminNotificationsProvider } from "./components/admin/AdminNotificationsProvider";
 
 export type Theme = "dark" | "light";
 export type Language = "EN" | "DE";
@@ -83,15 +81,43 @@ function HomePage() {
   );
 }
 
+function RequireRole({
+  allowed,
+  children,
+}: {
+  allowed: string[];
+  children: React.ReactNode;
+}) {
+  const token = localStorage.getItem("token");
+  const role = localStorage.getItem("role") || "";
+
+  if (!token) {
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  if (!allowed.includes(role)) {
+    if (role === "PortalUser") {
+      return <Navigate to="/portal/chat" replace />;
+    }
+
+    if (role === "Admin" || role === "Editor") {
+      return <Navigate to="/admin/submissions" replace />;
+    }
+
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function App() {
   const [theme] = useState<Theme>("dark");
 
   return (
-    <>
+    <AdminNotificationsProvider>
       <ScrollToTop />
 
       <Routes>
-        {/* PUBLIC */}
         <Route
           path="/"
           element={
@@ -146,16 +172,14 @@ function App() {
           }
         />
 
-           <Route
-            path="/impressum"
-            element={
-              <PublicLayout theme={theme}>
-                <ImpressumPage />
-              </PublicLayout>
-            }
-          />
-
-  
+        <Route
+          path="/impressum"
+          element={
+            <PublicLayout theme={theme}>
+              <ImpressumPage />
+            </PublicLayout>
+          }
+        />
 
         <Route
           path="/cookie-policy"
@@ -175,7 +199,6 @@ function App() {
           }
         />
 
-        {/* ADMIN */}
         <Route
           path="/admin/login"
           element={
@@ -186,21 +209,34 @@ function App() {
         />
 
         <Route
-          path="/admin/submissions"
+          path="/portal/chat"
           element={
             <AdminLayout theme={theme}>
-              <AdminSubmissions />
+              <RequireRole allowed={["PortalUser"]}>
+                <PortalChat />
+              </RequireRole>
             </AdminLayout>
           }
         />
 
-        
+        <Route
+          path="/admin/submissions"
+          element={
+            <AdminLayout theme={theme}>
+              <RequireRole allowed={["Admin", "Editor"]}>
+                <AdminSubmissions />
+              </RequireRole>
+            </AdminLayout>
+          }
+        />
 
         <Route
           path="/admin/users"
           element={
             <AdminLayout theme={theme}>
-              <AdminUsers />
+              <RequireRole allowed={["Admin"]}>
+                <AdminUsers />
+              </RequireRole>
             </AdminLayout>
           }
         />
@@ -209,7 +245,9 @@ function App() {
           path="/admin/cms"
           element={
             <AdminLayout theme={theme}>
-              <AdminCms />
+              <RequireRole allowed={["Admin", "Editor"]}>
+                <AdminCms />
+              </RequireRole>
             </AdminLayout>
           }
         />
@@ -218,7 +256,9 @@ function App() {
           path="/admin/pmg"
           element={
             <AdminLayout theme={theme}>
-              <AdminPMG />
+              <RequireRole allowed={["Admin", "Editor"]}>
+                <AdminPMG />
+              </RequireRole>
             </AdminLayout>
           }
         />
@@ -227,15 +267,27 @@ function App() {
           path="/admin/pcr"
           element={
             <AdminLayout theme={theme}>
-              <AdminPCR />
+              <RequireRole allowed={["Admin", "Editor"]}>
+                <AdminPCR />
+              </RequireRole>
             </AdminLayout>
           }
         />
 
-        {/* FALLBACK MORA POSLEDNJI */}
+        <Route
+          path="/admin/backups"
+          element={
+            <AdminLayout theme={theme}>
+              <RequireRole allowed={["Admin"]}>
+                <AdminBackups />
+              </RequireRole>
+            </AdminLayout>
+          }
+        />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </>
+    </AdminNotificationsProvider>
   );
 }
 

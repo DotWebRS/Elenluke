@@ -82,13 +82,11 @@ const Footer = () => {
               <i className="fa-brands fa-tiktok" />
             </a>
 
-            <a href="#" aria-label="Spotify" title="Spotify">
+            <a href="https://open.spotify.com/user/myvmaknyw268trwcpylpq53qu?si=8ece9c2f1a754919" aria-label="Spotify" title="Spotify">
               <i className="fa-brands fa-spotify" />
             </a>
 
-            <a href="#" aria-label="YouTube" title="YouTube">
-              <i className="fa-brands fa-youtube" />
-            </a>
+          
           </div>
 
           <div className="pcp-footer__legal">

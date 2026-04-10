@@ -1112,7 +1112,7 @@ export default function AdminCms() {
             </div>
           )}
 
-          <AccordionHeader title="Services (Shared content for PCP and PCR: edits here update both sites.)" open={openSection === "services"} onToggle={() => toggleSection("services")} />
+          <AccordionHeader title="Services " open={openSection === "services"} onToggle={() => toggleSection("services")} />
           {openSection === "services" && (
             <div className="cms-panel">
               <div className="cms-block__head">
@@ -1260,7 +1260,7 @@ export default function AdminCms() {
             </div>
           )}
 
-          <AccordionHeader title="Home Partners (existing marquee component)" open={openSection === "partners"} onToggle={() => toggleSection("partners")} />
+          <AccordionHeader title="Home Partners marquee component (Shared content for PCP and PCR: edits here update both sites.)" open={openSection === "partners"} onToggle={() => toggleSection("partners")} />
           {openSection === "partners" && (
             <div className="cms-panel">
               <div className="cms-block__head">

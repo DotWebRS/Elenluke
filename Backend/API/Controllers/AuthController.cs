@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.RateLimiting;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -23,6 +24,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("login-policy")]
     public IActionResult Login([FromBody] LoginRequest request)
     {
         var username = (request.Username ?? string.Empty).Trim();
@@ -38,14 +40,13 @@ public class AuthController : ControllerBase
         {
             new Claim(ClaimTypes.Name, user.Email),
             new Claim(ClaimTypes.Role, user.Role),
-
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new Claim("uid", user.Id.ToString()),
             new Claim("email", user.Email),
             new Claim("role", user.Role)
         };
 
-        var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_config["Jwt:Key"]!)
-        );
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
 
         var token = new JwtSecurityToken(
             issuer: _config["Jwt:Issuer"],
@@ -59,7 +60,8 @@ public class AuthController : ControllerBase
         {
             token = new JwtSecurityTokenHandler().WriteToken(token),
             role = user.Role,
-            email = user.Email
+            email = user.Email,
+            userId = user.Id
         });
     }
 }

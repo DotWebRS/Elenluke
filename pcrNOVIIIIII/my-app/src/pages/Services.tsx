@@ -1,72 +1,30 @@
-import { useEffect, useMemo, useState } from "react";
-import "../style/Services.css";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 type Props = { isActive?: boolean };
 
-const ShieldIcon = () => (
-  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
-    <path
-      d="M12 2l8 4v6c0 5-3.5 9.4-8 10-4.5-.6-8-5-8-10V6l8-4z"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinejoin="round"
-    />
-    <path d="M9.5 12l1.8 1.8L15.8 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
+type CmsServiceItem = {
+  id?: string;
+  title?: string;
+  text?: string;
+};
 
-const ChartIcon = () => (
-  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
-    <path d="M4 19V5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <path d="M8 19V11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <path d="M12 19V7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <path d="M16 19V14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <path d="M20 19V9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
-
-const FilmIcon = () => (
-  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
-    <path d="M4 7h16v10H4V7z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-    <path d="M8 7v10" stroke="currentColor" strokeWidth="2" />
-    <path d="M16 7v10" stroke="currentColor" strokeWidth="2" />
-    <path d="M4 10h16" stroke="currentColor" strokeWidth="2" />
-    <path d="M4 14h16" stroke="currentColor" strokeWidth="2" />
-  </svg>
-);
-
-const EditIcon = () => (
-  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
-    <path
-      d="M4 20h4l10.5-10.5a2 2 0 0 0 0-3L16.5 4a2 2 0 0 0-3 0L3 14.5V20z"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinejoin="round"
-    />
-    <path d="M12.5 6.5l5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-  </svg>
-);
-
-type CmsServiceItem = { title: string; text: string };
 type CmsServicesPayload = {
-  headingPrefix: string;
-  headingAccent: string;
-  items: CmsServiceItem[];
+  items?: CmsServiceItem[];
 };
 
-const DEFAULT: CmsServicesPayload = {
-  headingPrefix: "OUR",
-  headingAccent: "SERVICES",
-  items: [
-    { title: "Rights management & Administration", text: "We ensure every work is properly registered and protected worldwide." },
-    { title: "Royalty collection & Accounting", text: "We track, collect, and transparently report royalties across all platforms." },
-    { title: "Sync opportunities & Pitching", text: "We connect your music with global film, TV, gaming, and brand placements." },
-    { title: "Publishing right registration", text: "We manage and register publishing rights to guarantee accurate ownership and payment." },
-  ],
+type NormalizedService = {
+  id: string;
+  title: string;
+  text: string;
 };
 
-function safeJsonParse<T>(raw: any, fallback: T): T {
+const REMOTE_API_BASE = "https://cms.purplemusicgroup.com";
+const REMOTE_SITE_KEY = "purple-crunch-records";
+const CMS_KEY = "pcr.services";
+
+function safeJsonParse<T>(raw: unknown, fallback: T): T {
   if (!raw) return fallback;
+
   try {
     if (typeof raw === "string") return JSON.parse(raw) as T;
     return raw as T;
@@ -81,22 +39,133 @@ function buildUrl(baseUrl: string, path: string) {
   return base ? `${base}/${p}` : `/${p}`;
 }
 
-const REMOTE_API_BASE = "https://cms.purplemusicgroup.com";
-const REMOTE_SITE_KEY = "purple-crunch-publishing";
-const CMS_KEY = "home.services";
+function normalizeTitle(title: string) {
+  return String(title || "").trim();
+}
 
-const iconForIndex = (i: number) => {
-  const icons = [<ShieldIcon key="s" />, <ChartIcon key="c" />, <FilmIcon key="f" />, <EditIcon key="e" />];
-  return icons[i % icons.length];
-};
+const PrivacyIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path
+      d="M12 2l7 3.5V11c0 5.15-3.35 9.53-7 11-3.65-1.47-7-5.85-7-11V5.5L12 2z"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M8.8 12.1c.9-1.55 2.02-2.32 3.2-2.32s2.3.77 3.2 2.32c-.9 1.55-2.02 2.32-3.2 2.32s-2.3-.77-3.2-2.32z"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinejoin="round"
+    />
+    <circle cx="12" cy="12.1" r="0.9" fill="currentColor" />
+  </svg>
+);
+
+const SovereigntyIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path
+      d="M5 18h14M7 18V9.5l3-2.3 2 1.5 2-1.5 3 2.3V18"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M7 9l2-3 3 2 3-2 2 3"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <circle cx="12" cy="11.2" r="1.2" fill="currentColor" />
+  </svg>
+);
+
+const PrecisionIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <circle cx="12" cy="12" r="7" stroke="currentColor" strokeWidth="2" />
+    <circle cx="12" cy="12" r="2.5" stroke="currentColor" strokeWidth="2" />
+    <path
+      d="M12 2v3.2M12 18.8V22M2 12h3.2M18.8 12H22"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+    <path d="M17 7l-1.8 1.8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
+
+function iconForService(title: string, index: number) {
+  const t = title.toLowerCase();
+
+  if (t.includes("privacy")) return <PrivacyIcon />;
+  if (t.includes("sovereignty")) return <SovereigntyIcon />;
+  if (t.includes("precision") || t.includes("precesion") || t.includes("strike")) {
+    return <PrecisionIcon />;
+  }
+
+  if (index === 0) return <PrivacyIcon />;
+  if (index === 1) return <SovereigntyIcon />;
+  return <PrecisionIcon />;
+}
 
 export default function Services({ isActive = true }: Props) {
   const [phase, setPhase] = useState<"in" | "out">("in");
-  const [cms, setCms] = useState<CmsServicesPayload>(DEFAULT);
+  const [cmsItems, setCmsItems] = useState<NormalizedService[]>([]);
+  const sectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     setPhase(isActive ? "in" : "out");
   }, [isActive]);
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (reduce.matches) {
+      el.style.setProperty("--fade-progress", "1");
+      return;
+    }
+
+    let raf = 0;
+
+    const clamp = (value: number, min: number, max: number) =>
+      Math.max(min, Math.min(max, value));
+
+    const update = () => {
+      raf = 0;
+
+      const rect = el.getBoundingClientRect();
+      const vh = window.innerHeight || 1;
+
+      const enterDistance = vh * 0.92;
+      const exitDistance = vh * 0.72;
+
+      const enterProgress = clamp((vh - rect.top) / enterDistance, 0, 1);
+      const exitProgress = clamp(rect.bottom / exitDistance, 0, 1);
+
+      const rawProgress = Math.min(enterProgress, exitProgress);
+      const easedProgress = rawProgress * rawProgress * (3 - 2 * rawProgress);
+
+      el.style.setProperty("--fade-progress", String(easedProgress));
+    };
+
+    const onScroll = () => {
+      if (raf) return;
+      raf = window.requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+
+    return () => {
+      if (raf) window.cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -112,25 +181,41 @@ export default function Services({ isActive = true }: Props) {
         const r = await fetch(url, {
           signal: controller.signal,
           cache: "no-store",
-          headers: { Accept: "application/json", "Cache-Control": "no-cache, no-store, must-revalidate", Pragma: "no-cache" },
+          headers: {
+            Accept: "application/json",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            Pragma: "no-cache",
+          },
         });
 
-        if (!alive) return;
-        if (r.status === 404 || !r.ok) return;
+        if (!alive || r.status === 404 || !r.ok) {
+          if (alive) setCmsItems([]);
+          return;
+        }
 
         const wrapper = await r.json().catch(() => null as any);
         if (!alive) return;
-        if (!wrapper?.json) return;
 
-        const data = safeJsonParse<CmsServicesPayload>(wrapper.json, DEFAULT);
+        const data = safeJsonParse<CmsServicesPayload>(wrapper?.json, { items: [] });
 
-        setCms({
-          headingPrefix: data?.headingPrefix ?? DEFAULT.headingPrefix,
-          headingAccent: data?.headingAccent ?? DEFAULT.headingAccent,
-          items: Array.isArray(data?.items) && data.items.length ? data.items : DEFAULT.items,
-        });
-      } catch {
-        // ignore
+        const nextItems: NormalizedService[] = Array.isArray(data?.items)
+          ? data.items
+              .map((it, i) => ({
+                id: String(it?.id || `svc_${i + 1}`),
+                title: String(it?.title || "").trim(),
+                text: String(it?.text || "").trim(),
+              }))
+              .filter((it) => it.title || it.text)
+          : [];
+
+        console.log("PCR services raw:", wrapper);
+        console.log("PCR services parsed:", data);
+        console.log("PCR services visible items:", nextItems);
+
+        if (alive) setCmsItems(nextItems);
+      } catch (err) {
+        console.error("PCR services load failed:", err);
+        if (alive) setCmsItems([]);
       }
     })();
 
@@ -142,40 +227,85 @@ export default function Services({ isActive = true }: Props) {
 
   const items = useMemo(
     () =>
-      (cms.items || []).slice(0, 4).map((it, idx) => ({
-        icon: iconForIndex(idx),
-        title: String(it?.title ?? "").trim(),
-        desc: String(it?.text ?? "").trim(),
+      cmsItems.map((it, idx) => ({
+        id: it.id,
+        icon: iconForService(normalizeTitle(it.title), idx),
+        title: normalizeTitle(it.title),
+        desc: it.text,
       })),
-    [cms.items]
+    [cmsItems]
   );
+
+  const topItem = items[0];
+  const bottomItems = items.slice(1);
 
   const cls =
     "page " +
-    (phase === "in" ? "animate__animated animate__slideInRight" : "animate__animated animate__slideOutLeft");
+    (phase === "in"
+      ? "animate__animated animate__slideInRight"
+      : "animate__animated animate__slideOutLeft");
+
+  if (!items.length) return null;
 
   return (
-    <section className={cls} style={{ animationDuration: "650ms" }} id="services" aria-hidden={!isActive}>
+    <section
+      id="services"
+      ref={sectionRef}
+      className={cls}
+      aria-hidden={!isActive}
+      style={
+        {
+          animationDuration: "650ms",
+          ["--fade-progress" as any]: 0,
+        } as React.CSSProperties
+      }
+    >
       <div className="about-bg" aria-hidden="true" />
 
-      <div className="svc-center">
-        <div className="svc-inner">
+      <div className="svc-center svc-center--pyramid">
+        <div className="svc-inner svc-inner--pyramid">
           <h2 className="about-title svc-title">
-            <span className="svc-titleWhite">{cms.headingPrefix}</span>{" "}
-            <span className="type-gradient">{cms.headingAccent}</span>
+            <span className="svc-titleWhite">OUR</span>{" "}
+            <span className="type-gradient">SERVICES</span>
           </h2>
 
-          <div className="svc-grid">
-            {items.map((it, idx) => (
-              <article className="svc-card" key={`${it.title}_${idx}`}>
-                <div className="svc-icon" aria-hidden="true">
-                  <span className="svc-iconRing">{it.icon}</span>
-                </div>
+          <div className="svc-pyramid">
+            {topItem && (
+              <div className="svc-topRow">
+                <article className="svc-card" key={topItem.id}>
+                  <div className="svc-icon" aria-hidden="true">
+                    <span className="svc-iconRing">{topItem.icon}</span>
+                  </div>
+                  <h3 className="svc-name">{topItem.title}</h3>
+                  <p className="svc-desc">{topItem.desc}</p>
+                </article>
+              </div>
+            )}
 
-                <h3 className="svc-name">{it.title}</h3>
-                <p className="svc-desc">{it.desc}</p>
-              </article>
-            ))}
+            {!!bottomItems.length && (
+              <div className="svc-bottomRow">
+                {bottomItems.map((it) => (
+                  <article className="svc-card" key={it.id}>
+                    <div className="svc-icon" aria-hidden="true">
+                      <span className="svc-iconRing">{it.icon}</span>
+                    </div>
+                    <h3 className="svc-name">{it.title}</h3>
+                    <p className="svc-desc">{it.desc}</p>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="svc-powerMove" aria-hidden="true">
+            <img
+              className="svc-powerMoveLogo"
+              src="/branding/pcr-logo-mark.png"
+              alt="PCR"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
           </div>
         </div>
       </div>

@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { buildApiUrl } from "../config/apiBase";
-import "../style/Team.css";
 
 type Props = {
   refEl?: React.RefObject<HTMLElement | null>;
@@ -56,10 +55,61 @@ function extractText(payload: any): string {
 export default function Team({ isActive = true }: Props) {
   const [phase, setPhase] = useState<"in" | "out">("in");
   const [teamText, setTeamText] = useState<string>("");
+  const sectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     setPhase(isActive ? "in" : "out");
   }, [isActive]);
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    if (reduce.matches) {
+      el.style.setProperty("--fade-progress", "1");
+      return;
+    }
+
+    let raf = 0;
+
+    const clamp = (value: number, min: number, max: number) =>
+      Math.max(min, Math.min(max, value));
+
+    const update = () => {
+      raf = 0;
+
+      const rect = el.getBoundingClientRect();
+      const vh = window.innerHeight || 1;
+
+      const enterDistance = vh * 0.92;
+      const exitDistance = vh * 0.72;
+
+      const enterProgress = clamp((vh - rect.top) / enterDistance, 0, 1);
+      const exitProgress = clamp(rect.bottom / exitDistance, 0, 1);
+
+      const rawProgress = Math.min(enterProgress, exitProgress);
+      const easedProgress = rawProgress * rawProgress * (3 - 2 * rawProgress);
+
+      el.style.setProperty("--fade-progress", String(easedProgress));
+    };
+
+    const onScroll = () => {
+      if (raf) return;
+      raf = window.requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+
+    return () => {
+      if (raf) window.cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -117,20 +167,32 @@ export default function Team({ isActive = true }: Props) {
   const paragraphs = splitToParagraphs(normalizeEscapes(teamText));
 
   return (
-    <section className={cls} style={{ animationDuration: "650ms" }} id="team">
+    <section
+      ref={sectionRef}
+      className={cls}
+      style={
+        {
+          animationDuration: "650ms",
+          ["--fade-progress" as any]: 0,
+        } as React.CSSProperties
+      }
+      id="team"
+    >
       <div className="about-bg" aria-hidden="true" />
 
       <div className="team-center">
         <div className="team-inner">
-          <h2 className="team-title">
+          <h2 className="team-title team-fade-title">
             <span className="team-title-light">OUR</span>{" "}
             <span className="team-title-grad type-gradient">TEAM</span>
           </h2>
 
           {paragraphs.length > 0 && (
-            <div className="team-body">
+            <div className="team-body team-fade-body">
               {paragraphs.map((p, i) => (
-                <p key={i}>{p}</p>
+                <p key={i} className="team-fade-p">
+                  {p}
+                </p>
               ))}
             </div>
           )}

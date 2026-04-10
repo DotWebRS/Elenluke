@@ -1,43 +1,38 @@
 import { Link } from "react-router-dom";
-import "../style/Footer.css";
+import FadeSection from "./FadeSection";
 
-type Brand = {
-  href: string;
-  logo: string;
-  name: string;
-  isCurrent?: boolean;
-  isMidGlow?: boolean;
-};
-
-export default function Footer() {
-  const brands: Brand[] = [
+const Footer = () => {
+  const brands = [
     {
-      href: "https://pcr-landing-page.vercel.app/",
+      href: "https://purplecrunchrecords.com/",
       logo: "/branding/pcp-logo.png",
-      name: "Purple Crunch Publishing",
+      name: "Purple Crunch Record",
+      isCurrent: true,
     },
     {
-      href: "https://example.com",
+      href: "https://purplemusicgroup.com/",
       logo: "/branding/pmg.png",
       name: "Purple Music Group",
-      isMidGlow: true,
+      isCurrent: false,
     },
     {
-      href: "#",
+      href: "https://purplecrunchpublishing.com/",
       logo: "/branding/publishing.png",
       name: "Purple Crunch Publishing",
-      isCurrent: true,
+      isCurrent: false,
     },
   ];
 
   return (
-    <footer className="pcp-footer" id="contact-us">
-      <section className="pcp-footer__brands" aria-label="Partners">
+    <FadeSection id="contact" className="pcp-footer">
+      <section className="pcp-footer__brands" aria-label="Brands">
         <div className="pcp-footer__brandsInner">
-          <h2 className="pcp-footer__title">
-            <span className="pcp-footer__titleLight">OUR</span>{" "}
-            <span className="pcp-footer__titleGrad type-gradient">PARTNERS</span>
-          </h2>
+          <div className="pcp-footer__head">
+            <h2 className="about-title about-title-centered">
+              <span className="footer-title-white">OUR</span>{" "}
+              <span className="footer-title-gradient">BRANDS</span>
+            </h2>
+          </div>
 
           <div className="pcp-footer__brandsGrid">
             {brands.map((b, i) => (
@@ -46,22 +41,25 @@ export default function Footer() {
                 className={[
                   "pcp-footer__brandLink",
                   b.isCurrent ? "is-current" : "",
-                  b.isMidGlow ? "is-midGlow" : "",
-                ].join(" ")}
+                  i === 1 ? "is-midGlow" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
                 href={b.href}
-                target={b.href === "#" ? undefined : "_blank"}
-                rel={b.href === "#" ? undefined : "noreferrer"}
+                target={b.isCurrent ? undefined : "_blank"}
+                rel={b.isCurrent ? undefined : "noreferrer"}
                 aria-label={b.name}
                 title={b.name}
               >
-                <img
-                  className="pcp-footer__brandLogo"
-                  src={b.logo}
-                  alt={b.name}
-                  draggable={false}
-                  loading="lazy"
-                  decoding="async"
-                />
+                <span className="pcp-footer__brandLogoWrap">
+                  <img
+                    className="pcp-footer__brandLogo"
+                    src={b.logo}
+                    alt={b.name}
+                    draggable={false}
+                    loading="lazy"
+                  />
+                </span>
               </a>
             ))}
           </div>
@@ -70,13 +68,11 @@ export default function Footer() {
 
       <div className="pcp-footer__inner">
         <div className="pcp-footer__bottom">
-          <div className="pcp-footer__social" aria-label="Social links">
+          <div className="pcp-footer__social">
             <a
               href="https://www.instagram.com/purplecrunchrecords?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw=="
               aria-label="Instagram"
               title="Instagram"
-              target="_blank"
-              rel="noreferrer"
             >
               <i className="fa-brands fa-instagram" />
             </a>
@@ -85,28 +81,29 @@ export default function Footer() {
               href="https://www.tiktok.com/@purplecrunchrecords?is_from_webapp=1&sender_device=pc"
               aria-label="TikTok"
               title="TikTok"
-              target="_blank"
-              rel="noreferrer"
             >
               <i className="fa-brands fa-tiktok" />
             </a>
 
-            <a href="#" aria-label="Spotify" title="Spotify">
+            <a
+              href="https://open.spotify.com/user/myvmaknyw268trwcpylpq53qu?si=8ece9c2f1a754919"
+              aria-label="Spotify"
+              title="Spotify"
+            >
               <i className="fa-brands fa-spotify" />
-            </a>
-
-            <a href="#" aria-label="YouTube" title="YouTube">
-              <i className="fa-brands fa-youtube" />
             </a>
           </div>
 
           <div className="pcp-footer__legal">
-            <Link to="/cookie-policy">Cookie Policy</Link>
+            <Link to="/impressum">Impressum</Link>
             <Link to="/privacy-policy">Privacy Policy</Link>
+            <Link to="/cookie-policy">Cookie Policy</Link>
             <Link to="/terms">Terms &amp; Conditions</Link>
           </div>
         </div>
       </div>
-    </footer>
+    </FadeSection>
   );
-}
+};
+
+export default Footer;

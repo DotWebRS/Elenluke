@@ -1,8 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Container from "react-bootstrap/Container";
-import type { AdminSiteKey } from "../components/admin/adminSites";
 import { API_BASE } from "../config/apiBase";
-import FadeSection from "./FadeSection";
+import FadeSection from "../components/FadeSection";
 
 type Partner = {
   src: string;
@@ -14,7 +13,8 @@ type CmsPartnersPayload = {
   items: Array<{ id?: string; src: string; name: string; href: string }>;
 };
 
-const CMS_KEY = "home.partners";
+const SITE_KEY = "purple-crunch-publishing";
+const CMS_KEYS_TO_TRY = ["home.partners", "pcr.partners.items"];
 
 function safeParseJson<T>(raw: any, fallback: T): T {
   try {
@@ -41,14 +41,6 @@ function absolutizeSrc(src: string) {
   return s.startsWith("/") ? buildUrl(s) : buildUrl(`/${s}`);
 }
 
-function hostnameToSiteKey(hostname: string): AdminSiteKey {
-  const h = (hostname || "").toLowerCase().replace(/^www\./, "");
-  if (h.includes("publishing")) return "purple-crunch-publishing";
-  if (h.includes("records")) return "purple-crunch-records";
-  if (h.includes("music-group")) return "purple-music-group";
-  return "purple-crunch-publishing";
-}
-
 async function cmsGet(siteKey: string, key: string, signal: AbortSignal) {
   const ts = Date.now();
   const url = buildUrl(
@@ -59,6 +51,7 @@ async function cmsGet(siteKey: string, key: string, signal: AbortSignal) {
     signal,
     cache: "no-store",
     headers: {
+      Accept: "application/json",
       "Cache-Control": "no-cache, no-store, must-revalidate",
       Pragma: "no-cache",
     },
@@ -81,6 +74,7 @@ function normalizePartnersPayload(payload: any): Partner[] {
 function repeatToMinCount<T>(arr: T[], minCount: number): T[] {
   if (arr.length === 0) return [];
   if (arr.length >= minCount) return arr;
+
   const out: T[] = [];
   while (out.length < minCount) out.push(...arr);
   return out.slice(0, Math.max(minCount, arr.length));
@@ -100,23 +94,26 @@ export default function Partners() {
     const controller = new AbortController();
 
     (async () => {
-      const host = window.location.hostname.toLowerCase().replace(/^www\./, "");
-      const siteKey = hostnameToSiteKey(host);
-
       try {
-        const res = await cmsGet(siteKey, CMS_KEY, controller.signal);
-        if (!alive) return;
+        let foundPartners: Partner[] = [];
 
-        if (res.status === 404 || !res.ok) {
-          setPartners([]);
-          return;
+        for (const cmsKey of CMS_KEYS_TO_TRY) {
+          const res = await cmsGet(SITE_KEY, cmsKey, controller.signal);
+          if (!alive) return;
+
+          if (res.status === 404 || !res.ok) continue;
+
+          const payload = await res.json().catch(() => null as any);
+          const next = normalizePartnersPayload(payload);
+
+          if (next.length > 0) {
+            foundPartners = next;
+            break;
+          }
         }
 
-        const payload = await res.json().catch(() => null as any);
-        const next = normalizePartnersPayload(payload);
-
         if (!alive) return;
-        setPartners(next);
+        setPartners(foundPartners);
       } catch {
         if (!alive) return;
         setPartners([]);
@@ -173,8 +170,21 @@ export default function Partners() {
         return prev.length === next.length ? prev : next;
       });
 
-      const pxPerSec = 120;
-      const duration = Math.max(14, Math.round((setW / pxPerSec) * 10) / 10);
+      const screenW = window.innerWidth;
+
+      let pxPerSec = 120;
+
+      if (screenW <= 575.98) {
+        pxPerSec = 52;
+      } else if (screenW <= 767.98) {
+        pxPerSec = 60;
+      } else if (screenW <= 991.98) {
+        pxPerSec = 78;
+      } else {
+        pxPerSec = 120;
+      }
+
+      const duration = Math.max(18, Math.round((setW / pxPerSec) * 10) / 10);
       viewport.style.setProperty("--pmPartnersDur", `${duration}s`);
     };
 
@@ -201,53 +211,67 @@ export default function Partners() {
     <FadeSection id="partners" className="pmPartners-section">
       <Container>
         <div className="pmPartners-head">
-          <h2 className="about-title about-title-centered">
-            OUR <span className="about-us-animated">PARTNERS</span>
+          <h2 className="pmPartners-title">
+            <span className="pmPartners-title-light">OUR</span>
+            <span className="pmPartners-title-grad">PARTNERS</span>
           </h2>
         </div>
       </Container>
+
       <div className="pmPartners-rail">
-      <div className="pmPartners-viewport" ref={viewportRef}>
-        <div className="pmPartners-fade pmPartners-fade--left" aria-hidden="true" />
-        <div className="pmPartners-fade pmPartners-fade--right" aria-hidden="true" />
+        <div className="pmPartners-viewport" ref={viewportRef}>
+          <div className="pmPartners-fade pmPartners-fade--left" aria-hidden="true" />
+          <div className="pmPartners-fade pmPartners-fade--right" aria-hidden="true" />
 
-        <div className="pmPartners-move" aria-label="Partners marquee">
-          <div className="pmPartners-track" ref={measureRef}>
-            {display.map((p, i) => (
-              <a
-                className="pmPartners-logo"
-                key={`a-${p.src}-${i}`}
-                href={p.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={p.name}
-                title={p.name}
-              >
-                <span className="pmPartners-logoBox">
-                  <img src={p.src} alt={p.name} loading="lazy" decoding="async" draggable={false} />
-                </span>
-              </a>
-            ))}
-          </div>
+          <div className="pmPartners-move" aria-label="Partners marquee">
+            <div className="pmPartners-track" ref={measureRef}>
+              {display.map((p, i) => (
+                <a
+                  className="pmPartners-logo"
+                  key={`a-${p.src}-${i}`}
+                  href={p.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={p.name}
+                  title={p.name}
+                >
+                  <span className="pmPartners-logoBox">
+                    <img
+                      src={p.src}
+                      alt={p.name}
+                      loading="lazy"
+                      decoding="async"
+                      draggable={false}
+                    />
+                  </span>
+                </a>
+              ))}
+            </div>
 
-          <div className="pmPartners-track" aria-hidden="true">
-            {display.map((p, i) => (
-              <a
-                className="pmPartners-logo"
-                key={`b-${p.src}-${i}`}
-                href={p.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                tabIndex={-1}
-              >
-                <span className="pmPartners-logoBox">
-                  <img src={p.src} alt="" loading="lazy" decoding="async" draggable={false} />
-                </span>
-              </a>
-            ))}
+            <div className="pmPartners-track" aria-hidden="true">
+              {display.map((p, i) => (
+                <a
+                  className="pmPartners-logo"
+                  key={`b-${p.src}-${i}`}
+                  href={p.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  tabIndex={-1}
+                >
+                  <span className="pmPartners-logoBox">
+                    <img
+                      src={p.src}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      draggable={false}
+                    />
+                  </span>
+                </a>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
       </div>
     </FadeSection>
   );

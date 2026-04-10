@@ -115,6 +115,22 @@ const SyncSection = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (window.location.hash === "#sync") {
+      const scrollToSection = () => {
+        const el = document.getElementById("sync");
+        if (!el) return;
+        el.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      };
+
+      const timer = window.setTimeout(scrollToSection, 120);
+      return () => window.clearTimeout(timer);
+    }
+  }, []);
+
   return (
     <FadeSection id="sync" className="sync-section sync-section--simple">
       <Container className="site-container">

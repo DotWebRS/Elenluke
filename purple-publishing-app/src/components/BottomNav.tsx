@@ -4,6 +4,7 @@ import Nav from "react-bootstrap/Nav";
 import Navbar from "react-bootstrap/Navbar";
 import { useLocation, useNavigate } from "react-router-dom";
 
+
 const BottomNav = () => {
   const [, setOpen] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
